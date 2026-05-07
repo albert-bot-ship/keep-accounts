@@ -797,9 +797,203 @@ body:has(.backup-banner:not([style*="display:none"])) .fab-btn{
   bottom:80px;
 }
 
-/* Mobile: FAB slightly smaller */
-@media(max-width:480px){
-  .fab-btn{width:52px;height:52px;font-size:24px;right:16px;bottom:20px}
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 4 — Modal 滑入動畫
+   ══════════════════════════════════════════════════════════════ */
+@keyframes modalSlideUp {
+  from { opacity:0; transform:translateY(32px) scale(0.97); }
+  to   { opacity:1; transform:translateY(0)    scale(1); }
+}
+.modal-overlay.active .modal {
+  animation: modalSlideUp .28s cubic-bezier(.34,1.4,.64,1) forwards;
+}
+@keyframes overlayFadeIn {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
+.modal-overlay.active {
+  animation: overlayFadeIn .2s ease forwards;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 5 — 交易列 hover 微動畫（左色條 + 背景）
+   ══════════════════════════════════════════════════════════════ */
+.txn-row {
+  position: relative;
+  transition: background .18s ease, transform .15s ease;
+  cursor: default;
+}
+.txn-row::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--m-blue);
+  border-radius: 2px 0 0 2px;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.txn-row:hover {
+  background: var(--bg-card-hov) !important;
+  transform: translateX(2px);
+}
+.txn-row:hover::before { opacity: 1; }
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 6 — 輸入框 focus 光暈
+   ══════════════════════════════════════════════════════════════ */
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--m-blue) !important;
+  box-shadow: 0 0 0 3px rgba(0,87,184,.22), 0 0 12px rgba(0,87,184,.12) !important;
+  transition: box-shadow .2s ease, border-color .2s ease;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 7 — Toast 左色條 + 進場/退場動畫
+   ══════════════════════════════════════════════════════════════ */
+@keyframes toastIn {
+  from { opacity:0; transform:translateX(40px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes toastOut {
+  from { opacity:1; transform:translateX(0); max-height:80px; margin-bottom:8px; }
+  to   { opacity:0; transform:translateX(40px); max-height:0; margin-bottom:0; }
+}
+.toast {
+  animation: toastIn .25s cubic-bezier(.34,1.4,.64,1) forwards;
+  border-left: 4px solid var(--m-blue) !important;
+  border-radius: 0 var(--r) var(--r) 0 !important;
+  overflow: hidden;
+}
+.toast.success { border-left-color: var(--ok) !important; }
+.toast.danger  { border-left-color: var(--err) !important; }
+.toast.info    { border-left-color: var(--m-blue) !important; }
+.toast.fade-out { animation: toastOut .3s ease forwards; }
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 8 — 類別區塊標題
+   ══════════════════════════════════════════════════════════════ */
+.cat-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin: 12px 0 6px;
+  background: var(--bg-secondary);
+  border-radius: var(--r);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tx-secondary);
+  letter-spacing: .5px;
+}
+.cat-section-header:first-child { margin-top: 0; }
+.cat-section-count {
+  font-size: 11px;
+  color: var(--tx-muted);
+  font-weight: 400;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 9 — 進度條漸層（藍→橘→紅）
+   ══════════════════════════════════════════════════════════════ */
+.prog-bar-gradient {
+  height: 100%;
+  border-radius: 99px;
+  transition: width .6s ease, background .4s ease;
+}
+.prog-wrap {
+  background: rgba(255,255,255,0.06);
+  border-radius: 99px;
+  height: 5px;
+  overflow: hidden;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 10 — 空狀態 SVG 動畫
+   ══════════════════════════════════════════════════════════════ */
+@keyframes emptyBounce {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+.empty-state .empty-icon {
+  animation: emptyBounce 2.4s ease-in-out infinite;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 11 — 儀表板數字 countUp 動畫標記
+   ══════════════════════════════════════════════════════════════ */
+.stat-val[data-countup] {
+  display: inline-block;
+  transition: opacity .2s;
+}
+
+/* badge-warn */
+.badge-warn {
+  background: rgba(255,143,0,.15);
+  color: var(--warn);
+  border: 1px solid rgba(255,143,0,.35);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 12 — 行動版底部導覽列
+   ══════════════════════════════════════════════════════════════ */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 900;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--bdr-subtle);
+  padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  box-shadow: 0 -4px 20px rgba(0,0,0,.3);
+}
+.mobile-bottom-nav::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--m-blue) 0% 33%, var(--m-violet) 33% 66%, var(--m-red) 66% 100%);
+}
+.mbn-items {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+.mbn-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: var(--r);
+  transition: all .18s ease;
+  color: var(--tx-muted);
+  font-size: 10px;
+  min-width: 52px;
+}
+.mbn-item .mbn-icon { font-size: 20px; line-height: 1; }
+.mbn-item.active    { color: var(--m-blue-light); }
+.mbn-item.active .mbn-icon {
+  filter: drop-shadow(0 0 6px rgba(77,159,255,.6));
+  transform: translateY(-2px);
+}
+.mbn-item:active { transform: scale(.92); }
+
+@media (max-width: 768px) {
+  .mobile-bottom-nav { display: block; }
+  /* FAB 在行動版底部導覽列存在時上移 */
+  body:has(.mobile-bottom-nav) .fab-btn { bottom: 80px; }
+  body:has(.backup-banner:not([style*="display:none"])) .fab-btn { bottom: 140px; }
+  /* 主內容底部留空 */
+  .main-content { padding-bottom: 72px; }
+}
+@media (min-width: 769px) {
+  .mobile-bottom-nav { display: none !important; }
+}
+
+/* light theme 行動底欄 */
+body.light-theme .mobile-bottom-nav {
+  background: #f5f5fa;
+  border-top-color: rgba(0,0,0,.1);
 }
 
 /* ══ SIDEBAR OVERLAY（點任意處關閉） ═════════════════════════ */
