@@ -258,6 +258,7 @@ function loadDB() {
 function saveDB() { localStorage.setItem(SK, JSON.stringify(DB)); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function fmt(n) { return 'NT$' + Math.abs(Math.round(n)).toLocaleString('zh-TW'); }
+function fmtDecimal(n, dec=2) { return Math.abs(n).toLocaleString('zh-TW',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
 function today() { return new Date().toISOString().slice(0,10); }
 function nowYM() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function ym(d) { return (d||'').slice(0,7); }
@@ -578,7 +579,7 @@ function renderAccounts() {
       <div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||a.color}"></div>
         <span class="layer-name">${escHtml(l.label)}</span>
-        <span class="layer-amt">${fmt(l.amount)}</span>
+        <span class="layer-amt">${a.accType==='外幣'&&a.currency ? fmtFX(l.amount,a.currency) : fmt(l.amount)}</span>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editLayer','${a.id}',null,null,'${l.id}')">✏️</button>
         <button class="btn btn-danger btn-icon btn-sm" onclick="delLayer('${a.id}','${l.id}')">✕</button>
       </div>`).join('');
@@ -600,9 +601,26 @@ function renderAccounts() {
         </div>
       </div>
       <div class="account-card-body">
-        <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">帳戶餘額</div>
-        <div class="account-balance ${bal<0?'negative':isLow?'warning':'positive'}">${fmt(bal)}</div>
-        ${a.accType==='外幣'&&a.currency?(()=>{const rate=getRateTWD(a.currency);return rate?`<div class="fx-rate-badge"><span class="fx-cur">${a.currency}</span><span class="fx-arrow">→</span><span class="fx-val">1 ${a.currency} ≈ NT$${rate.toLocaleString()}</span><span class="fx-twd">帳戶約 NT$${Math.round(bal*rate).toLocaleString()}</span></div>`:''})():''}
+        <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">帳戶餘額${a.accType==='外幣'&&a.currency?` (${a.currency})`:''}
+        </div>
+        <div class="account-balance ${bal<0?'negative':isLow?'warning':'positive'}">
+          ${a.accType==='外幣'&&a.currency ? fmtFX(bal,a.currency) : fmt(bal)}
+        </div>
+        ${(()=>{
+          if(a.accType!=='外幣'||!a.currency) return '';
+          const rate=getRateTWD(a.currency);
+          if(!rate) return `<div class="fx-rate-badge"><span class="fx-cur">載入匯率中...</span></div>`;
+          const twd=bal*rate;
+          const rateDisplay=['JPY','KRW'].includes(a.currency.toUpperCase())
+            ? `1 ${a.currency} ≈ NT$${rate.toFixed(4)}`
+            : `1 ${a.currency} ≈ NT$${rate.toFixed(2)}`;
+          return `<div class="fx-rate-badge">
+            <span class="fx-cur">${a.currency}</span>
+            <span class="fx-arrow">→</span>
+            <span class="fx-val">${rateDisplay}</span>
+            <span class="fx-twd">≈ NT$${Math.round(twd).toLocaleString()}</span>
+          </div>`;
+        })()}
         ${isLow?`<div style="font-size:11px;color:var(--warn);margin-top:4px">⚠ 低於最低餘額警示 ${fmt(a.minBalance)}</div>`:''}
         ${salaryAmt!==null?`<div style="font-size:11px;color:var(--tx-secondary);margin-top:6px">薪水剩餘生活費：<span style="color:${salaryAmt-ccSpend<0?'var(--tx-red)':'var(--tx-green)'};font-weight:700">${fmt(salaryAmt-ccSpend)}</span></div>`:''}
         <div style="display:flex;gap:16px;margin-top:8px">
@@ -1077,7 +1095,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
     b=`<input type="hidden" id="lAccId" value="${id}">
     <input type="hidden" id="lLayId" value="${extraId||''}">
     <div class="form-group"><label class="form-label">分層名稱</label><input class="form-input" id="lLabel" value="${escAttr(layer?.label||'')}" placeholder="e.g. 薪水、獎金"></div>
-    <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="lAmt" type="number" value="${layer?.amount||0}"></div>
+    <div class="form-group"><label class="form-label">金額</label><input class="form-input" id="lAmt" type="number" step="any" value="${layer?.amount||0}"></div>
     <div class="form-group"><label class="form-label">顏色</label>${colorPicker('lColor',layer?.color||accL?.color||'#0057B8')}</div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveLayer()">儲存</button>`;
   }
@@ -1231,7 +1249,7 @@ function saveAccount() {
 }
 function saveLayer() {
   const accId=v('lAccId'),layId=v('lLayId'),label=document.getElementById('lLabel').value.trim(),
-        amount=+document.getElementById('lAmt').value||0,color=v('lColor');
+        amount=parseFloat(document.getElementById('lAmt').value)||0,color=v('lColor');
   if(!label){toast('請填入分層名稱','danger');return;}
   const acc=getAcc(accId);if(!acc)return;
   if(layId){const l=acc.layers.find(x=>x.id===layId);if(l)Object.assign(l,{label,amount,color});toast('分層已更新','success');}
@@ -1428,31 +1446,41 @@ function saveQuickAdd() {
 let exchangeRates = {};
 
 async function fetchExchangeRates() {
+  // Load cache first so UI can show something immediately
+  const cached = localStorage.getItem('mwallet_rates');
+  if (cached) {
+    try { const d = JSON.parse(cached); exchangeRates = d.rates; renderAccounts(); } catch {}
+  }
   try {
-    const res  = await fetch('https://api.frankfurter.app/latest?to=TWD,USD,JPY,EUR,CNY,GBP,HKD,KRW,SGD,AUD');
+    // from=TWD gives: 1 TWD = X foreign → invert to get 1 foreign = Y TWD
+    const res  = await fetch('https://api.frankfurter.app/latest?from=TWD&to=USD,JPY,EUR,CNY,GBP,HKD,KRW,SGD,AUD,CHF,CAD');
     const data = await res.json();
-    // data.rates = { TWD: x, ... } relative to EUR base
-    // We want TWD as base: 1 foreign = ? TWD
-    const twdPerEur = data.rates.TWD;
-    exchangeRates = {};
-    Object.entries(data.rates).forEach(([cur, rate]) => {
-      // rate = EUR -> cur, so TWD -> cur = rate/twdPerEur
-      // 1 cur = twdPerEur/rate TWD
-      exchangeRates[cur] = +(twdPerEur / rate).toFixed(4);
+    exchangeRates = { TWD: 1 };
+    Object.entries(data.rates).forEach(([cur, twdPerUnit]) => {
+      // data.rates[cur] = how many of that currency 1 TWD buys
+      // So 1 cur = 1 / data.rates[cur] TWD
+      exchangeRates[cur] = +(1 / twdPerUnit);
     });
-    exchangeRates['TWD'] = 1;
-    exchangeRates['EUR'] = twdPerEur;
-    localStorage.setItem('mwallet_rates', JSON.stringify({ts: Date.now(), rates: exchangeRates}));
-  } catch(e) {
-    // try cached
-    const cached = localStorage.getItem('mwallet_rates');
-    if (cached) { const d=JSON.parse(cached); exchangeRates=d.rates; }
+    localStorage.setItem('mwallet_rates', JSON.stringify({ ts: Date.now(), rates: exchangeRates }));
+    renderAccounts(); // refresh after fresh data
+  } catch (e) {
+    if (!cached) console.warn('匯率取得失敗，無快取可用');
   }
 }
 
+// 1 unit of currency → TWD amount
 function getRateTWD(currency) {
   if (!currency || currency === 'TWD') return 1;
   return exchangeRates[currency.toUpperCase()] || null;
+}
+
+// Format foreign currency with proper decimals
+function fmtFX(amount, currency) {
+  if (!currency || currency === 'TWD') return fmt(amount);
+  const noDecimal = ['JPY','KRW','IDR','VND'].includes(currency.toUpperCase());
+  const dec = noDecimal ? 0 : 2;
+  const abs = Math.abs(amount);
+  return currency + ' ' + abs.toLocaleString('zh-TW', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 
 // ════════════════════════════════════════════════════════════════
