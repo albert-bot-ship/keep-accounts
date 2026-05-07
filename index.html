@@ -1,1312 +1,607 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>M WALLET — BMW M POWER 財務管理</title>
-  <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-</head>
-<body id="appBody">
+/* ============================================================
+   BMW M POWER FINANCE TRACKER — STYLESHEET
+   ============================================================ */
 
-<!-- ══ TOP NAV ══════════════════════════════════════════════ -->
-<header class="topnav">
-  <button class="menu-toggle" id="menuToggle">☰</button>
-  <a class="nav-logo" href="#">
-    <div class="nav-logo-badge">M</div>
-    <div>
-      <div class="nav-logo-text">WALLET</div>
-      <span class="nav-logo-sub">BMW M POWER FINANCE</span>
-    </div>
-  </a>
-  <div class="nav-spacer"></div>
-  <div class="nav-month" id="navMonth"></div>
-  <button class="btn-theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切換主題">🌙</button>
-  <button class="nav-add-btn" onclick="openModal('addTxn')">＋ 新增消費</button>
-</header>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
 
-<!-- ══ SIDEBAR ═══════════════════════════════════════════════ -->
-<aside class="sidebar" id="sidebar">
-  <div class="sidebar-label">主選單</div>
-  <div class="nav-item active" data-page="dashboard" onclick="nav(this,'dashboard')">
-    <span class="nav-icon">📊</span><span>儀表板</span>
-  </div>
-  <div class="nav-item" data-page="cards" onclick="nav(this,'cards')">
-    <span class="nav-icon">💳</span><span>信用卡</span>
-  </div>
-  <div class="nav-item" data-page="accounts" onclick="nav(this,'accounts')">
-    <span class="nav-icon">🏦</span><span>銀行帳戶</span>
-  </div>
-  <div class="sidebar-label">記帳</div>
-  <div class="nav-item" data-page="txns" onclick="nav(this,'txns')">
-    <span class="nav-icon">📋</span><span>消費記錄</span>
-  </div>
-  <div class="nav-item" data-page="fixed" onclick="nav(this,'fixed')">
-    <span class="nav-icon">🔁</span><span>固定消費</span>
-  </div>
-  <div class="sidebar-label">分析</div>
-  <div class="nav-item" data-page="analytics" onclick="nav(this,'analytics')">
-    <span class="nav-icon">📈</span><span>趨勢分析</span>
-  </div>
-  <div class="sidebar-label">系統</div>
-  <div class="nav-item" data-page="settings" onclick="nav(this,'settings')">
-    <span class="nav-icon">⚙️</span><span>設定 / 類別</span>
-  </div>
-</aside>
+:root {
+  /* M Power Color Palette */
+  --m-blue:       #0057B8;
+  --m-blue-light: #4D9FFF;
+  --m-red:        #C8102E;
+  --m-red-light:  #FF4D6A;
+  --m-violet:     #6F2CA7;
 
-<!-- ══ MAIN ══════════════════════════════════════════════════ -->
-<div class="app-wrapper">
-  <main class="main-content">
+  /* Backgrounds */
+  --bg-base:       #07070F;
+  --bg-primary:    #0D0D1A;
+  --bg-secondary:  #141425;
+  --bg-card:       #1A1A2E;
+  --bg-card-hov:   #1F1F38;
+  --bg-input:      #111120;
+  --bg-modal:      #16162A;
 
-    <!-- ─── DASHBOARD ──────────────────────────── -->
-    <section class="page-section active" id="page-dashboard">
-      <div class="page-header">
-        <div class="page-title">儀表板</div>
-        <div class="dash-filter-bar">
-          <button class="dash-filter-btn active" data-range="month" onclick="setDashRange(this,'month')">本月</button>
-          <button class="dash-filter-btn" data-range="30" onclick="setDashRange(this,'30')">近30天</button>
-          <button class="dash-filter-btn" data-range="7" onclick="setDashRange(this,'7')">近7天</button>
-          <button class="dash-filter-btn" data-range="today" onclick="setDashRange(this,'today')">今天</button>
-          <button class="dash-filter-btn" data-range="all" onclick="setDashRange(this,'all')">全部</button>
-        </div>
-      </div>
-      <div class="stats-grid" id="dashStats"></div>
-      <div class="grid-2 mt-4">
-        <div>
-          <div class="section-div">
-            <div class="section-div-line"></div>
-            <div class="section-div-label">信用卡總覽</div>
-            <div class="section-div-line"></div>
-          </div>
-          <div id="dashCards"></div>
-        </div>
-        <div>
-          <div class="section-div">
-            <div class="section-div-line"></div>
-            <div class="section-div-label">銀行帳戶總覽</div>
-            <div class="section-div-line"></div>
-          </div>
-          <div id="dashAccounts"></div>
-        </div>
-      </div>
-      <div class="section-div mt-4">
-        <div class="section-div-line"></div>
-        <div class="section-div-label" id="dashRecentLabel">最近消費</div>
-        <div class="section-div-line"></div>
-      </div>
-      <div id="dashRecent"></div>
-    </section>
+  /* Borders */
+  --bdr-subtle:  rgba(255,255,255,0.06);
+  --bdr-normal:  rgba(255,255,255,0.10);
+  --bdr-accent:  rgba(0,87,184,0.50);
+  --bdr-red:     rgba(200,16,46,0.50);
 
-    <!-- ─── CREDIT CARDS ───────────────────────── -->
-    <section class="page-section" id="page-cards">
-      <div class="page-header">
-        <div class="page-title">信用卡</div>
-        <button class="btn btn-primary" onclick="openModal('addCard')">＋ 新增信用卡</button>
-      </div>
-      <div class="stats-grid" id="ccStats"></div>
-      <div class="cards-grid" id="cardsGrid"></div>
-    </section>
+  /* Text */
+  --tx-primary:  #E8E8F8;
+  --tx-secondary:#8080A8;
+  --tx-muted:    #4A4A6A;
+  --tx-blue:     #4D9FFF;
+  --tx-red:      #FF4D6A;
+  --tx-green:    #10a95f;
+  --tx-warning:  #FFB300;
 
-    <!-- ─── BANK ACCOUNTS ──────────────────────── -->
-    <section class="page-section" id="page-accounts">
-      <div class="page-header">
-        <div class="page-title">銀行帳戶</div>
-        <button class="btn btn-primary" onclick="openModal('addAccount')">＋ 新增帳戶</button>
-      </div>
-      <div class="cards-grid" id="accountsGrid"></div>
-    </section>
+  /* Status */
+  --ok:         #00C853;
+  --ok-bg:      rgba(0,200,83,0.10);
+  --err:        #FF1744;
+  --err-bg:     rgba(255,23,68,0.10);
+  --warn:       #FF8F00;
+  --warn-bg:    rgba(255,143,0,0.10);
 
-    <!-- ─── TRANSACTIONS ───────────────────────── -->
-    <section class="page-section" id="page-txns">
-      <div class="page-header">
-        <div class="page-title">消費記錄</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" onclick="copyLastTxn()" title="複製最後一筆消費">📋 複製上筆</button>
-          <button class="btn btn-primary" onclick="openModal('addTxn')">＋ 新增記錄</button>
-        </div>
-      </div>
-      <div class="table-container">
-        <div class="table-toolbar" style="flex-wrap:wrap;gap:6px">
-          <input type="text" class="form-input" id="txnSearch" placeholder="🔍 搜尋內容/備註..." style="width:180px" oninput="renderTxns()">
-          <input type="date" class="form-input" id="filterFrom" style="width:135px">
-          <span style="color:var(--tx-muted)">—</span>
-          <input type="date" class="form-input" id="filterTo" style="width:135px">
-          <select class="form-select" id="filterSource" style="width:145px" onchange="renderTxns()">
-            <option value="">全部帳戶/卡片</option>
-          </select>
-          <select class="form-select" id="filterCat" style="width:110px" onchange="renderTxns()">
-            <option value="">全部類別</option>
-          </select>
-          <select class="form-select" id="filterType" style="width:95px" onchange="renderTxns()">
-            <option value="">全部</option>
-            <option value="expense">支出</option>
-            <option value="income">收入</option>
-          </select>
-          <button class="btn btn-ghost btn-sm" onclick="renderTxns()">篩選</button>
-          <div class="table-toolbar-right">
-            <button class="btn btn-danger btn-sm" id="batchDelBtn" style="display:none" onclick="batchDelete()">🗑 刪除已選(<span id="batchCount">0</span>)</button>
-            <button class="btn btn-success btn-sm" onclick="exportExcel()">📥 匯出 Excel</button>
-          </div>
-        </div>
-        <div id="txnTableWrap"></div>
-      </div>
-    </section>
+  /* Glow / Shadow */
+  --sha-sm:   0 2px 8px rgba(0,0,0,0.30);
+  --sha-md:   0 4px 20px rgba(0,0,0,0.40);
+  --sha-lg:   0 8px 40px rgba(0,0,0,0.55);
+  --glo-blue: 0 0 20px rgba(0,87,184,0.35);
+  --glo-red:  0 0 20px rgba(200,16,46,0.35);
+  --glo-grn:  0 0 20px rgba(0,200,83,0.25);
 
-    <!-- ─── FIXED EXPENSES ─────────────────────── -->
-    <section class="page-section" id="page-fixed">
-      <div class="page-header">
-        <div class="page-title">固定消費</div>
-        <button class="btn btn-primary" onclick="openModal('addFixed')">＋ 新增固定消費</button>
-      </div>
-      <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">每月依照設定日期自動加入消費記錄（當日或已過當日才生成）。</p>
-      <div id="fixedList"></div>
-    </section>
+  /* Typography */
+  --ff-display: 'Rajdhani','Noto Sans TC',sans-serif;
+  --ff-body:    'Noto Sans TC',sans-serif;
 
-    <!-- ─── ANALYTICS ──────────────────────────── -->
-    <section class="page-section" id="page-analytics">
-      <div class="page-header">
-        <div class="page-title">趨勢分析</div>
-        <select class="form-select" id="analyticsYear" style="width:110px" onchange="renderAnalytics()"></select>
-      </div>
-      <div class="stats-grid" id="analyticsStats"></div>
-      <div class="charts-grid-2">
-        <div class="chart-box">
-          <div class="chart-title">月度消費趨勢</div>
-          <canvas id="trendChart" height="200"></canvas>
-        </div>
-        <div class="chart-box">
-          <div class="chart-title">本月類別分布</div>
-          <canvas id="catChart" height="200"></canvas>
-        </div>
-      </div>
-      <div class="chart-box mt-4">
-        <div class="chart-title">各類別年度累計</div>
-        <canvas id="catBarChart" height="120"></canvas>
-      </div>
-    </section>
+  /* Geometry */
+  --r-sm:  4px;
+  --r:     8px;
+  --r-lg: 14px;
+  --r-xl: 20px;
 
-    <!-- ─── SETTINGS ───────────────────────────── -->
-    <section class="page-section" id="page-settings">
-      <div class="page-header">
-        <div class="page-title">設定 / 類別</div>
-        <button class="btn btn-primary" onclick="openModal('addCat')">＋ 新增類別</button>
-      </div>
-      <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">設定消費類別與月度預算額度，超過額度時記錄會以紅色警示閃爍顯示。</p>
-      <div id="catList"></div>
-      <div class="section-div mt-4">
-        <div class="section-div-line"></div>
-        <div class="section-div-label">資料管理</div>
-        <div class="section-div-line"></div>
-      </div>
-      <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
-        <button class="btn btn-ghost" onclick="exportData()">📤 匯出備份 (.json)</button>
-        <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">📥 匯入備份</button>
-        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
-        <button class="btn btn-danger" onclick="confirmClearAll()">🗑 清除所有資料</button>
-      </div>
-    </section>
-  </main>
-</div>
-
-<!-- ══ MODAL ═════════════════════════════════════════════════ -->
-<div class="modal-overlay" id="modalOverlay" onclick="closeModalOverlay(event)">
-  <div class="modal" id="modalBox" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <div class="modal-title" id="modalTitle"></div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-body" id="modalBody"></div>
-    <div class="modal-footer" id="modalFooter"></div>
-  </div>
-</div>
-
-<!-- ══ TOAST ══════════════════════════════════════════════════ -->
-<div class="toast-wrap" id="toastWrap"></div>
-
-<script>
-// ════════════════════════════════════════════════════════════════
-// DATA
-// ════════════════════════════════════════════════════════════════
-const SK = 'mwallet_v2';
-let DB = loadDB();
-let charts = {};
-let modalType = null, editTarget = null;
-let dashRange = 'month';
-let selectedTxns = new Set();
-
-function defaultDB() {
-  return {
-    creditCards: [], bankAccounts: [], transactions: [],
-    fixedExpenses: [], generatedFixed: {},
-    categories: [
-      { id: uid(), name: '餐飲',   color: '#e31836', budget: 0 },
-      { id: uid(), name: '交通',   color: '#1c69d4', budget: 0 },
-      { id: uid(), name: '購物',   color: '#9b59b6', budget: 0 },
-      { id: uid(), name: '娛樂',   color: '#f39c12', budget: 0 },
-      { id: uid(), name: '醫療',   color: '#27ae60', budget: 0 },
-      { id: uid(), name: '訂閱',   color: '#00bcd4', budget: 0 },
-      { id: uid(), name: '其他',   color: '#7f8c8d', budget: 0 },
-    ]
-  };
-}
-function loadDB() {
-  try { const r = localStorage.getItem(SK); if (r) return JSON.parse(r); } catch {}
-  return defaultDB();
-}
-function saveDB() { localStorage.setItem(SK, JSON.stringify(DB)); }
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
-function fmt(n) { return 'NT$' + Math.abs(Math.round(n)).toLocaleString('zh-TW'); }
-function today() { return new Date().toISOString().slice(0,10); }
-function nowYM() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
-function ym(d) { return (d||'').slice(0,7); }
-function getCat(id) { return DB.categories.find(c=>c.id===id)||{name:'—',color:'#7f8c8d',budget:0}; }
-function getCard(id) { return DB.creditCards.find(c=>c.id===id); }
-function getAcc(id)  { return DB.bankAccounts.find(a=>a.id===id); }
-function v(id) { const el=document.getElementById(id); return el?el.value:''; }
-function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-function emptyState(icon,title,desc) {
-  return `<div class="empty-state"><div class="empty-icon">${icon}</div><div class="empty-title">${title||''}</div>${desc?`<div class="empty-desc">${desc}</div>`:''}</div>`;
+  /* Layout */
+  --nav-h:     60px;
+  --side-w:   220px;
+  --pad:       24px;
 }
 
-// ════════════════════════════════════════════════════════════════
-// THEME — auto sunrise/sunset for Taichung (24.15N, 120.67E)
-// ════════════════════════════════════════════════════════════════
-let manualTheme = localStorage.getItem('mwallet_theme') || 'auto';
-
-function getSunTimes(date) {
-  const lat = 24.15, lng = 120.67;
-  const rad = Math.PI / 180;
-  const N   = Math.floor((date - new Date(date.getFullYear(),0,0)) / 86400000);
-  const B   = (360/365) * (N-81) * rad;
-  const ET  = 9.87*Math.sin(2*B) - 7.53*Math.cos(B) - 1.5*Math.sin(B);
-  const dec = 23.45 * Math.sin(B) * rad;
-  const ha  = Math.acos(-Math.tan(lat*rad)*Math.tan(dec)) / rad;
-  const tz  = 8;
-  const noon = 12 - ET/60 - (lng - tz*15)/15;
-  return { sunrise: noon - ha/15, sunset: noon + ha/15 };
+/* ── RESET ─────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;scroll-behavior:smooth}
+body{
+  font-family:var(--ff-body);
+  background:var(--bg-base);
+  color:var(--tx-primary);
+  min-height:100vh;
+  overflow-x:hidden;
 }
 
-function applyTheme(theme) {
-  const body = document.getElementById('appBody');
-  const btn  = document.getElementById('themeToggle');
-  if (theme === 'light') {
-    body.classList.add('light-theme');
-    if (btn) btn.textContent = '☀️';
-  } else {
-    body.classList.remove('light-theme');
-    if (btn) btn.textContent = '🌙';
-  }
+/* Carbon-fibre texture */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:repeating-linear-gradient(
+    45deg,transparent,transparent 2px,
+    rgba(255,255,255,0.012) 2px,
+    rgba(255,255,255,0.012) 4px
+  );
+  pointer-events:none;z-index:0;
 }
 
-function autoTheme() {
-  if (manualTheme !== 'auto') { applyTheme(manualTheme); return; }
-  const now = new Date();
-  const { sunrise, sunset } = getSunTimes(now);
-  const h = now.getHours() + now.getMinutes()/60;
-  applyTheme((h >= sunrise && h < sunset) ? 'light' : 'dark');
+/* ── TOP NAV ────────────────────────────── */
+.topnav{
+  position:fixed;top:0;left:0;right:0;
+  height:var(--nav-h);
+  background:linear-gradient(135deg,#0A0A18,#12122A);
+  border-bottom:1px solid var(--bdr-subtle);
+  display:flex;align-items:center;
+  padding:0 24px;z-index:1000;gap:16px;
+}
+.topnav::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,
+    var(--m-blue) 0% 33.3%,
+    var(--m-violet) 33.3% 66.6%,
+    var(--m-red) 66.6% 100%
+  );
+}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;user-select:none}
+.nav-logo-badge{
+  width:38px;height:38px;
+  background:linear-gradient(135deg,var(--m-blue),var(--m-violet));
+  border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--ff-display);font-weight:700;font-size:15px;color:#fff;
+  letter-spacing:1px;box-shadow:var(--glo-blue);
+}
+.nav-logo-text{
+  font-family:var(--ff-display);font-size:18px;font-weight:700;
+  letter-spacing:3px;color:var(--tx-primary);text-transform:uppercase;
+}
+.nav-logo-sub{
+  font-size:9px;letter-spacing:3px;color:var(--m-blue-light);
+  text-transform:uppercase;font-family:var(--ff-display);
+  display:block;line-height:1;margin-top:2px;
+}
+.nav-spacer{flex:1}
+.nav-month{font-family:var(--ff-display);font-size:13px;color:var(--tx-secondary);letter-spacing:1px}
+.menu-toggle{
+  display:none;background:transparent;border:1px solid var(--bdr-normal);
+  color:var(--tx-secondary);width:34px;height:34px;border-radius:var(--r);
+  cursor:pointer;font-size:18px;align-items:center;justify-content:center;
+}
+.nav-add-btn{
+  background:linear-gradient(135deg,var(--m-blue),var(--m-violet));
+  border:none;color:#fff;padding:7px 14px;border-radius:var(--r);
+  font-size:13px;cursor:pointer;font-family:var(--ff-body);
+  display:flex;align-items:center;gap:6px;transition:all .2s;
+  box-shadow:0 2px 10px rgba(0,87,184,.3);
+}
+.nav-add-btn:hover{box-shadow:0 4px 16px rgba(0,87,184,.5);transform:translateY(-1px)}
+
+/* ── APP LAYOUT ─────────────────────────── */
+.app-wrapper{display:flex;min-height:100vh;padding-top:var(--nav-h)}
+
+/* ── SIDEBAR ─────────────────────────────── */
+.sidebar{
+  width:var(--side-w);background:var(--bg-primary);
+  border-right:1px solid var(--bdr-subtle);
+  position:fixed;top:var(--nav-h);left:0;bottom:0;
+  overflow-y:auto;z-index:100;padding:12px 0;
+  transition:transform .3s ease;
+}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--bdr-normal);border-radius:2px}
+
+.sidebar-label{
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--tx-muted);padding:10px 20px 4px;font-family:var(--ff-display);
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:var(--r);cursor:pointer;
+  transition:all .2s;margin:1px 8px;color:var(--tx-secondary);
+  font-size:13px;border:1px solid transparent;position:relative;
+}
+.nav-item:hover{background:var(--bg-card);color:var(--tx-primary);border-color:var(--bdr-subtle)}
+.nav-item.active{
+  background:linear-gradient(135deg,rgba(0,87,184,.2),rgba(111,44,167,.15));
+  color:var(--tx-blue);border-color:var(--bdr-accent);box-shadow:var(--glo-blue);
+}
+.nav-item.active::before{
+  content:'';position:absolute;left:-8px;top:50%;transform:translateY(-50%);
+  width:3px;height:20px;
+  background:linear-gradient(var(--m-blue),var(--m-violet));border-radius:0 2px 2px 0;
+}
+.nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+
+/* ── MAIN ─────────────────────────────────── */
+.main-content{
+  flex:1;margin-left:var(--side-w);
+  padding:var(--pad);
+  min-height:calc(100vh - var(--nav-h));
+  position:relative;z-index:1;
+}
+.page-section{display:none}
+.page-section.active{display:block;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── PAGE HEADER ──────────────────────────── */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.page-title{
+  font-family:var(--ff-display);font-size:24px;font-weight:700;
+  letter-spacing:3px;text-transform:uppercase;color:var(--tx-primary);
+  display:flex;align-items:center;gap:12px;
+}
+.page-title::before{
+  content:'';display:block;width:4px;height:26px;flex-shrink:0;
+  background:linear-gradient(var(--m-blue),var(--m-red));border-radius:2px;
 }
 
-function toggleTheme() {
-  const body = document.getElementById('appBody');
-  const isLight = body.classList.contains('light-theme');
-  if (manualTheme === 'auto') {
-    manualTheme = isLight ? 'dark' : 'light';
-  } else if (manualTheme === 'light') {
-    manualTheme = 'dark';
-  } else {
-    manualTheme = 'auto';
-    toast('已切換為日出/日落自動模式','info');
-  }
-  localStorage.setItem('mwallet_theme', manualTheme);
-  autoTheme();
+/* ── STATS GRID ──────────────────────────── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{
+  background:var(--bg-card);border:1px solid var(--bdr-subtle);
+  border-radius:var(--r-lg);padding:20px;position:relative;overflow:hidden;
+  transition:all .3s ease;
+}
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--m-blue),var(--m-violet),var(--m-red));
+  opacity:0;transition:opacity .3s;
+}
+.stat-card:hover::before{opacity:1}
+.stat-card:hover{border-color:var(--bdr-accent);transform:translateY(-2px);box-shadow:var(--sha-md),var(--glo-blue)}
+.stat-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:8px}
+.stat-value{font-family:var(--ff-display);font-size:26px;font-weight:700;color:var(--tx-primary);line-height:1}
+.stat-value.danger{color:var(--tx-red);text-shadow:var(--glo-red)}
+.stat-value.success{color:var(--tx-green)}
+.stat-value.warning{color:var(--tx-warning)}
+.stat-value.blue{color:var(--tx-blue)}
+.stat-sub{font-size:11px;color:var(--tx-secondary);margin-top:6px}
+.stat-icon{position:absolute;bottom:14px;right:14px;font-size:30px;opacity:.1}
+
+/* ── ACCOUNT CARDS ───────────────────────── */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(275px,1fr));gap:16px}
+.account-card{
+  background:var(--bg-card);border:1px solid var(--bdr-subtle);
+  border-radius:var(--r-lg);overflow:hidden;
+  transition:all .3s ease;position:relative;
+}
+.account-card:hover{transform:translateY(-3px);box-shadow:var(--sha-lg)}
+.account-card-header{
+  padding:16px 18px;display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid var(--bdr-subtle);
+}
+.account-card-icon{
+  width:44px;height:44px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;overflow:hidden;flex-shrink:0;
+}
+.account-card-icon img{width:100%;height:100%;object-fit:cover}
+.account-card-name{font-family:var(--ff-display);font-weight:700;font-size:15px;letter-spacing:1px;flex:1}
+.account-card-type{font-size:9px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display)}
+.account-card-body{padding:14px 18px}
+.account-balance{font-family:var(--ff-display);font-size:24px;font-weight:700;letter-spacing:1px}
+.account-balance.negative{color:var(--tx-red);text-shadow:var(--glo-red)}
+.account-balance.positive{color:var(--tx-green)}
+.account-card-footer{
+  padding:10px 18px;display:flex;gap:6px;flex-wrap:wrap;
+  border-top:1px solid var(--bdr-subtle);background:rgba(0,0,0,0.2);
+}
+.add-card-btn{
+  background:var(--bg-card);border:2px dashed var(--bdr-normal);
+  border-radius:var(--r-lg);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;padding:40px;
+  cursor:pointer;transition:all .3s;color:var(--tx-muted);min-height:160px;
+}
+.add-card-btn:hover{border-color:var(--m-blue);color:var(--tx-blue);background:rgba(0,87,184,.05)}
+.add-card-icon{font-size:28px}
+.add-card-label{font-size:13px;letter-spacing:1px;font-family:var(--ff-display)}
+
+/* ── BUTTONS ─────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border-radius:var(--r);border:1px solid transparent;
+  font-family:var(--ff-body);font-size:13px;font-weight:500;
+  cursor:pointer;transition:all .2s;text-decoration:none;white-space:nowrap;
+}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,var(--m-blue),#004fa0);color:#fff;border-color:var(--m-blue);box-shadow:0 2px 10px rgba(0,87,184,.3)}
+.btn-primary:hover{box-shadow:0 4px 16px rgba(0,87,184,.5);transform:translateY(-1px)}
+.btn-danger{background:linear-gradient(135deg,var(--m-red),#a00d24);color:#fff;border-color:var(--m-red);box-shadow:0 2px 10px rgba(200,16,46,.3)}
+.btn-danger:hover{box-shadow:0 4px 16px rgba(200,16,46,.5);transform:translateY(-1px)}
+.btn-success{background:linear-gradient(135deg,#00a844,#007a32);color:#fff;border-color:var(--ok)}
+.btn-success:hover{box-shadow:0 4px 16px rgba(0,200,83,.4);transform:translateY(-1px)}
+.btn-violet{background:linear-gradient(135deg,var(--m-violet),#4a1c7a);color:#fff;border-color:var(--m-violet)}
+.btn-violet:hover{box-shadow:0 4px 16px rgba(111,44,167,.5);transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--tx-secondary);border-color:var(--bdr-normal)}
+.btn-ghost:hover{background:var(--bg-card);color:var(--tx-primary);border-color:var(--bdr-accent)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-icon{width:30px;height:30px;padding:0;justify-content:center;font-size:14px}
+
+/* ── TABLE ───────────────────────────────── */
+.table-container{background:var(--bg-card);border:1px solid var(--bdr-subtle);border-radius:var(--r-lg);overflow:hidden}
+.table-toolbar{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--bdr-subtle);flex-wrap:wrap}
+.table-toolbar-right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--bg-secondary)}
+th{
+  padding:10px 14px;text-align:left;font-size:10px;
+  letter-spacing:1.5px;text-transform:uppercase;color:var(--tx-muted);
+  font-family:var(--ff-display);font-weight:600;
+  border-bottom:1px solid var(--bdr-subtle);white-space:nowrap;
+}
+td{padding:11px 14px;border-bottom:1px solid var(--bdr-subtle);font-size:13px;color:var(--tx-primary)}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:rgba(255,255,255,.03)}
+.a-pos{color:var(--tx-green);font-weight:600}
+.a-neg{color:var(--tx-red);font-weight:600}
+.a-over{
+  color:var(--err)!important;font-weight:700!important;
+  text-shadow:0 0 8px rgba(255,23,68,.6);
+  background:rgba(255,23,68,.12);
+  padding:2px 6px;border-radius:4px;
+  animation:glowRed 1.5s ease-in-out infinite;
+}
+@keyframes glowRed{
+  0%,100%{text-shadow:0 0 5px rgba(255,23,68,.4)}
+  50%{text-shadow:0 0 15px rgba(255,23,68,.9),0 0 25px rgba(255,23,68,.4)}
 }
 
-// ════════════════════════════════════════════════════════════════
-// COMPUTED
-// ════════════════════════════════════════════════════════════════
-function cardBalance(id) {
-  return DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===id)
-    .reduce((s,t)=>s+t.amount,0);
+/* ── BADGE ──────────────────────────────── */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px}
+.badge-blue{background:rgba(0,87,184,.2);color:var(--m-blue-light);border:1px solid rgba(0,87,184,.3)}
+.badge-red{background:rgba(200,16,46,.2);color:var(--m-red-light);border:1px solid rgba(200,16,46,.3)}
+.badge-green{background:var(--ok-bg);color:var(--tx-green);border:1px solid rgba(0,200,83,.3)}
+.badge-violet{background:rgba(111,44,167,.2);color:#b07fff;border:1px solid rgba(111,44,167,.3)}
+.badge-gray{background:rgba(255,255,255,.05);color:var(--tx-secondary);border:1px solid var(--bdr-normal)}
+
+/* ── MODAL ──────────────────────────────── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(5px);
+  z-index:2000;align-items:center;justify-content:center;padding:20px;
 }
-function accountBalance(id) {
-  const acc = getAcc(id); if (!acc) return 0;
-  const lay = (acc.layers||[]).reduce((s,l)=>s+(l.amount||0),0);
-  const tx  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===id)
-    .reduce((s,t)=>s+t.amount,0);
-  return lay + tx;
+.modal-overlay.active{display:flex;animation:fadeUp .2s ease}
+.modal{
+  background:var(--bg-modal);border:1px solid var(--bdr-normal);
+  border-radius:var(--r-xl);width:100%;max-width:500px;
+  max-height:90vh;overflow-y:auto;box-shadow:var(--sha-lg);
+  animation:modalPop .3s cubic-bezier(.34,1.56,.64,1);
 }
-function rangedTxns() {
-  const now = new Date();
-  const t0 = today();
-  if (dashRange === 'today')
-    return DB.transactions.filter(t=>t.date===t0);
-  if (dashRange === '7') {
-    const d = new Date(now); d.setDate(d.getDate()-6);
-    const from = d.toISOString().slice(0,10);
-    return DB.transactions.filter(t=>t.date>=from&&t.date<=t0);
-  }
-  if (dashRange === '30') {
-    const d = new Date(now); d.setDate(d.getDate()-29);
-    const from = d.toISOString().slice(0,10);
-    return DB.transactions.filter(t=>t.date>=from&&t.date<=t0);
-  }
-  if (dashRange === 'month')
-    return DB.transactions.filter(t=>ym(t.date)===nowYM());
-  return DB.transactions;
+.modal.modal-lg{max-width:680px}
+@keyframes modalPop{from{opacity:0;transform:scale(.88) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal::-webkit-scrollbar{width:4px}
+.modal::-webkit-scrollbar-thumb{background:var(--bdr-normal);border-radius:2px}
+.modal-header{
+  padding:18px 22px 14px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--bdr-subtle);position:sticky;top:0;background:var(--bg-modal);z-index:1;
 }
-function thisMonthCCSpend() {
-  return DB.transactions.filter(t=>t.sourceType==='card'&&t.amount<0&&ym(t.date)===nowYM())
-    .reduce((s,t)=>s+t.amount,0);
+.modal-title{font-family:var(--ff-display);font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+.modal-close{
+  width:28px;height:28px;border-radius:50%;background:var(--bg-card);
+  border:1px solid var(--bdr-normal);color:var(--tx-secondary);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;
 }
-function catMonthSpend(id) {
-  return DB.transactions.filter(t=>t.category===id&&t.amount<0&&ym(t.date)===nowYM())
-    .reduce((s,t)=>s+Math.abs(t.amount),0);
+.modal-close:hover{background:var(--err-bg);color:var(--tx-red);border-color:var(--bdr-red)}
+.modal-body{padding:18px 22px}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--bdr-subtle);display:flex;justify-content:flex-end;gap:8px}
+
+/* ── FORMS ───────────────────────────────── */
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx-secondary);font-family:var(--ff-display);margin-bottom:5px;font-weight:600}
+.form-input,.form-select{
+  width:100%;background:var(--bg-input);border:1px solid var(--bdr-normal);
+  border-radius:var(--r);padding:9px 12px;color:var(--tx-primary);
+  font-size:13px;font-family:var(--ff-body);transition:all .2s;outline:none;
 }
-function sourceName(t) {
-  if (t.sourceType==='card')    { const c=getCard(t.sourceId); return c?c.name:'已刪除'; }
-  if (t.sourceType==='account') { const a=getAcc(t.sourceId);  return a?a.name:'已刪除'; }
-  return '—';
+.form-input:focus,.form-select:focus{border-color:var(--m-blue);box-shadow:0 0 0 2px rgba(0,87,184,.15)}
+.form-input::placeholder{color:var(--tx-muted)}
+.form-select{
+  appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7'%3E%3Cpath d='M0 0l6 7 6-7z' fill='%238080A8'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;
 }
-// Days until credit card due date
-function daysUntilDue(card) {
-  if (!card.dueDay) return null;
-  const now = new Date(); 
-  const d = new Date(now.getFullYear(), now.getMonth(), card.dueDay);
-  if (d < now) d.setMonth(d.getMonth()+1);
-  return Math.ceil((d - now) / 86400000);
+.form-select option{background:var(--bg-modal);color:var(--tx-primary)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+textarea.form-input{resize:vertical;min-height:66px}
+
+/* ── COLOR PICKER ────────────────────────── */
+.color-picker-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px}
+.c-swatch{
+  width:26px;height:26px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;transition:all .2s;flex-shrink:0;
 }
-// Card monthly cashback
-function cardMonthlyCashback(card) {
-  if (!card.cashbackRate || card.cashbackRate <= 0) return 0;
-  const mSpend = DB.transactions
-    .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.amount<0&&ym(t.date)===nowYM()&&!t.isPayment)
-    .reduce((s,t)=>s+Math.abs(t.amount),0);
-  return Math.floor(mSpend * card.cashbackRate / 100);
+.c-swatch:hover,.c-swatch.sel{transform:scale(1.25);border-color:#fff;box-shadow:0 0 8px rgba(255,255,255,.4)}
+.c-custom{
+  width:26px;height:26px;border-radius:50%;border:2px dashed var(--bdr-normal);
+  cursor:pointer;overflow:hidden;position:relative;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:var(--tx-muted);transition:all .2s;
+}
+.c-custom:hover{border-color:var(--tx-secondary)}
+.c-custom input[type=color]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0}
+.color-preview{
+  width:18px;height:18px;border-radius:50%;flex-shrink:0;
+  box-shadow:0 0 6px rgba(0,0,0,.4);transition:all .3s;
 }
 
-// ════════════════════════════════════════════════════════════════
-// FIXED AUTO-GENERATE
-// ════════════════════════════════════════════════════════════════
-function generateFixed() {
-  const now = new Date(), curYM = nowYM(), curDay = now.getDate();
-  if (!DB.generatedFixed[curYM]) DB.generatedFixed[curYM] = [];
-  let added = 0;
-  DB.fixedExpenses.forEach(fe => {
-    if (DB.generatedFixed[curYM].includes(fe.id)) return;
-    if (curDay < fe.day) return;
-    const d = String(Math.min(fe.day,28)).padStart(2,'0');
-    DB.transactions.push({ id:uid(), date:curYM+'-'+d, amount:-Math.abs(fe.amount),
-      desc:fe.desc+'（固定）', category:fe.category, sourceId:fe.sourceId,
-      sourceType:fe.sourceType, notes:fe.notes||'', isFixed:true, fixedId:fe.id });
-    DB.generatedFixed[curYM].push(fe.id);
-    added++;
-  });
-  if (added) { saveDB(); toast('已自動新增 '+added+' 筆固定消費','info'); }
+/* ── ICON UPLOAD ─────────────────────────── */
+.icon-upload{
+  width:66px;height:66px;border-radius:var(--r-lg);
+  border:2px dashed var(--bdr-normal);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .2s;overflow:hidden;position:relative;
+  font-size:22px;color:var(--tx-muted);flex-shrink:0;
+}
+.icon-upload:hover{border-color:var(--m-blue);color:var(--tx-blue)}
+.icon-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.icon-upload img{width:100%;height:100%;object-fit:cover}
+.icon-hint{font-size:8px;color:var(--tx-muted);text-align:center;margin-top:2px;line-height:1.3}
+
+/* ── CHARTS ──────────────────────────────── */
+.chart-box{background:var(--bg-card);border:1px solid var(--bdr-subtle);border-radius:var(--r-lg);padding:20px}
+.chart-title{
+  font-family:var(--ff-display);font-size:12px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--tx-secondary);margin-bottom:16px;
+  display:flex;align-items:center;gap:8px;
+}
+.chart-title::before{content:'';display:inline-block;width:3px;height:13px;background:linear-gradient(var(--m-blue),var(--m-red));border-radius:2px}
+.charts-grid-2{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+
+/* ── LAYER BARS ──────────────────────────── */
+.layer-bar{
+  background:var(--bg-secondary);border-radius:var(--r);padding:10px 14px;
+  margin-bottom:8px;display:flex;align-items:center;gap:10px;
+  border:1px solid var(--bdr-subtle);
+}
+.layer-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.layer-name{flex:1;font-size:13px}
+.layer-amt{font-family:var(--ff-display);font-weight:700;font-size:14px}
+
+/* ── PROGRESS BAR ────────────────────────── */
+.prog-wrap{background:var(--bg-secondary);border-radius:4px;height:5px;overflow:hidden;margin-top:5px}
+.prog-bar{height:100%;border-radius:4px;transition:width .5s ease}
+
+/* ── FIXED EXPENSE ITEM ──────────────────── */
+.fe-item{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:var(--bg-secondary);border-radius:var(--r);margin-bottom:8px;
+  border:1px solid var(--bdr-subtle);
+}
+.fe-day{
+  width:32px;height:32px;border-radius:8px;
+  background:rgba(0,87,184,.15);border:1px solid rgba(0,87,184,.3);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--ff-display);font-weight:700;font-size:14px;color:var(--tx-blue);flex-shrink:0;
 }
 
-// ════════════════════════════════════════════════════════════════
-// NAVIGATION
-// ════════════════════════════════════════════════════════════════
-function nav(el, page) {
-  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
-  el.classList.add('active');
-  document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('page-'+page).classList.add('active');
-  document.getElementById('sidebar').classList.remove('open');
-  renderPage(page);
+/* ── M STRIPE DIVIDER ────────────────────── */
+.m-stripe{height:3px;background:linear-gradient(90deg,var(--m-blue) 33.3%,var(--m-violet) 33.3% 66.6%,var(--m-red) 66.6%);border-radius:2px;margin:12px 0}
+.section-div{display:flex;align-items:center;gap:12px;margin:20px 0 14px}
+.section-div-line{flex:1;height:1px;background:var(--bdr-subtle)}
+.section-div-label{font-family:var(--ff-display);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--tx-secondary);white-space:nowrap}
+
+/* ── TOAST ───────────────────────────────── */
+.toast-wrap{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{
+  background:var(--bg-card);border:1px solid var(--bdr-normal);border-radius:var(--r);
+  padding:11px 16px;font-size:13px;color:var(--tx-primary);
+  box-shadow:var(--sha-md);display:flex;align-items:center;gap:8px;min-width:240px;
+  animation:toastIn .3s ease;
 }
-function renderPage(page) {
-  const fn={dashboard:renderDashboard,cards:renderCards,accounts:renderAccounts,
-    txns:renderTxns,fixed:renderFixed,analytics:renderAnalytics,settings:renderSettings};
-  if (fn[page]) fn[page]();
+.toast.success{border-left:3px solid var(--ok)}
+.toast.danger{border-left:3px solid var(--err)}
+.toast.info{border-left:3px solid var(--m-blue)}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── EMPTY STATE ─────────────────────────── */
+.empty-state{text-align:center;padding:50px 20px;color:var(--tx-muted)}
+.empty-icon{font-size:44px;margin-bottom:14px;opacity:.5}
+.empty-title{font-family:var(--ff-display);font-size:15px;letter-spacing:2px;margin-bottom:6px}
+.empty-desc{font-size:12px}
+
+/* ── SCROLLBAR ───────────────────────────── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg-primary)}
+::-webkit-scrollbar-thumb{background:var(--bdr-normal);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--tx-muted)}
+
+/* ── UTILS ───────────────────────────────── */
+.flex{display:flex}.flex-center{display:flex;align-items:center;justify-content:center}
+.ai-center{align-items:center}.jc-between{justify-content:space-between}
+.gap-2{gap:8px}.gap-3{gap:12px}.gap-4{gap:16px}
+.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}
+.mb-2{margin-bottom:8px}.mb-3{margin-bottom:12px}
+.tr{text-align:right}.tc{text-align:center}
+.w-full{width:100%}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* ── RESPONSIVE ──────────────────────────── */
+@media(max-width:768px){
+  :root{--side-w:0px;--pad:14px}
+  .sidebar{transform:translateX(-100%);width:240px;z-index:500}
+  .sidebar.open{transform:translateX(0)}
+  .main-content{margin-left:0}
+  .menu-toggle{display:flex}
+  .charts-grid-2{grid-template-columns:1fr}
+  .form-row,.form-row-3{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .table-toolbar{flex-direction:column;align-items:flex-start}
+  .table-toolbar-right{margin-left:0;width:100%}
+  .nav-month{display:none}
+}
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr}
+  .cards-grid{grid-template-columns:1fr}
 }
 
-// ════════════════════════════════════════════════════════════════
-// DASHBOARD
-// ════════════════════════════════════════════════════════════════
-function setDashRange(el, range) {
-  dashRange = range;
-  document.querySelectorAll('.dash-filter-btn').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
-  renderDashboard();
+.account-balance.warning{color:var(--tx-warning);text-shadow:0 0 12px rgba(255,179,0,.4)}
+.account-card.low-balance{box-shadow:0 0 0 1px rgba(255,143,0,.35),0 4px 20px rgba(255,143,0,.15)}
+
+
+/* ══ LIGHT THEME ═════════════════════════════════════════════ */
+body.light-theme{
+  --bg-base:      #f0f2f8;
+  --bg-primary:   #e4e8f2;
+  --bg-secondary: #d8dcec;
+  --bg-card:      #ffffff;
+  --bg-card-hov:  #f5f7ff;
+  --bg-input:     #f0f2fa;
+  --bg-modal:     #ffffff;
+  --bdr-subtle:   rgba(0,0,0,0.07);
+  --bdr-normal:   rgba(0,0,0,0.12);
+  --bdr-accent:   rgba(0,87,184,0.35);
+  --tx-primary:   #0d0d1a;
+  --tx-secondary: #4a4a70;
+  --tx-muted:     #8888aa;
+  --glo-blue:     0 0 16px rgba(0,87,184,0.18);
+  --glo-red:      0 0 16px rgba(200,16,46,0.18);
+  --sha-md:       0 4px 20px rgba(0,0,0,0.12);
+  --sha-lg:       0 8px 40px rgba(0,0,0,0.18);
+}
+body.light-theme::before{
+  background-image:repeating-linear-gradient(
+    45deg,transparent,transparent 2px,rgba(0,0,0,0.012) 2px,rgba(0,0,0,0.012) 4px
+  );
+}
+body.light-theme .topnav{background:linear-gradient(135deg,#e0e4f0,#d4d8f0);}
+body.light-theme .sidebar{background:var(--bg-primary);}
+body.light-theme .chart-box{background:var(--bg-card);}
+body.light-theme .table-container{background:var(--bg-card);}
+body.light-theme thead tr{background:var(--bg-secondary);}
+body.light-theme .modal{background:var(--bg-modal);}
+body.light-theme .modal-header{background:var(--bg-modal);}
+body.light-theme .form-select option{background:var(--bg-modal);}
+body.light-theme .account-card-footer{background:rgba(0,0,0,0.04);}
+body.light-theme .stat-card{background:var(--bg-card);}
+
+/* ══ THEME TOGGLE BTN ════════════════════════════════════════ */
+.btn-theme-toggle{
+  background:transparent;border:1px solid var(--bdr-normal);
+  color:var(--tx-secondary);width:32px;height:32px;border-radius:50%;
+  cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;flex-shrink:0;
+}
+.btn-theme-toggle:hover{background:var(--bg-card);border-color:var(--bdr-accent)}
+
+/* ══ DASHBOARD FILTER BAR ════════════════════════════════════ */
+.dash-filter-bar{display:flex;gap:4px;flex-wrap:wrap}
+.dash-filter-btn{
+  background:var(--bg-secondary);border:1px solid var(--bdr-normal);
+  color:var(--tx-secondary);padding:5px 12px;border-radius:20px;
+  font-size:12px;cursor:pointer;transition:all .2s;font-family:var(--ff-body);
+}
+.dash-filter-btn:hover{border-color:var(--m-blue);color:var(--tx-blue)}
+.dash-filter-btn.active{
+  background:linear-gradient(135deg,var(--m-blue),var(--m-violet));
+  color:#fff;border-color:var(--m-blue);box-shadow:0 2px 10px rgba(0,87,184,.3);
 }
 
-function renderDashboard() {
-  const rtx = rangedTxns();
-  const spend  = Math.abs(rtx.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
-  const income = rtx.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const totalDebt = DB.creditCards.reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
-  const totalBank = DB.bankAccounts.reduce((s,a)=>s+accountBalance(a.id),0);
-  const ccSpend   = Math.abs(thisMonthCCSpend());
-  const salarySum = DB.bankAccounts.reduce((s,a)=>{
-    const l=(a.layers||[]).find(l=>l.label.includes('薪')); return s+(l?l.amount:0);
-  },0);
-  const labels = {month:'本月',30:'近30天',7:'近7天',today:'今天',all:'全部'};
-  const lbl = labels[dashRange]||'';
-
-  document.getElementById('dashStats').innerHTML =
-    statCard(lbl+'消費', fmt(-spend), spend>0?'danger':'', '', '💸') +
-    statCard(lbl+'收入', fmt(income), income>0?'success':'', '', '📥') +
-    statCard('信用卡未償還', fmt(-totalDebt), totalDebt>0?'danger':'success', '所有卡片累積', '💳') +
-    statCard('銀行總資產', fmt(totalBank), 'blue', '所有帳戶餘額', '🏦') +
-    statCard('本月剩餘生活費', fmt(salarySum-ccSpend), (salarySum-ccSpend)<0?'danger':(salarySum-ccSpend)<salarySum*0.2?'warning':'success','薪水 − 本月CC消費','💰');
-
-  document.getElementById('dashCards').innerHTML =
-    DB.creditCards.map(c=>{
-      const bal=cardBalance(c.id);
-      const due=daysUntilDue(c);
-      const dueCls=due!==null?(due<=2?'a-over':due<=5?'a-neg':''):'';
-      return `<div class="layer-bar" style="border-left:3px solid ${c.color}">
-        <div style="width:8px;height:8px;border-radius:50%;background:${c.color};flex-shrink:0"></div>
-        <span style="flex:1;font-size:13px">${c.name}</span>
-        ${due!==null?`<span class="${dueCls}" style="font-size:11px;margin-right:8px">${due<=0?'今日截止':due+'天後繳款'}</span>`:''}
-        <span class="layer-amt ${bal<0?'a-neg':'a-pos'}">${bal<0?'−':'+'}${fmt(Math.abs(bal))}</span>
-      </div>`;
-    }).join('')||emptyState('💳','尚無信用卡');
-
-  document.getElementById('dashAccounts').innerHTML =
-    DB.bankAccounts.map(a=>{
-      const bal=accountBalance(a.id);
-      return `<div class="layer-bar" style="border-left:3px solid ${a.color}">
-        <div style="width:8px;height:8px;border-radius:50%;background:${a.color};flex-shrink:0"></div>
-        <span style="flex:1;font-size:13px">${a.name}</span>
-        <span class="layer-amt ${bal<0?'a-neg':'a-pos'}">${fmt(bal)}</span>
-      </div>`;
-    }).join('')||emptyState('🏦','尚無銀行帳戶');
-
-  const rangeLabel = {month:'最近消費',30:'近30天消費',7:'近7天消費',today:'今天消費',all:'全部消費'};
-  document.getElementById('dashRecentLabel').textContent = rangeLabel[dashRange]||'最近消費';
-  const recent = [...rtx].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
-  document.getElementById('dashRecent').innerHTML = txnTable(recent, false);
+/* ══ DUE DATE BADGE ══════════════════════════════════════════ */
+.due-badge{
+  font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;
+  margin-bottom:8px;display:inline-block;
+  background:var(--ok-bg);color:var(--tx-green);border:1px solid rgba(0,200,83,.3);
 }
-function statCard(label,val,cls,sub,icon) {
-  return `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value ${cls}">${val}</div>${sub?`<div class="stat-sub">${sub}</div>`:''}<div class="stat-icon">${icon}</div></div>`;
+.due-badge.orange-txt{
+  background:var(--warn-bg);color:var(--warn);
+  border:1px solid rgba(255,143,0,.4);
 }
+.due-badge.glow-red-txt{
+  background:var(--err-bg);color:var(--err);
+  border:1px solid rgba(255,23,68,.4);
+  animation:glowRed 1.5s ease-in-out infinite;
+}
+.green-txt{color:var(--tx-green)}
+.orange-txt{color:var(--warn)}
+.glow-red-txt{color:var(--err);animation:glowRed 1.5s ease-in-out infinite}
 
-// ════════════════════════════════════════════════════════════════
-// CREDIT CARDS
-// ════════════════════════════════════════════════════════════════
-function renderCards() {
-  const monthSpend = Math.abs(thisMonthCCSpend());
-  const totalDebt  = DB.creditCards.reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
-  const totalCashback = DB.creditCards.reduce((s,c)=>s+cardMonthlyCashback(c),0);
+/* ══ ACCOUNT CARD STATUS ═════════════════════════════════════ */
+.account-balance.warning{color:var(--tx-warning);text-shadow:0 0 12px rgba(255,179,0,.4)}
+.account-card.low-balance{box-shadow:0 0 0 1px rgba(255,143,0,.4),0 4px 20px rgba(255,143,0,.15)}
 
-  document.getElementById('ccStats').innerHTML =
-    statCard('本月信用卡總消費',fmt(-monthSpend),monthSpend>0?'danger':'','本月所有卡片','📊') +
-    statCard('未償還總額',fmt(-totalDebt),totalDebt>0?'danger':'success','全卡片累積負債','💳') +
-    statCard('本月現金回饋',fmt(-totalCashback),'success','所有卡片回饋合計','🎁') +
-    statCard('持卡數量',DB.creditCards.length,'blue','','🃏');
-
-  let html = DB.creditCards.map(c => {
-    const bal     = cardBalance(c.id);
-    const isNeg   = bal < 0;
-    const used    = c.limit>0?Math.min(100,Math.abs(bal)/c.limit*100):0;
-    const icon    = c.icon?`<img src="${c.icon}" alt="">`:'💳';
-    const mSpend  = DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&ym(t.date)===nowYM()&&!t.isPayment).reduce((s,t)=>s+Math.abs(t.amount),0);
-    const cashback= cardMonthlyCashback(c);
-    const due     = daysUntilDue(c);
-    const barColor= used>80?'var(--m-red)':used>50?'var(--warn)':'var(--m-blue)';
-    const dueCls  = due!==null?(due<=2?'glow-red-txt':due<=5?'orange-txt':'green-txt'):'';
-    const dueHtml = due!==null
-      ? `<div class="due-badge ${dueCls}">${due<=0?'⚠ 今日繳款截止':due<=2?'⚠ '+due+'天後到期':due+'天後繳款'}</div>`
-      : '';
-
-    return `<div class="account-card">
-      <div class="account-card-header" style="border-top:3px solid ${c.color}">
-        <div class="account-card-icon" style="background:${c.color}22">${icon}</div>
-        <div style="flex:1">
-          <div class="account-card-name">${escHtml(c.name)}</div>
-          <div class="account-card-type">CREDIT CARD${c.limit?'　額度 '+fmt(c.limit):''}${c.billingDay?'　結帳日 '+c.billingDay+'號':''}</div>
-        </div>
-        <div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCard','${c.id}')">✏️</button>
-          <button class="btn btn-danger btn-icon btn-sm" onclick="deleteCard('${c.id}')">🗑</button>
-        </div>
-      </div>
-      <div class="account-card-body">
-        ${dueHtml}
-        <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">當前餘額</div>
-        <div class="account-balance ${isNeg?'negative':'positive'}">${isNeg?'−':'+'}${fmt(Math.abs(bal))}</div>
-        <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
-          <div style="font-size:11px;color:var(--tx-secondary)">本月消費：<span style="color:var(--tx-red)">${fmt(-mSpend)}</span></div>
-          ${c.cashbackRate>0?`<div style="font-size:11px;color:var(--tx-secondary)">本月回饋：<span style="color:var(--tx-green)">+${fmt(-cashback)}</span><span style="font-size:10px;color:var(--tx-muted)">（${c.cashbackRate}%）</span></div>`:''}
-        </div>
-        ${c.limit>0?`<div class="prog-wrap mt-2"><div class="prog-bar" style="width:${used}%;background:${barColor}"></div></div><div style="font-size:10px;color:var(--tx-muted);margin-top:3px">已用 ${used.toFixed(0)}%</div>`:''}
-      </div>
-      <div class="account-card-footer">
-        <button class="btn btn-sm btn-primary" onclick="openModal('payment','${c.id}')">💸 繳款</button>
-        <button class="btn btn-sm btn-ghost"   onclick="openModal('addTxn',null,'${c.id}')">＋ 消費</button>
-        <button class="btn btn-sm btn-ghost"   onclick="filterByCard('${c.id}')">📋 明細</button>
-      </div>
-    </div>`;
-  }).join('');
-  html += `<div class="add-card-btn" onclick="openModal('addCard')"><div class="add-card-icon">＋</div><div class="add-card-label">新增信用卡</div></div>`;
-  document.getElementById('cardsGrid').innerHTML = html;
+/* ══ CATEGORY ROWS — drag & drop ═════════════════════════════ */
+.cat-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;background:var(--bg-secondary);
+  border-radius:var(--r);margin-bottom:8px;
+  border:1px solid var(--bdr-subtle);
+  cursor:default;transition:all .2s;
+  user-select:none;
 }
-
-function deleteCard(id) {
-  if (!confirm('確定刪除此信用卡？相關消費記錄也會一併刪除。')) return;
-  DB.creditCards  = DB.creditCards.filter(c=>c.id!==id);
-  DB.transactions = DB.transactions.filter(t=>!(t.sourceType==='card'&&t.sourceId===id));
-  saveDB(); renderCards(); toast('信用卡已刪除','danger');
+.cat-row:hover{border-color:var(--bdr-normal);background:var(--bg-card-hov)}
+.cat-row.cat-dragging{opacity:.4;border:2px dashed var(--m-blue)}
+.cat-row[draggable="true"]:hover{box-shadow:var(--sha-sm)}
+.cat-drag-handle{
+  font-size:18px;color:var(--tx-muted);cursor:grab;
+  flex-shrink:0;padding:0 2px;line-height:1;
+  transition:color .15s;
 }
-function filterByCard(cardId) {
-  const el = document.querySelector('[data-page="txns"]');
-  nav(el,'txns');
-  setTimeout(()=>{ document.getElementById('filterSource').value='card_'+cardId; renderTxns(); },60);
-}
-
-// ════════════════════════════════════════════════════════════════
-// BANK ACCOUNTS
-// ════════════════════════════════════════════════════════════════
-function renderAccounts() {
-  const ccSpend = Math.abs(thisMonthCCSpend());
-  let html = DB.bankAccounts.map(a => {
-    const bal  = accountBalance(a.id);
-    const icon = a.icon?`<img src="${a.icon}" alt="">`:'🏦';
-    const salaryLayer = (a.layers||[]).find(l=>l.label.includes('薪'));
-    const salaryAmt = salaryLayer?salaryLayer.amount:null;
-    const isLow = a.minBalance>0 && bal<a.minBalance;
-    const mthOut = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount<0&&ym(t.date)===nowYM()).reduce((s,t)=>s+Math.abs(t.amount),0);
-    const mthIn  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount>0&&ym(t.date)===nowYM()).reduce((s,t)=>s+t.amount,0);
-    const typeBadge = a.accType?`<span class="badge badge-blue" style="font-size:9px">${a.accType}</span>`:'';
-    const last4show = a.last4?`<span style="color:var(--tx-muted);font-size:11px;letter-spacing:2px">•••• ${a.last4}</span>`:'';
-    const layersHtml = (a.layers||[]).map(l=>`
-      <div class="layer-bar">
-        <div class="layer-dot" style="background:${l.color||a.color}"></div>
-        <span class="layer-name">${escHtml(l.label)}</span>
-        <span class="layer-amt">${fmt(l.amount)}</span>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editLayer','${a.id}',null,null,'${l.id}')">✏️</button>
-        <button class="btn btn-danger btn-icon btn-sm" onclick="delLayer('${a.id}','${l.id}')">✕</button>
-      </div>`).join('');
-
-    return `<div class="account-card${isLow?' low-balance':''}">
-      <div class="account-card-header" style="border-top:3px solid ${a.color}">
-        <div class="account-card-icon" style="background:${a.color}22">${icon}</div>
-        <div style="flex:1;min-width:0;overflow:hidden">
-          <div class="account-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(a.name)}</div>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
-            ${typeBadge}
-            <div class="account-card-type">BANK ACCOUNT</div>
-            ${last4show}
-          </div>
-        </div>
-        <div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editAccount','${a.id}')">✏️</button>
-          <button class="btn btn-danger btn-icon btn-sm" onclick="deleteAccount('${a.id}')">🗑</button>
-        </div>
-      </div>
-      <div class="account-card-body">
-        <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">帳戶餘額</div>
-        <div class="account-balance ${bal<0?'negative':isLow?'warning':'positive'}">${fmt(bal)}</div>
-        ${isLow?`<div style="font-size:11px;color:var(--warn);margin-top:4px">⚠ 低於最低餘額警示 ${fmt(a.minBalance)}</div>`:''}
-        ${salaryAmt!==null?`<div style="font-size:11px;color:var(--tx-secondary);margin-top:6px">薪水剩餘生活費：<span style="color:${salaryAmt-ccSpend<0?'var(--tx-red)':'var(--tx-green)'};font-weight:700">${fmt(salaryAmt-ccSpend)}</span></div>`:''}
-        <div style="display:flex;gap:16px;margin-top:8px">
-          <div style="font-size:11px;color:var(--tx-secondary)">本月流出：<span style="color:var(--tx-red)">${fmt(-mthOut)}</span></div>
-          <div style="font-size:11px;color:var(--tx-secondary)">本月流入：<span style="color:var(--tx-green)">+${fmt(mthIn)}</span></div>
-        </div>
-        ${a.notes?`<div style="font-size:11px;color:var(--tx-muted);margin-top:4px;font-style:italic">${escHtml(a.notes)}</div>`:''}
-        <div class="m-stripe mt-3"></div>
-        <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);text-transform:uppercase;font-family:var(--ff-display);margin-bottom:6px">資金分層</div>
-        ${layersHtml||'<div style="font-size:12px;color:var(--tx-muted)">尚無分層</div>'}
-      </div>
-      <div class="account-card-footer">
-        <button class="btn btn-sm btn-primary" onclick="openModal('addLayer','${a.id}')">＋ 分層</button>
-        <button class="btn btn-sm btn-ghost"   onclick="openModal('addTxn',null,null,'${a.id}')">＋ 記帳</button>
-        <button class="btn btn-sm btn-violet"  onclick="openModal('transfer','${a.id}')">🔄 轉帳</button>
-      </div>
-    </div>`;
-  }).join('');
-  html += `<div class="add-card-btn" onclick="openModal('addAccount')"><div class="add-card-icon">＋</div><div class="add-card-label">新增銀行帳戶</div></div>`;
-  document.getElementById('accountsGrid').innerHTML = html;
-}
-function delLayer(accId,layerId) {
-  if (!confirm('確定刪除此分層？')) return;
-  const a=getAcc(accId); if (!a) return;
-  a.layers=a.layers.filter(l=>l.id!==layerId);
-  saveDB(); renderAccounts(); toast('分層已刪除','info');
-}
-function deleteAccount(id) {
-  if (!confirm('確定刪除此帳戶？')) return;
-  DB.bankAccounts = DB.bankAccounts.filter(a=>a.id!==id);
-  DB.transactions = DB.transactions.filter(t=>!(t.sourceType==='account'&&t.sourceId===id));
-  saveDB(); renderAccounts(); toast('帳戶已刪除','danger');
-}
-
-// ════════════════════════════════════════════════════════════════
-// TRANSACTIONS
-// ════════════════════════════════════════════════════════════════
-function renderTxns() {
-  // Populate source filter
-  const srcSel=document.getElementById('filterSource'), oldSrc=srcSel.value;
-  srcSel.innerHTML='<option value="">全部帳戶/卡片</option>';
-  DB.creditCards.forEach(c=>{srcSel.innerHTML+=`<option value="card_${c.id}">[卡] ${escHtml(c.name)}</option>`;});
-  DB.bankAccounts.forEach(a=>{srcSel.innerHTML+=`<option value="account_${a.id}">[帳] ${escHtml(a.name)}</option>`;});
-  srcSel.value=oldSrc;
-  const catSel=document.getElementById('filterCat'), oldCat=catSel.value;
-  catSel.innerHTML='<option value="">全部類別</option>';
-  DB.categories.forEach(c=>{catSel.innerHTML+=`<option value="${c.id}">${escHtml(c.name)}</option>`;});
-  catSel.value=oldCat;
-
-  const from=v('filterFrom'), to=v('filterTo'), srcVal=srcSel.value,
-        catVal=catSel.value, typeVal=v('filterType'),
-        keyword=(v('txnSearch')||'').toLowerCase().trim();
-
-  let txns=[...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date));
-  if (from)     txns=txns.filter(t=>t.date>=from);
-  if (to)       txns=txns.filter(t=>t.date<=to);
-  if (srcVal)   { const [tp,sid]=srcVal.split('_'); txns=txns.filter(t=>t.sourceType===tp&&t.sourceId===sid); }
-  if (catVal)   txns=txns.filter(t=>t.category===catVal);
-  if (typeVal==='expense') txns=txns.filter(t=>t.amount<0);
-  if (typeVal==='income')  txns=txns.filter(t=>t.amount>0);
-  if (keyword)  txns=txns.filter(t=>(t.desc||'').toLowerCase().includes(keyword)||(t.notes||'').toLowerCase().includes(keyword));
-
-  document.getElementById('txnTableWrap').innerHTML = txnTable(txns, true);
-  updateBatchUI();
-}
-
-function txnTable(txns, withActions) {
-  if (!txns.length) return emptyState('📋','無消費記錄','點擊「新增記錄」開始記帳');
-  const rows = txns.map(t => {
-    const cat    = getCat(t.category);
-    const spent  = cat.budget>0?catMonthSpend(t.category):0;
-    const isOver = cat.budget>0&&spent>cat.budget&&t.amount<0;
-    const amtCls = t.amount>0?'a-pos':isOver?'a-over':'a-neg';
-    const sign   = t.amount>0?'+':'−';
-    const tags   = (t.isFixed?'<span class="badge badge-violet" style="margin-left:4px">固定</span>':'')
-                 + (t.isPayment?'<span class="badge badge-green" style="margin-left:4px">繳款</span>':'')
-                 + (t.isTransfer?'<span class="badge badge-blue" style="margin-left:4px">轉帳</span>':'')
-                 + (t.isRedemption?'<span class="badge" style="margin-left:4px;background:#f39c1222;color:#f39c12;border:1px solid #f39c1244">折抵</span>':'');
-    const chk = withActions
-      ? `<td><input type="checkbox" class="txn-chk" data-id="${t.id}" onchange="updateBatchUI()"></td>`
-      : '';
-    const act = withActions
-      ? `<td style="white-space:nowrap">
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editTxn','${t.id}')">✏️</button>
-          <button class="btn btn-danger btn-icon btn-sm" onclick="deleteTxn('${t.id}')">🗑</button>
-        </td>`
-      : '';
-    return `<tr>
-      ${chk}
-      <td style="white-space:nowrap">${t.date}</td>
-      <td>${escHtml(t.desc)}${tags}</td>
-      <td><span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span></td>
-      <td style="white-space:nowrap">${sourceName(t)}</td>
-      <td class="${amtCls}" style="white-space:nowrap">${sign}${fmt(Math.abs(t.amount))}</td>
-      <td style="color:var(--tx-secondary);font-size:12px">${escHtml(t.notes||'—')}</td>
-      ${act}
-    </tr>`;
-  }).join('');
-  const total = txns.reduce((s,t)=>s+t.amount,0);
-  const cols  = withActions ? 7 : 5;
-  const chkTh = withActions ? '<th style="width:32px"><input type="checkbox" id="chkAll" onchange="toggleAllChk(this)"></th>' : '';
-  const actTh = withActions ? '<th>操作</th>' : '';
-  return `<table>
-    <thead><tr>${chkTh}<th>日期</th><th>內容</th><th>類別</th><th>帳戶/卡片</th><th>金額</th><th>備註</th>${actTh}</tr></thead>
-    <tbody>${rows}</tbody>
-    <tfoot><tr style="background:var(--bg-secondary)">
-      ${withActions?'<td></td>':''}
-      <td colspan="4" style="padding:10px 14px;font-size:11px;color:var(--tx-muted)">共 ${txns.length} 筆</td>
-      <td style="padding:10px 14px;font-weight:700;font-family:var(--ff-display);font-size:15px;color:${total<0?'var(--tx-red)':'var(--tx-green)'}">${total>=0?'+':'−'}${fmt(Math.abs(total))}</td>
-      <td colspan="${withActions?2:0}"></td>
-    </tr></tfoot>
-  </table>`;
-}
-
-function updateBatchUI() {
-  const chks = document.querySelectorAll('.txn-chk:checked');
-  const btn  = document.getElementById('batchDelBtn');
-  const cnt  = document.getElementById('batchCount');
-  if (btn) { btn.style.display = chks.length>0?'':'none'; }
-  if (cnt) cnt.textContent = chks.length;
-}
-function toggleAllChk(el) {
-  document.querySelectorAll('.txn-chk').forEach(c=>{c.checked=el.checked;});
-  updateBatchUI();
-}
-function batchDelete() {
-  const ids=[...document.querySelectorAll('.txn-chk:checked')].map(c=>c.dataset.id);
-  if (!ids.length) return;
-  if (!confirm(`確定刪除選取的 ${ids.length} 筆記錄？`)) return;
-  DB.transactions=DB.transactions.filter(t=>!ids.includes(t.id));
-  saveDB(); renderTxns(); toast(`已刪除 ${ids.length} 筆記錄`,'danger');
-}
-function copyLastTxn() {
-  const last=[...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date)).find(t=>!t.isPayment&&!t.isTransfer);
-  if (!last) { toast('尚無消費記錄可複製','info'); return; }
-  openModal('addTxn');
-  setTimeout(()=>{
-    const el=document.getElementById('tDate'); if(el) el.value=today();
-    const am=document.getElementById('tAmt'); if(am) am.value=Math.abs(last.amount);
-    const ds=document.getElementById('tDesc'); if(ds) ds.value=last.desc.replace('（固定）','');
-    const ct=document.getElementById('tCat'); if(ct) ct.value=last.category;
-    const sr=document.getElementById('tSrc'); if(sr) sr.value=last.sourceType+'_'+last.sourceId;
-    const tp=document.getElementById('tType'); if(tp) tp.value=last.amount<0?'expense':'income';
-    const nt=document.getElementById('tNotes'); if(nt) nt.value=last.notes||'';
-    toast('已複製上筆消費資訊','info');
-  },80);
-}
-function deleteTxn(id) {
-  if (!confirm('確定刪除？')) return;
-  DB.transactions=DB.transactions.filter(t=>t.id!==id);
-  saveDB(); renderTxns(); toast('記錄已刪除','danger');
-}
-function exportExcel() {
-  const from=v('filterFrom'), to=v('filterTo');
-  let txns=[...DB.transactions].sort((a,b)=>a.date.localeCompare(b.date));
-  if (from) txns=txns.filter(t=>t.date>=from);
-  if (to)   txns=txns.filter(t=>t.date<=to);
-  const data=txns.map(t=>({'日期':t.date,'內容':t.desc,'類別':getCat(t.category).name,'帳戶/卡片':sourceName(t),'金額':t.amount,'備註':t.notes||''}));
-  const ws=XLSX.utils.json_to_sheet(data);
-  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'消費明細');
-  XLSX.writeFile(wb,'MWallet_'+(from||'all')+'_'+(to||'all')+'.xlsx');
-  toast('Excel 匯出成功！','success');
-}
-
-// ════════════════════════════════════════════════════════════════
-// FIXED
-// ════════════════════════════════════════════════════════════════
-function renderFixed() {
-  const cur=nowYM();
-  const total=DB.fixedExpenses.reduce((s,f)=>s+f.amount,0);
-  let html='';
-  if (!DB.fixedExpenses.length) { html=emptyState('🔁','尚無固定消費','新增定期帳單、訂閱等固定支出'); }
-  else {
-    html=`<div class="layer-bar" style="margin-bottom:12px;border-left:3px solid var(--m-blue)">
-      <span style="flex:1;font-family:var(--ff-display);letter-spacing:1px;font-size:12px;color:var(--tx-secondary)">每月固定支出合計</span>
-      <span class="layer-amt a-neg">−${fmt(total)}</span>
-    </div>`;
-    html+=DB.fixedExpenses.map(fe=>{
-      const gen=(DB.generatedFixed[cur]||[]).includes(fe.id);
-      const cat=getCat(fe.category);
-      const src=fe.sourceType==='card'?getCard(fe.sourceId):getAcc(fe.sourceId);
-      return `<div class="fe-item">
-        <div class="fe-day">${fe.day}</div>
-        <div style="flex:1">
-          <div style="font-weight:600;font-size:13px">${escHtml(fe.desc)}</div>
-          <div style="font-size:11px;color:var(--tx-secondary);margin-top:3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span>
-            ${src?`<span>${escHtml(src.name)}</span>`:''}
-            ${fe.notes?`<span style="color:var(--tx-muted)">${escHtml(fe.notes)}</span>`:''}
-          </div>
-        </div>
-        <span style="font-family:var(--ff-display);font-weight:700;color:var(--tx-red);margin-right:8px">−${fmt(fe.amount)}</span>
-        <span class="badge ${gen?'badge-green':'badge-gray'}">${gen?'✓ 已生成':'待生成'}</span>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editFixed','${fe.id}')">✏️</button>
-        <button class="btn btn-danger btn-icon btn-sm" onclick="deleteFixed('${fe.id}')">🗑</button>
-      </div>`;
-    }).join('');
-  }
-  document.getElementById('fixedList').innerHTML=html;
-}
-function deleteFixed(id) {
-  if (!confirm('確定刪除？')) return;
-  DB.fixedExpenses=DB.fixedExpenses.filter(f=>f.id!==id);
-  saveDB(); renderFixed(); toast('固定消費已刪除','danger');
-}
-
-// ════════════════════════════════════════════════════════════════
-// ANALYTICS
-// ════════════════════════════════════════════════════════════════
-function renderAnalytics() {
-  const yearSel=document.getElementById('analyticsYear');
-  if (!yearSel.options.length) {
-    const cur=new Date().getFullYear();
-    const years=new Set(DB.transactions.map(t=>t.date.slice(0,4)));
-    [String(cur-1),String(cur),String(cur+1)].forEach(y=>years.add(y));
-    [...years].sort().forEach(y=>{
-      const o=document.createElement('option');
-      o.value=y; o.textContent=y+' 年'; if(y===String(cur))o.selected=true;
-      yearSel.appendChild(o);
-    });
-  }
-  const year=yearSel.value||String(new Date().getFullYear());
-  const ytx=DB.transactions.filter(t=>t.date.startsWith(year));
-  const ysp=Math.abs(ytx.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
-  const yin=ytx.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const maxCat=DB.categories.reduce((best,c)=>{
-    const v2=Math.abs(ytx.filter(t=>t.category===c.id&&t.amount<0).reduce((s,t)=>s+t.amount,0));
-    return v2>(best.v||0)?{name:c.name,v:v2}:best;
-  },{});
-  document.getElementById('analyticsStats').innerHTML=
-    statCard(year+' 年度總支出',fmt(-ysp),ysp>0?'danger':'','','📉')+
-    statCard(year+' 年度總收入',fmt(yin),yin>0?'success':'','','📈')+
-    statCard('月均消費',fmt(-ysp/12),'warning','','📊')+
-    statCard('最大消費類別',maxCat.name||'—','blue',maxCat.v?fmt(-maxCat.v):'','🏷');
-
-  const months=['01','02','03','04','05','06','07','08','09','10','11','12'];
-  const mLabels=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-  const mSp=months.map(m=>Math.abs(DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0).reduce((s,t)=>s+t.amount,0)));
-  const mIn=months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount>0).reduce((s,t)=>s+t.amount,0));
-
-  if (charts.trend) charts.trend.destroy();
-  charts.trend=new Chart(document.getElementById('trendChart').getContext('2d'),{
-    type:'line',data:{labels:mLabels,datasets:[
-      {label:'支出',data:mSp,borderColor:'#C8102E',backgroundColor:'rgba(200,16,46,0.1)',tension:.4,fill:true,pointBackgroundColor:'#C8102E',pointRadius:4},
-      {label:'收入',data:mIn,borderColor:'#00C853',backgroundColor:'rgba(0,200,83,0.1)',tension:.4,fill:true,pointBackgroundColor:'#00C853',pointRadius:4}
-    ]},
-    options:{responsive:true,plugins:{legend:{labels:{color:'#8080A8'}}},scales:{x:{ticks:{color:'#8080A8'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#8080A8',callback:v2=>'NT$'+v2.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}}}
-  });
-
-  const catSp=DB.categories.map(c=>catMonthSpend(c.id));
-  if (charts.cat) charts.cat.destroy();
-  charts.cat=new Chart(document.getElementById('catChart').getContext('2d'),{
-    type:'doughnut',data:{labels:DB.categories.map(c=>c.name),datasets:[{data:catSp,backgroundColor:DB.categories.map(c=>c.color),borderWidth:2,borderColor:'#1A1A2E'}]},
-    options:{responsive:true,plugins:{legend:{labels:{color:'#8080A8',font:{size:11}},position:'bottom'}}}
-  });
-
-  const catYr=DB.categories.map(c=>Math.abs(DB.transactions.filter(t=>t.category===c.id&&t.date.startsWith(year)&&t.amount<0).reduce((s,t)=>s+t.amount,0)));
-  if (charts.catBar) charts.catBar.destroy();
-  charts.catBar=new Chart(document.getElementById('catBarChart').getContext('2d'),{
-    type:'bar',data:{labels:DB.categories.map(c=>c.name),datasets:[{label:'年度支出',data:catYr,backgroundColor:DB.categories.map(c=>c.color+'cc'),borderRadius:5}]},
-    options:{responsive:true,plugins:{legend:{labels:{color:'#8080A8'}}},scales:{x:{ticks:{color:'#8080A8'},grid:{display:false}},y:{ticks:{color:'#8080A8',callback:v2=>'NT$'+v2.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}}}
-  });
-}
-
-// ════════════════════════════════════════════════════════════════
-// SETTINGS
-// ════════════════════════════════════════════════════════════════
-function renderSettings() {
-  const wrap = document.getElementById('catList');
-  if (!DB.categories.length) { wrap.innerHTML=emptyState('🏷','尚無類別'); return; }
-  wrap.innerHTML = DB.categories.map((c,i) => {
-    const spent=catMonthSpend(c.id), isOver=c.budget>0&&spent>c.budget;
-    const pct=c.budget>0?Math.min(100,spent/c.budget*100):0;
-    const iconEl = c.icon
-      ? `<img src="${c.icon}" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0">`
-      : `<div style="width:32px;height:32px;border-radius:8px;background:${c.color};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${c.emoji||'🏷'}</div>`;
-    return `<div class="cat-row" draggable="true" data-id="${c.id}" data-index="${i}"
-      ondragstart="catDragStart(event,${i})" ondragover="catDragOver(event)" ondrop="catDrop(event,${i})" ondragend="catDragEnd(event)">
-      <span class="cat-drag-handle" title="拖曳排序">⠿</span>
-      ${iconEl}
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:13px">${escHtml(c.name)}</div>
-        ${c.budget>0?`<div class="prog-wrap mt-2" style="max-width:180px"><div class="prog-bar" style="width:${pct}%;background:${isOver?'var(--m-red)':'var(--m-blue)'}"></div></div>`:''}
-      </div>
-      <span style="font-size:12px;color:var(--tx-secondary);margin-right:6px">本月：${fmt(-spent)}</span>
-      ${c.budget>0?`<span class="badge ${isOver?'badge-red':'badge-green'}">${isOver?'⚠ 超支':'正常'}　${fmt(-c.budget)}</span>`:'<span class="badge badge-gray">無額度</span>'}
-      <div style="display:flex;gap:2px;margin-left:6px">
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveCat(${i},-1)" title="上移" ${i===0?'disabled':''}>▲</button>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveCat(${i},1)"  title="下移" ${i===DB.categories.length-1?'disabled':''}>▼</button>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCat','${c.id}')">✏️</button>
-        <button class="btn btn-danger btn-icon btn-sm" onclick="deleteCat('${c.id}')">🗑</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ── CATEGORY REORDER ─────────────────────────────────────────
-let catDragIdx = null;
-function moveCat(idx, dir) {
-  const to = idx + dir;
-  if (to < 0 || to >= DB.categories.length) return;
-  [DB.categories[idx], DB.categories[to]] = [DB.categories[to], DB.categories[idx]];
-  saveDB(); renderSettings();
-}
-function catDragStart(e, idx) {
-  catDragIdx = idx;
-  e.dataTransfer.effectAllowed = 'move';
-  e.currentTarget.classList.add('cat-dragging');
-}
-function catDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect='move'; }
-function catDrop(e, toIdx) {
-  e.preventDefault();
-  if (catDragIdx === null || catDragIdx === toIdx) return;
-  const arr = [...DB.categories];
-  const [item] = arr.splice(catDragIdx, 1);
-  arr.splice(toIdx, 0, item);
-  DB.categories = arr;
-  catDragIdx = null;
-  saveDB(); renderSettings();
-}
-function catDragEnd(e) { e.currentTarget.classList.remove('cat-dragging'); catDragIdx=null; }
-function deleteCat(id) {
-  if (!confirm('確定刪除？')) return;
-  DB.categories=DB.categories.filter(c=>c.id!==id);
-  saveDB(); renderSettings(); toast('類別已刪除','danger');
-}
-function exportData() {
-  const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
-  a.download='mwallet_backup_'+today()+'.json'; a.click(); toast('備份匯出成功！','success');
-}
-function importData(e) {
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=ev=>{try{DB=JSON.parse(ev.target.result);saveDB();toast('匯入成功！','success');renderPage('settings');}catch{toast('匯入失敗','danger');}};
-  r.readAsText(f); e.target.value='';
-}
-function confirmClearAll() {
-  if (!confirm('⚠ 確定清除所有資料？此動作無法復原！')) return;
-  DB=defaultDB(); saveDB(); toast('資料已清除','danger'); renderDashboard();
-}
-
-// ════════════════════════════════════════════════════════════════
-// MODALS
-// ════════════════════════════════════════════════════════════════
-const SWATCHES=['#C8102E','#0057B8','#6F2CA7','#00C853','#FF8F00','#00BCD4','#FF4081','#e67e22','#1abc9c','#795548','#607D8B','#E91E63','#ff6b35','#2ecc71'];
-
-function colorPicker(fid,cur) {
-  cur=cur||'#0057B8';
-  const sw=SWATCHES.map(c=>`<div class="c-swatch${cur===c?' sel':''}" style="background:${c}" onclick="selectColor('${fid}','${c}',this)"></div>`).join('');
-  return `<div class="color-picker-row" id="cpRow_${fid}">
-    ${sw}
-    <div class="c-custom" title="自訂">＋<input type="color" value="${cur}" oninput="selectColor('${fid}',this.value,null)"></div>
-    <input type="hidden" id="${fid}" value="${cur}">
-    <div class="color-preview" id="cpPrev_${fid}" style="background:${cur}"></div>
-  </div>`;
-}
-function selectColor(fid,color,swEl) {
-  const inp=document.getElementById(fid); if(inp) inp.value=color;
-  const prev=document.getElementById('cpPrev_'+fid); if(prev) prev.style.background=color;
-  const row=document.getElementById('cpRow_'+fid);
-  if(row) row.querySelectorAll('.c-swatch').forEach(s=>s.classList.remove('sel'));
-  if(swEl) swEl.classList.add('sel');
-}
-function iconUpload(fid,cur) {
-  cur=cur||'';
-  return `<div>
-    <div class="icon-upload" onclick="document.getElementById('${fid}_inp').click()">
-      ${cur?`<img src="${cur}" id="${fid}_img" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`:`<span id="${fid}_img" style="font-size:22px">🖼</span>`}
-      <input type="file" id="${fid}_inp" accept="image/*" style="display:none" onchange="loadIcon('${fid}',this)">
-    </div>
-    <div style="text-align:center;font-size:9px;color:var(--tx-muted);margin-top:4px">點擊上傳</div>
-    <input type="hidden" id="${fid}" value="${cur}">
-  </div>`;
-}
-function loadIcon(fid,input) {
-  const f=input.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=e=>{
-    document.getElementById(fid).value=e.target.result;
-    const el=document.getElementById(fid+'_img');
-    if(el&&el.tagName==='SPAN'){const img=document.createElement('img');img.id=fid+'_img';img.src=e.target.result;img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:inherit';el.replaceWith(img);}
-    else if(el) el.src=e.target.result;
-  };
-  r.readAsDataURL(f);
-}
-function srcOpts(type) {
-  let o='';
-  if(type!=='account') DB.creditCards.forEach(c=>{o+=`<option value="card_${c.id}">[卡] ${escHtml(c.name)}</option>`;});
-  if(type!=='card')    DB.bankAccounts.forEach(a=>{o+=`<option value="account_${a.id}">[帳] ${escHtml(a.name)}</option>`;});
-  return o;
-}
-function catOpts(selId) {
-  return DB.categories.map(c=>`<option value="${c.id}"${c.id===selId?' selected':''}>${escHtml(c.name)}</option>`).join('');
-}
-
-function openModal(type,id,preCard,preAcc,extraId) {
-  modalType=type; editTarget=id||null;
-  const overlay=document.getElementById('modalOverlay');
-  document.getElementById('modalBox').className='modal';
-  let t='',b='',f='';
-
-  const c    = id&&type==='editCard'    ?getCard(id):null;
-  const a    = id&&type==='editAccount' ?getAcc(id):null;
-  const txn  = id&&type==='editTxn'    ?DB.transactions.find(x=>x.id===id):null;
-  const fe   = id&&type==='editFixed'  ?DB.fixedExpenses.find(x=>x.id===id):null;
-  const cat  = id&&type==='editCat'    ?DB.categories.find(x=>x.id===id):null;
-  const accL = (type==='addLayer'||type==='editLayer')?getAcc(id):null;
-  const layer= type==='editLayer'&&accL?accL.layers.find(l=>l.id===extraId):null;
-
-  // ── CARD ──
-  if (type==='addCard'||type==='editCard') {
-    t=c?'編輯信用卡':'新增信用卡';
-    b=`<div style="display:flex;gap:14px;align-items:flex-start">
-      ${iconUpload('cIcon',c?.icon||'')}
-      <div style="flex:1">
-        <div class="form-group"><label class="form-label">卡片名稱</label><input class="form-input" id="cName" value="${escAttr(c?.name||'')}" placeholder="e.g. 玉山現金回饋卡"></div>
-        <div class="form-group"><label class="form-label">信用額度（0=不設限）</label><input class="form-input" id="cLimit" type="number" value="${c?.limit||0}"></div>
-      </div>
-    </div>
-    <div class="form-row mt-2">
-      <div class="form-group"><label class="form-label">結帳日（幾號）</label><input class="form-input" id="cBillingDay" type="number" min="1" max="31" value="${c?.billingDay||''}" placeholder="e.g. 25"></div>
-      <div class="form-group"><label class="form-label">繳款截止日（幾號）</label><input class="form-input" id="cDueDay" type="number" min="1" max="31" value="${c?.dueDay||''}" placeholder="e.g. 15"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">現金回饋率（%，0=不追蹤）</label><input class="form-input" id="cCashback" type="number" step="0.1" min="0" value="${c?.cashbackRate||0}" placeholder="e.g. 1.5"></div>
-      <div class="form-group"><label class="form-label">點數換算（1點=NT$）</label><input class="form-input" id="cPtRate" type="number" step="0.01" value="${c?.pointRate||0}" placeholder="e.g. 0.5"></div>
-    </div>
-    <div class="form-group"><label class="form-label">代表顏色</label>${colorPicker('cColor',c?.color||'#C8102E')}</div>`;
-    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCard()">儲存</button>`;
-  }
-
-  // ── ACCOUNT ──
-  else if (type==='addAccount'||type==='editAccount') {
-    t=a?'編輯銀行帳戶':'新增銀行帳戶';
-    b=`<div style="display:flex;gap:14px;align-items:flex-start">
-      ${iconUpload('aIcon',a?.icon||'')}
-      <div style="flex:1">
-        <div class="form-group"><label class="form-label">帳戶名稱</label><input class="form-input" id="aName" value="${escAttr(a?.name||'')}" placeholder="e.g. 台新薪轉帳戶"></div>
-        <div class="form-group"><label class="form-label">帳號後四碼（選填）</label><input class="form-input" id="aLast4" maxlength="4" value="${escAttr(a?.last4||'')}" placeholder="1234"></div>
-      </div>
-    </div>
-    <div class="form-row mt-2">
-      <div class="form-group"><label class="form-label">帳戶類型</label>
-        <select class="form-select" id="aType">
-          ${['活存','定存','電子帳戶','外幣','其他'].map(t2=>`<option value="${t2}"${(a?.accType||'活存')===t2?' selected':''}>${t2}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group"><label class="form-label">最低餘額警示（0=不設定）</label><input class="form-input" id="aMinBal" type="number" value="${a?.minBalance||0}"></div>
-    </div>
-    ${!a?`<div class="form-group"><label class="form-label">初始餘額（NT$）</label>
-      <input class="form-input" id="aInitBal" type="number" value="0">
-      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 將自動建立「初始餘額」分層</div>
-    </div>`:''}
-    <div class="form-group"><label class="form-label">帳戶備註（選填）</label><input class="form-input" id="aNotes" value="${escAttr(a?.notes||'')}" placeholder="e.g. 日常開銷用帳戶"></div>
-    <div class="form-group"><label class="form-label">代表顏色</label>${colorPicker('aColor',a?.color||'#0057B8')}</div>`;
-    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveAccount()">儲存</button>`;
-  }
-
-  // ── LAYER ──
-  else if (type==='addLayer'||type==='editLayer') {
-    t=layer?'編輯資金分層':'新增資金分層';
-    b=`<input type="hidden" id="lAccId" value="${id}">
-    <input type="hidden" id="lLayId" value="${extraId||''}">
-    <div class="form-group"><label class="form-label">分層名稱</label><input class="form-input" id="lLabel" value="${escAttr(layer?.label||'')}" placeholder="e.g. 薪水、獎金"></div>
-    <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="lAmt" type="number" value="${layer?.amount||0}"></div>
-    <div class="form-group"><label class="form-label">顏色</label>${colorPicker('lColor',layer?.color||accL?.color||'#0057B8')}</div>`;
-    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveLayer()">儲存</button>`;
-  }
-
-  // ── TRANSACTION ──
-  else if (type==='addTxn'||type==='editTxn') {
-    t=txn?'編輯消費記錄':'新增消費記錄';
-    const isInc=txn&&txn.amount>0;
-    const preSrc=preCard?'card_'+preCard:preAcc?'account_'+preAcc:txn?txn.sourceType+'_'+txn.sourceId:'';
-    b=`<div class="form-row">
-      <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tDate" type="date" value="${txn?.date||today()}"></div>
-      <div class="form-group"><label class="form-label">類型</label>
-        <select class="form-select" id="tType">
-          <option value="expense"${!isInc?' selected':''}>支出</option>
-          <option value="income"${isInc?' selected':''}>收入</option>
-          <option value="redemption"${txn?.isRedemption?' selected':''}>點數/回饋折抵</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="tAmt" type="number" value="${txn?Math.abs(txn.amount):''}" placeholder="0"></div>
-      <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="tCat">${catOpts(txn?.category||DB.categories[0]?.id||'')}</select></div>
-    </div>
-    <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="tDesc" value="${escAttr(txn?.desc||'')}" placeholder="e.g. 全聯購物"></div>
-    <div class="form-group"><label class="form-label">帳戶 / 卡片</label>
-      <select class="form-select" id="tSrc"><option value="">請選擇</option>${srcOpts('both')}</select>
-    </div>
-    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tNotes" value="${escAttr(txn?.notes||'')}"></div>`;
-    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveTxn()">儲存</button>`;
-    setTimeout(()=>{const el=document.getElementById('tSrc');if(el&&preSrc)el.value=preSrc;},60);
-  }
-
-  // ── PAYMENT ──
-  else if (type==='payment') {
-    const card=getCard(id), bal=cardBalance(id);
-    t='信用卡繳款 — '+(card?.name||'');
-    b=`<input type="hidden" id="pyCardId" value="${id}">
-    <div style="background:var(--err-bg);border:1px solid var(--bdr-red);border-radius:var(--r);padding:14px;margin-bottom:16px">
-      <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">目前欠款</div>
-      <div style="font-family:var(--ff-display);font-size:24px;font-weight:700;color:var(--tx-red)">−${fmt(Math.abs(bal))}</div>
-    </div>
-    <div class="form-group"><label class="form-label">繳款金額（NT$）</label><input class="form-input" id="pyAmt" type="number" value="${Math.abs(bal)}"></div>
-    <div class="form-group"><label class="form-label">從哪個帳戶扣款</label>
-      <select class="form-select" id="pyFrom"><option value="">請選擇帳戶</option>${srcOpts('account')}</select>
-    </div>
-    <div class="form-group"><label class="form-label">繳款日期</label><input class="form-input" id="pyDate" type="date" value="${today()}"></div>
-    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="pyNotes"></div>`;
-    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-success" onclick="doPayment()">✅ 確認繳款</button>`;
-  }
-
-  // ── TRANSFER ──
-  else if (type==='transfer') {
-    t='帳戶轉帳';
-    const accOpts=DB.bankAccounts.map(a2=>`<option value="${a2.id}"${a2.id===id?' selected':''}>${escHtml(a2.name)}</option>`).join('');
-    b=`<div class="form-group"><label class="form-label">從帳戶</label><select class="form-select" id="tfFrom">${accOpts}</select></div>
-    <div class="form-group"><label class="form-label">到帳戶</label><select class="form-select" id="tfTo">${accOpts}</select></div>
-    <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="tfAmt" type="number" placeholder="0"></div>
-    <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tfDate" type="date" value="${today()}"></div>
-    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tfNotes"></div>`;
-    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-violet" onclick="doTransfer()">🔄 確認轉帳</button>`;
-  }
-
-  // ── FIXED ──
-  else if (type==='addFixed'||type==='editFixed') {
-    t=fe?'編輯固定消費':'新增固定消費';
-    const pFS=fe?fe.sourceType+'_'+fe.sourceId:'';
-    b=`<div class="form-row">
-      <div class="form-group"><label class="form-label">每月幾號</label><input class="form-input" id="feDay" type="number" min="1" max="28" value="${fe?.day||1}"></div>
-      <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="feAmt" type="number" value="${fe?.amount||0}"></div>
-    </div>
-    <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="feDesc" value="${escAttr(fe?.desc||'')}" placeholder="e.g. Netflix"></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="feCat">${catOpts(fe?.category||DB.categories[0]?.id||'')}</select></div>
-      <div class="form-group"><label class="form-label">帳戶/卡片</label><select class="form-select" id="feSrc"><option value="">請選擇</option>${srcOpts('both')}</select></div>
-    </div>
-    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="feNotes" value="${escAttr(fe?.notes||'')}"></div>`;
-    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveFixed()">儲存</button>`;
-    setTimeout(()=>{const el=document.getElementById('feSrc');if(el&&pFS)el.value=pFS;},60);
-  }
-
-  // ── CATEGORY ──
-  else if (type==='addCat'||type==='editCat') {
-    t=cat?'編輯類別':'新增類別';
-    b=`<div style="display:flex;gap:14px;align-items:flex-start">
-      <div>
-        ${iconUpload('catIcon', cat?.icon||'')}
-        <div style="text-align:center;margin-top:6px">
-          <div class="form-label" style="margin-bottom:4px">Emoji 圖示</div>
-          <input class="form-input" id="catEmoji" value="${escAttr(cat?.emoji||'')}" placeholder="e.g. 🍔" style="width:64px;text-align:center;font-size:18px">
-        </div>
-      </div>
-      <div style="flex:1">
-        <div class="form-group"><label class="form-label">類別名稱</label><input class="form-input" id="catN" value="${escAttr(cat?.name||'')}" placeholder="e.g. 旅遊"></div>
-        <div class="form-group"><label class="form-label">月度消費額度（0=不設限）</label><input class="form-input" id="catB" type="number" value="${cat?.budget||0}"></div>
-        <div class="form-group"><label class="form-label" style="margin-bottom:6px">類別顏色</label>${colorPicker('catC',cat?.color||'#0057B8')}</div>
-      </div>
-    </div>
-    <div style="font-size:11px;color:var(--tx-secondary);margin-top:8px">💡 可上傳圖片或輸入 Emoji，圖片優先顯示</div>`;
-    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCat()">儲存</button>`;
-  }
-
-  document.getElementById('modalTitle').textContent=t;
-  document.getElementById('modalBody').innerHTML=b;
-  document.getElementById('modalFooter').innerHTML=f;
-  overlay.classList.add('active');
-}
-function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); modalType=null; editTarget=null; }
-function closeModalOverlay(e) { if(e.target===document.getElementById('modalOverlay')) closeModal(); }
-
-// ════════════════════════════════════════════════════════════════
-// SAVE HANDLERS
-// ════════════════════════════════════════════════════════════════
-function saveCard() {
-  const name=document.getElementById('cName').value.trim();
-  if(!name){toast('請填入卡片名稱','danger');return;}
-  const obj={name,color:v('cColor'),icon:v('cIcon'),limit:+v('cLimit')||0,
-    billingDay:+v('cBillingDay')||null, dueDay:+v('cDueDay')||null,
-    cashbackRate:+v('cCashback')||0, pointRate:+v('cPtRate')||0};
-  if(modalType==='editCard'){Object.assign(getCard(editTarget),obj);toast('信用卡已更新','success');}
-  else{DB.creditCards.push({id:uid(),...obj});toast('信用卡新增成功','success');}
-  saveDB();closeModal();renderCards();
-}
-function saveAccount() {
-  const name=document.getElementById('aName').value.trim();
-  if(!name){toast('請填入帳戶名稱','danger');return;}
-  const obj={name,color:v('aColor'),icon:v('aIcon'),
-    last4:(document.getElementById('aLast4')?.value||'').trim(),
-    accType:v('aType')||'活存',minBalance:+v('aMinBal')||0,
-    notes:(document.getElementById('aNotes')?.value||'').trim()};
-  if(modalType==='editAccount'){Object.assign(getAcc(editTarget),obj);toast('帳戶已更新','success');}
-  else{
-    const init=+(document.getElementById('aInitBal')?.value)||0;
-    const layers=init?[{id:uid(),label:'初始餘額',amount:init,color:obj.color}]:[];
-    DB.bankAccounts.push({id:uid(),...obj,layers});toast('帳戶新增成功','success');
-  }
-  saveDB();closeModal();renderAccounts();
-}
-function saveLayer() {
-  const accId=v('lAccId'),layId=v('lLayId'),label=document.getElementById('lLabel').value.trim(),
-        amount=+document.getElementById('lAmt').value||0,color=v('lColor');
-  if(!label){toast('請填入分層名稱','danger');return;}
-  const acc=getAcc(accId);if(!acc)return;
-  if(layId){const l=acc.layers.find(x=>x.id===layId);if(l)Object.assign(l,{label,amount,color});toast('分層已更新','success');}
-  else{acc.layers.push({id:uid(),label,amount,color});toast('分層新增成功','success');}
-  saveDB();closeModal();renderAccounts();
-}
-function saveTxn() {
-  const date=v('tDate'),type=v('tType'),amt=+v('tAmt'),
-        desc=document.getElementById('tDesc').value.trim(),
-        catId=v('tCat'),srcVal=v('tSrc'),notes=v('tNotes');
-  if(!date||!amt||!desc||!srcVal){toast('請填寫完整資訊','danger');return;}
-  const [sType,sId]=srcVal.split('_');
-  const isRed = type==='redemption';
-  const amount = type==='income'||isRed ? Math.abs(amt) : -Math.abs(amt);
-  if(modalType==='editTxn'){
-    Object.assign(DB.transactions.find(t=>t.id===editTarget),{date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed});
-    toast('記錄已更新','success');
-  } else {
-    DB.transactions.push({id:uid(),date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isFixed:false,isRedemption:isRed});
-    const cat=getCat(catId);
-    if(cat.budget>0&&amount<0&&catMonthSpend(catId)>cat.budget)toast('⚠ 類別「'+cat.name+'」已超過本月額度！','danger');
-    else toast('記錄新增成功','success');
-  }
-  saveDB();closeModal();renderTxns();
-}
-function doPayment() {
-  const cardId=v('pyCardId'),amt=+v('pyAmt'),fromVal=v('pyFrom'),date=v('pyDate'),notes=v('pyNotes');
-  if(!amt||!fromVal){toast('請填寫完整資訊','danger');return;}
-  const [,fromId]=fromVal.split('_');
-  const card=getCard(cardId);
-  const lastCat=DB.categories[DB.categories.length-1]?.id||'';
-  DB.transactions.push({id:uid(),date,amount:-Math.abs(amt),desc:'信用卡繳款 — '+(card?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isPayment:true});
-  DB.transactions.push({id:uid(),date,amount:+Math.abs(amt),desc:'繳款入帳 — '+(card?.name||''),category:lastCat,sourceId:cardId,sourceType:'card',notes,isPayment:true});
-  saveDB();closeModal();renderCards();toast('繳款成功！','success');
-}
-function doTransfer() {
-  const fromId=v('tfFrom'),toId=v('tfTo'),amt=+v('tfAmt'),date=v('tfDate'),notes=v('tfNotes');
-  if(!fromId||!toId||!amt){toast('請填寫完整資訊','danger');return;}
-  if(fromId===toId){toast('不能轉帳到相同帳戶','danger');return;}
-  const from=getAcc(fromId),to=getAcc(toId);
-  const lastCat=DB.categories[DB.categories.length-1]?.id||'';
-  DB.transactions.push({id:uid(),date,amount:-Math.abs(amt),desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true});
-  DB.transactions.push({id:uid(),date,amount:+Math.abs(amt),desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true});
-  saveDB();closeModal();renderAccounts();toast('轉帳成功！','success');
-}
-function saveFixed() {
-  const day=+v('feDay'),amt=+v('feAmt'),desc=document.getElementById('feDesc').value.trim(),
-        catId=v('feCat'),srcVal=v('feSrc'),notes=v('feNotes');
-  if(!day||!amt||!desc||!srcVal){toast('請填寫完整資訊','danger');return;}
-  const [sType,sId]=srcVal.split('_');
-  const obj={day,amount:amt,desc,category:catId,sourceId:sId,sourceType:sType,notes};
-  if(modalType==='editFixed'){Object.assign(DB.fixedExpenses.find(f=>f.id===editTarget),obj);toast('固定消費已更新','success');}
-  else{DB.fixedExpenses.push({id:uid(),...obj});toast('固定消費新增成功','success');}
-  saveDB();closeModal();renderFixed();
-}
-function saveCat() {
-  const name=document.getElementById('catN').value.trim(),budget=+v('catB')||0,color=v('catC');
-  const icon=(document.getElementById('catIcon')?.value)||'';
-  const emoji=(document.getElementById('catEmoji')?.value||'').trim();
-  if(!name){toast('請填入類別名稱','danger');return;}
-  const obj={name,budget,color,icon,emoji};
-  if(modalType==='editCat'){Object.assign(DB.categories.find(c=>c.id===editTarget),obj);toast('類別已更新','success');}
-  else{DB.categories.push({id:uid(),...obj});toast('類別新增成功','success');}
-  saveDB();closeModal();renderSettings();
-}
-
-// ════════════════════════════════════════════════════════════════
-// TOAST
-// ════════════════════════════════════════════════════════════════
-function toast(msg,type) {
-  const icons={success:'✅',danger:'❌',info:'ℹ️'};
-  const el=document.createElement('div');
-  el.className='toast '+(type||'info');
-  el.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
-  document.getElementById('toastWrap').prepend(el);
-  setTimeout(()=>el.remove(),3500);
-}
-
-// ════════════════════════════════════════════════════════════════
-// INIT
-// ════════════════════════════════════════════════════════════════
-function init() {
-  autoTheme();
-  setInterval(autoTheme, 60000); // re-check every minute
-
-  const now=new Date();
-  document.getElementById('navMonth').textContent=
-    now.getFullYear()+' / '+String(now.getMonth()+1).padStart(2,'0');
-  document.getElementById('menuToggle').onclick=()=>
-    document.getElementById('sidebar').classList.toggle('open');
-
-  const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');
-  document.getElementById('filterFrom').value=y+'-'+m+'-01';
-  document.getElementById('filterTo').value=today();
-
-  generateFixed();
-  renderDashboard();
-}
-document.addEventListener('DOMContentLoaded',init);
-</script>
-</body>
-</html>
+.cat-drag-handle:hover{color:var(--tx-blue)}
+.cat-drag-handle:active{cursor:grabbing}
