@@ -1076,3 +1076,78 @@ body.light-theme .account-card:hover{
   .settings-tab{ font-size:12px; padding:8px 6px; gap:4px; }
   .stab-icon{ font-size:14px; }
 }
+
+/* ══ FIX 1：卡片頂部 M Power 線條與內容間距 ════════════════ */
+.account-card-header[style*="border-top"]{
+  border-top:none !important;
+  padding-top:22px !important;   /* 線條 3px + 間距 19px */
+}
+.account-card-header[style*="border-top"]::before{
+  height:3px;
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+}
+
+/* ══ FIX 2：Topnav 底線換成跑燈光效 ══════════════════════════ */
+@keyframes navLightRun{
+  0%   { background-position:-60% 0; }
+  100% { background-position:160% 0; }
+}
+.topnav::after{
+  background:linear-gradient(
+    90deg,
+    var(--m-blue) 0%,
+    var(--m-violet) 33%,
+    var(--m-red) 66%,
+    var(--m-blue) 100%,
+    /* 光點 */
+    transparent 0%,
+    rgba(255,255,255,0) 40%,
+    rgba(255,255,255,0.65) 50%,
+    rgba(255,255,255,0) 60%,
+    transparent 100%
+  );
+  background-size:300% 100%;
+  animation:navLightRun 4s ease-in-out infinite;
+}
+
+/* 更清晰的跑燈：疊兩層 */
+.topnav{position:relative}
+.topnav::before{
+  content:'';
+  position:absolute;bottom:0;left:0;right:0;height:3px;z-index:1;
+  background:linear-gradient(
+    90deg,
+    var(--m-blue) 0% 33%,
+    var(--m-violet) 33% 66%,
+    var(--m-red) 66% 100%
+  );
+}
+.topnav::after{
+  content:'';
+  position:absolute;bottom:0;left:0;right:0;height:3px;z-index:2;
+  background:linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(255,255,255,0) 40%,
+    rgba(255,255,255,0.8) 50%,
+    rgba(255,255,255,0) 60%,
+    transparent 65%,
+    transparent 100%
+  );
+  background-size:300% 100%;
+  animation:navLightRun 5s ease-in-out infinite;
+}
+
+/* ══ FIX 3：卡片點擊提示文字 ════════════════════════════════ */
+.card-tap-hint{
+  text-align:center;
+  font-size:10px;letter-spacing:1px;
+  color:var(--tx-muted);
+  padding:6px 0 10px;
+  font-family:var(--ff-display);
+  opacity:0;
+  transition:opacity .2s;
+  pointer-events:none;
+}
+.account-card:hover .card-tap-hint{ opacity:1; }
