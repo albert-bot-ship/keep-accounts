@@ -196,33 +196,46 @@
     <!-- ─── SETTINGS ───────────────────────────── -->
     <section class="page-section" id="page-settings">
       <div class="page-header">
-        <div class="page-title">設定 / 類別</div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost" onclick="openModal('addTag')">🏷 新增標籤</button>
+        <div class="page-title">設定</div>
+        <div id="settingsAddBtn">
           <button class="btn btn-primary" onclick="openModal('addCat')">＋ 新增類別</button>
         </div>
       </div>
-      <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">設定消費類別與月度預算額度，超過額度時記錄會以紅色警示閃爍顯示。</p>
-      <div id="catList"></div>
 
-      <div class="section-div mt-4">
-        <div class="section-div-line"></div>
-        <div class="section-div-label">標籤管理</div>
-        <div class="section-div-line"></div>
+      <!-- ── Tab 切換列 ── -->
+      <div class="settings-tab-bar">
+        <button class="settings-tab active" id="stab-cat"  onclick="switchSettingsTab('cat')">
+          <span class="stab-icon">🏷</span> 消費類別
+        </button>
+        <button class="settings-tab" id="stab-tag" onclick="switchSettingsTab('tag')">
+          <span class="stab-icon">#</span> 標籤
+        </button>
+        <button class="settings-tab" id="stab-data" onclick="switchSettingsTab('data')">
+          <span class="stab-icon">💾</span> 資料管理
+        </button>
       </div>
-      <p style="color:var(--tx-secondary);font-size:12px;margin:8px 0 12px">自訂標籤可在新增消費時多選，方便跨類別篩選（如 #出差、#家用）。</p>
-      <div id="tagList"></div>
 
-      <div class="section-div mt-4">
-        <div class="section-div-line"></div>
-        <div class="section-div-label">資料管理</div>
-        <div class="section-div-line"></div>
+      <!-- ── 類別 Tab ── -->
+      <div class="settings-tab-panel active" id="spanel-cat">
+        <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:14px">設定消費類別與月度預算額度，超過額度時記錄會以紅色警示閃爍顯示。</p>
+        <div id="catList"></div>
       </div>
-      <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
-        <button class="btn btn-ghost" onclick="exportData()">📤 匯出備份 (.json)</button>
-        <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">📥 匯入備份</button>
-        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
-        <button class="btn btn-danger" onclick="confirmClearAll()">🗑 清除所有資料</button>
+
+      <!-- ── 標籤 Tab ── -->
+      <div class="settings-tab-panel" id="spanel-tag">
+        <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:14px">自訂標籤可在新增消費時多選，方便跨類別篩選（如 #出差、#家用）。</p>
+        <div id="tagList"></div>
+      </div>
+
+      <!-- ── 資料管理 Tab ── -->
+      <div class="settings-tab-panel" id="spanel-data">
+        <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:14px">匯出備份可保存所有帳戶、交易記錄，匯入後完整還原。</p>
+        <div class="flex gap-3" style="flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="exportData()">📤 匯出備份 (.json)</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">📥 匯入備份</button>
+          <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+          <button class="btn btn-danger" onclick="confirmClearAll()">🗑 清除所有資料</button>
+        </div>
       </div>
     </section>
   </main>
@@ -1064,6 +1077,32 @@ function toggleTxnTag(el, tagId) {
   if (arr.includes(tagId)) { arr=arr.filter(x=>x!==tagId); el.classList.remove('active'); }
   else { arr.push(tagId); el.classList.add('active'); }
   inp.value = JSON.stringify(arr);
+}
+
+// ════════════════════════════════════════════════════════════════
+// SETTINGS TABS
+// ════════════════════════════════════════════════════════════════
+function switchSettingsTab(tab) {
+  // Toggle tab buttons
+  document.querySelectorAll('.settings-tab').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById('stab-' + tab);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  // Toggle panels
+  document.querySelectorAll('.settings-tab-panel').forEach(p => p.classList.remove('active'));
+  const activePanel = document.getElementById('spanel-' + tab);
+  if (activePanel) activePanel.classList.add('active');
+
+  // Swap the add button
+  const addBtn = document.getElementById('settingsAddBtn');
+  if (!addBtn) return;
+  if (tab === 'cat') {
+    addBtn.innerHTML = `<button class="btn btn-primary" onclick="openModal('addCat')">＋ 新增類別</button>`;
+  } else if (tab === 'tag') {
+    addBtn.innerHTML = `<button class="btn btn-primary" onclick="openModal('addTag')">🏷 新增標籤</button>`;
+  } else {
+    addBtn.innerHTML = '';
+  }
 }
 
 function deleteCat(id) {
