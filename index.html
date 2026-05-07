@@ -473,8 +473,15 @@ function sourceName(t) {
 // Days until credit card due date
 function daysUntilDue(card) {
   if (!card.dueDay) return null;
-  const now = new Date(); 
+  const now = new Date();
   const d = new Date(now.getFullYear(), now.getMonth(), card.dueDay);
+  if (d < now) d.setMonth(d.getMonth()+1);
+  return Math.ceil((d - now) / 86400000);
+}
+function daysUntilBilling(card) {
+  if (!card.billingDay) return null;
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), card.billingDay);
   if (d < now) d.setMonth(d.getMonth()+1);
   return Math.ceil((d - now) / 86400000);
 }
@@ -629,10 +636,17 @@ function renderCards() {
     const mSpend  = DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&ym(t.date)===nowYM()&&!t.isPayment).reduce((s,t)=>s+Math.abs(t.amount),0);
     const cashback= cardMonthlyCashback(c);
     const due     = daysUntilDue(c);
+    const billing = daysUntilBilling(c);
     const barColor= used>80?'var(--m-red)':used>50?'var(--warn)':'var(--m-blue)';
+    // 繳款日 badge（紅/橘/綠）
     const dueCls  = due!==null?(due<=2?'glow-red-txt':due<=5?'orange-txt':'green-txt'):'';
     const dueHtml = due!==null
       ? `<div class="due-badge ${dueCls}">${due<=0?'⚠ 今日繳款截止':due<=2?'⚠ '+due+'天後到期':due+'天後繳款'}</div>`
+      : '';
+    // 結帳日 badge（天藍，靠近時慢閃）
+    const bilCls  = billing!==null?(billing<=2?'billing-blink-fast':billing<=5?'billing-blink':''):'';
+    const bilHtml = billing!==null
+      ? `<div class="billing-badge ${bilCls}">${billing<=0?'📋 今日結帳':billing<=2?'📋 '+billing+'天後結帳':'📋 '+billing+'天後結帳'}</div>`
       : '';
 
     return `<div class="account-card" id="card-${c.id}" onclick="cardClickHandler(event,'card','${c.id}')" style="cursor:pointer">
@@ -648,7 +662,9 @@ function renderCards() {
         </div>
       </div>
       <div class="account-card-body">
-        ${dueHtml}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${(dueHtml||bilHtml)?'4px':'0'}">
+          ${dueHtml}${bilHtml}
+        </div>
         <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">當前餘額</div>
         <div class="account-balance ${isNeg?'negative':'positive'}">${isNeg?'−':'+'}${fmt(Math.abs(bal))}</div>
         <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
