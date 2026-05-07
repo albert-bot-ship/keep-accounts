@@ -602,6 +602,7 @@ function renderAccounts() {
       <div class="account-card-body">
         <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">帳戶餘額</div>
         <div class="account-balance ${bal<0?'negative':isLow?'warning':'positive'}">${fmt(bal)}</div>
+        ${a.accType==='外幣'&&a.currency?(()=>{const rate=getRateTWD(a.currency);return rate?`<div class="fx-rate-badge"><span class="fx-cur">${a.currency}</span><span class="fx-arrow">→</span><span class="fx-val">1 ${a.currency} ≈ NT$${rate.toLocaleString()}</span><span class="fx-twd">帳戶約 NT$${Math.round(bal*rate).toLocaleString()}</span></div>`:''})():''}
         ${isLow?`<div style="font-size:11px;color:var(--warn);margin-top:4px">⚠ 低於最低餘額警示 ${fmt(a.minBalance)}</div>`:''}
         ${salaryAmt!==null?`<div style="font-size:11px;color:var(--tx-secondary);margin-top:6px">薪水剩餘生活費：<span style="color:${salaryAmt-ccSpend<0?'var(--tx-red)':'var(--tx-green)'};font-weight:700">${fmt(salaryAmt-ccSpend)}</span></div>`:''}
         <div style="display:flex;gap:16px;margin-top:8px">
@@ -882,13 +883,15 @@ function renderSettings() {
       ondragstart="catDragStart(event,${i})" ondragover="catDragOver(event)" ondrop="catDrop(event,${i})" ondragend="catDragEnd(event)">
       <span class="cat-drag-handle" title="拖曳排序">⠿</span>
       ${iconEl}
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:13px">${escHtml(c.name)}</div>
-        ${c.budget>0?`<div class="prog-wrap mt-2" style="max-width:180px"><div class="prog-bar" style="width:${pct}%;background:${isOver?'var(--m-red)':'var(--m-blue)'}"></div></div>`:''}
+      <div class="cat-row-info">
+        <div class="cat-row-name">${escHtml(c.name)}</div>
+        <div class="cat-row-meta">
+          <span class="cat-month-spend">本月：${fmt(-spent)}</span>
+          ${c.budget>0?`<span class="badge ${isOver?'badge-red':'badge-green'}" style="font-size:10px">${isOver?'⚠ 超支':'正常'}　${fmt(-c.budget)}</span>`:'<span class="badge badge-gray" style="font-size:10px">無額度</span>'}
+        </div>
+        ${c.budget>0?`<div class="prog-wrap" style="max-width:160px;margin-top:4px"><div class="prog-bar" style="width:${pct}%;background:${isOver?'var(--m-red)':'var(--m-blue)'}"></div></div>`:''}
       </div>
-      <span style="font-size:12px;color:var(--tx-secondary);margin-right:6px">本月：${fmt(-spent)}</span>
-      ${c.budget>0?`<span class="badge ${isOver?'badge-red':'badge-green'}">${isOver?'⚠ 超支':'正常'}　${fmt(-c.budget)}</span>`:'<span class="badge badge-gray">無額度</span>'}
-      <div style="display:flex;gap:2px;margin-left:6px">
+      <div class="cat-row-actions">
         <button class="btn btn-ghost btn-icon btn-sm" onclick="moveCat(${i},-1)" title="上移" ${i===0?'disabled':''}>▲</button>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="moveCat(${i},1)"  title="下移" ${i===DB.categories.length-1?'disabled':''}>▼</button>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCat','${c.id}')">✏️</button>
@@ -1046,11 +1049,15 @@ function openModal(type,id,preCard,preAcc,extraId) {
     </div>
     <div class="form-row mt-2">
       <div class="form-group"><label class="form-label">帳戶類型</label>
-        <select class="form-select" id="aType">
+        <select class="form-select" id="aType" onchange="toggleCurrencyField(this.value)">
           ${['活存','定存','電子帳戶','外幣','其他'].map(t2=>`<option value="${t2}"${(a?.accType||'活存')===t2?' selected':''}>${t2}</option>`).join('')}
         </select>
       </div>
       <div class="form-group"><label class="form-label">最低餘額警示（0=不設定）</label><input class="form-input" id="aMinBal" type="number" value="${a?.minBalance||0}"></div>
+    </div>
+    <div class="form-group" id="currencyGroup" style="${(a?.accType||'活存')==='外幣'?'':'display:none'}">
+      <label class="form-label">外幣幣別（e.g. USD JPY EUR）</label>
+      <input class="form-input" id="aCurrency" value="${escAttr(a?.currency||'')}" placeholder="USD" style="text-transform:uppercase">
     </div>
     <div class="form-group">
       <label class="form-label">初始餘額（NT$）</label>
@@ -1199,6 +1206,7 @@ function saveAccount() {
   const obj={name,color:v('aColor'),icon:v('aIcon'),
     last4:(document.getElementById('aLast4')?.value||'').trim(),
     accType:v('aType')||'活存',minBalance:+v('aMinBal')||0,
+    currency:(document.getElementById('aCurrency')?.value||'').trim().toUpperCase(),
     notes:(document.getElementById('aNotes')?.value||'').trim()};
   const initBal = +(document.getElementById('aInitBal')?.value) || 0;
   if(modalType==='editAccount'){
@@ -1305,9 +1313,190 @@ function toast(msg,type) {
 // ════════════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+// HELPERS FOR MODALS
+// ════════════════════════════════════════════════════════════════
+function toggleCurrencyField(accType) {
+  const el = document.getElementById('currencyGroup');
+  if (el) el.style.display = accType === '外幣' ? '' : 'none';
+}
+
+// ════════════════════════════════════════════════════════════════
+// 1. 繳款提醒推播
+// ════════════════════════════════════════════════════════════════
+function requestNotifyPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function checkDueNotifications() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = new Date();
+  DB.creditCards.forEach(card => {
+    if (!card.dueDay) return;
+    const days = daysUntilDue(card);
+    if (days === null) return;
+    const notifyKey = 'mwallet_notified_' + card.id + '_' + nowYM();
+    if (days <= 5 && days >= 0 && !sessionStorage.getItem(notifyKey)) {
+      const msg = days === 0
+        ? `${card.name} 今日繳款截止！`
+        : `${card.name} 還有 ${days} 天到繳款截止日，欠款 ${fmt(Math.abs(cardBalance(card.id)))}`;
+      new Notification('M WALLET 繳款提醒', {
+        body: msg,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%230057B8"/><text y="44" x="10" font-size="40" fill="white">M</text></svg>'
+      });
+      sessionStorage.setItem(notifyKey, '1');
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// 2. 快速記帳 FAB
+// ════════════════════════════════════════════════════════════════
+function openQuickAdd() {
+  const overlay = document.getElementById('modalOverlay');
+  document.getElementById('modalBox').className = 'modal';
+  modalType = 'quickAdd'; editTarget = null;
+
+  const srcOpts2 = () => {
+    let o = '';
+    DB.creditCards.forEach(c2  => { o += `<option value="card_${c2.id}">[卡] ${escHtml(c2.name)}</option>`; });
+    DB.bankAccounts.forEach(a2 => { o += `<option value="account_${a2.id}">[帳] ${escHtml(a2.name)}</option>`; });
+    return o;
+  };
+
+  document.getElementById('modalTitle').textContent = '⚡ 快速記帳';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="form-group" style="margin:0">
+        <label class="form-label">金額（NT$）</label>
+        <input class="form-input" id="qaAmt" type="number" placeholder="0" autofocus style="font-size:22px;font-weight:700;font-family:var(--ff-display)">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label">類型</label>
+        <select class="form-select" id="qaType">
+          <option value="expense">支出</option>
+          <option value="income">收入</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">消費內容</label>
+      <input class="form-input" id="qaDesc" placeholder="e.g. 午餐、計程車">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group" style="margin:0">
+        <label class="form-label">類別</label>
+        <select class="form-select" id="qaCat">${catOpts(DB.categories[0]?.id||'')}</select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label">帳戶/卡片</label>
+        <select class="form-select" id="qaSrc"><option value="">請選擇</option>${srcOpts2()}</select>
+      </div>
+    </div>
+    <input type="hidden" id="qaDate" value="${today()}">
+  `;
+  document.getElementById('modalFooter').innerHTML =
+    `<button class="btn btn-ghost" onclick="closeModal()">取消</button>
+     <button class="btn btn-primary" style="min-width:100px" onclick="saveQuickAdd()">✅ 記帳</button>`;
+  overlay.classList.add('active');
+  setTimeout(() => { const el = document.getElementById('qaAmt'); if(el) el.focus(); }, 80);
+}
+
+function saveQuickAdd() {
+  const amt    = +v('qaAmt');
+  const desc   = (document.getElementById('qaDesc')?.value||'').trim() || '快速記帳';
+  const catId  = v('qaCat');
+  const srcVal = v('qaSrc');
+  const type   = v('qaType');
+  if (!amt || !srcVal) { toast('請填入金額並選擇帳戶','danger'); return; }
+  const [sType, sId] = srcVal.split('_');
+  const amount = type === 'income' ? Math.abs(amt) : -Math.abs(amt);
+  DB.transactions.push({ id:uid(), date:today(), amount, desc, category:catId,
+    sourceId:sId, sourceType:sType, notes:'', isFixed:false });
+  const cat = getCat(catId);
+  if (cat.budget>0 && amount<0 && catMonthSpend(catId)>cat.budget)
+    toast('⚠ 類別「'+cat.name+'」已超過本月額度！','danger');
+  saveDB(); closeModal(); renderDashboard(); toast('✅ 記帳成功：'+fmt(Math.abs(amt)),'success');
+}
+
+// ════════════════════════════════════════════════════════════════
+// 3. 匯率換算
+// ════════════════════════════════════════════════════════════════
+let exchangeRates = {};
+
+async function fetchExchangeRates() {
+  try {
+    const res  = await fetch('https://api.frankfurter.app/latest?to=TWD,USD,JPY,EUR,CNY,GBP,HKD,KRW,SGD,AUD');
+    const data = await res.json();
+    // data.rates = { TWD: x, ... } relative to EUR base
+    // We want TWD as base: 1 foreign = ? TWD
+    const twdPerEur = data.rates.TWD;
+    exchangeRates = {};
+    Object.entries(data.rates).forEach(([cur, rate]) => {
+      // rate = EUR -> cur, so TWD -> cur = rate/twdPerEur
+      // 1 cur = twdPerEur/rate TWD
+      exchangeRates[cur] = +(twdPerEur / rate).toFixed(4);
+    });
+    exchangeRates['TWD'] = 1;
+    exchangeRates['EUR'] = twdPerEur;
+    localStorage.setItem('mwallet_rates', JSON.stringify({ts: Date.now(), rates: exchangeRates}));
+  } catch(e) {
+    // try cached
+    const cached = localStorage.getItem('mwallet_rates');
+    if (cached) { const d=JSON.parse(cached); exchangeRates=d.rates; }
+  }
+}
+
+function getRateTWD(currency) {
+  if (!currency || currency === 'TWD') return 1;
+  return exchangeRates[currency.toUpperCase()] || null;
+}
+
+// ════════════════════════════════════════════════════════════════
+// 4. 定期備份提醒
+// ════════════════════════════════════════════════════════════════
+function checkBackupReminder() {
+  const last = parseInt(localStorage.getItem('mwallet_last_backup') || '0');
+  const daysSince = (Date.now() - last) / 86400000;
+  const banner = document.getElementById('backupBanner');
+  if (!banner) return;
+  // show if never backed up (last=0 means > 30 days trivially) or > 30 days
+  if (last === 0 || daysSince > 30) {
+    banner.style.display = 'flex';
+  }
+}
+
+function exportDataAndDismiss() {
+  exportData();
+  localStorage.setItem('mwallet_last_backup', Date.now().toString());
+  dismissBackup();
+}
+function dismissBackup() {
+  const b = document.getElementById('backupBanner');
+  if (b) b.style.display = 'none';
+}
+
+// Override exportData to also update backup timestamp
+const _origExportData = typeof exportData === 'function' ? exportData : null;
+
+function exportData() {
+  const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+  a.download='mwallet_backup_'+today()+'.json'; a.click();
+  toast('備份匯出成功！','success');
+  localStorage.setItem('mwallet_last_backup', Date.now().toString());
+  dismissBackup();
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
 function init() {
   autoTheme();
-  setInterval(autoTheme, 60000); // re-check every minute
+  setInterval(autoTheme, 60000);
 
   const now=new Date();
   document.getElementById('navMonth').textContent=
@@ -1321,8 +1510,32 @@ function init() {
 
   generateFixed();
   renderDashboard();
+
+  // 1. 推播通知
+  requestNotifyPermission();
+  setTimeout(checkDueNotifications, 2000);
+
+  // 3. 匯率
+  fetchExchangeRates();
+
+  // 4. 備份提醒
+  checkBackupReminder();
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>
+
+<!-- ══ FAB 快速記帳 ═══════════════════════════════════════════ -->
+<button class="fab-btn" id="fabBtn" onclick="openQuickAdd()" title="快速記帳">
+  <span class="fab-icon">＋</span>
+</button>
+
+<!-- ══ BACKUP BANNER ══════════════════════════════════════════ -->
+<div class="backup-banner" id="backupBanner" style="display:none">
+  <span>📦 超過 30 天未備份，建議匯出資料備份</span>
+  <div style="display:flex;gap:8px;flex-shrink:0">
+    <button class="btn btn-sm btn-primary" onclick="exportDataAndDismiss()">立即備份</button>
+    <button class="btn btn-sm btn-ghost" onclick="dismissBackup()">稍後再說</button>
+  </div>
+</div>
 </body>
 </html>
