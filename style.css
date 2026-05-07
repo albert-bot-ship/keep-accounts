@@ -1033,3 +1033,46 @@ body.light-theme .account-card:hover{
   color:var(--tclr,var(--m-blue));
   box-shadow:0 0 0 2px color-mix(in srgb,var(--tclr,var(--m-blue)) 30%,transparent);
 }
+
+/* ══ SETTINGS TABS ═══════════════════════════════════════════ */
+.settings-tab-bar{
+  display:flex;gap:0;
+  background:var(--bg-secondary);
+  border-radius:var(--r-lg);
+  padding:4px;
+  margin-bottom:20px;
+  border:1px solid var(--bdr-subtle);
+}
+.settings-tab{
+  flex:1;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:9px 12px;
+  border:none;border-radius:calc(var(--r-lg) - 2px);
+  background:transparent;
+  color:var(--tx-secondary);
+  font-family:var(--ff-body);font-size:13px;font-weight:500;
+  cursor:pointer;
+  transition:all .2s cubic-bezier(.34,1.4,.64,1);
+  white-space:nowrap;
+}
+.settings-tab:hover:not(.active){
+  color:var(--tx-primary);
+  background:var(--bg-card);
+}
+.settings-tab.active{
+  background:linear-gradient(135deg,var(--m-blue),var(--m-violet));
+  color:#fff;
+  box-shadow:0 2px 12px rgba(0,87,184,.35);
+  font-weight:600;
+}
+.stab-icon{font-size:15px;line-height:1}
+
+/* Tab panels */
+.settings-tab-panel{ display:none; }
+.settings-tab-panel.active{ display:block; }
+
+/* Mobile: tab text compress */
+@media(max-width:420px){
+  .settings-tab{ font-size:12px; padding:8px 6px; gap:4px; }
+  .stab-icon{ font-size:14px; }
+}
