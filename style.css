@@ -605,3 +605,199 @@ body.light-theme .stat-card{background:var(--bg-card);}
 }
 .cat-drag-handle:hover{color:var(--tx-blue)}
 .cat-drag-handle:active{cursor:grabbing}
+
+/* ══ MOBILE RESPONSIVE OVERHAUL ══════════════════════════════ */
+
+/* ── Category rows on mobile ── */
+@media(max-width:600px){
+  .cat-row{
+    flex-wrap:wrap;
+    gap:8px;
+    padding:10px 10px;
+  }
+  .cat-drag-handle{font-size:20px;order:0}
+  .cat-row > img,
+  .cat-row > div[style*="width:32px"]{order:1}
+  /* name + stat block */
+  .cat-row > div[style*="flex:1"]{
+    order:2;
+    flex:1 1 120px;
+    min-width:0;
+  }
+  /* badge */
+  .cat-row > span.badge{order:3;font-size:10px}
+  /* monthly spend text */
+  .cat-row > span[style*="font-size:12px"]{order:4;font-size:11px}
+  /* button group */
+  .cat-row > div[style*="display:flex;gap:2px"]{
+    order:5;
+    margin-left:auto;
+  }
+  /* hide up/down labels on tiny screen */
+  .cat-row .btn-icon{width:26px;height:26px;font-size:12px}
+}
+
+/* ── Topnav on mobile ── */
+@media(max-width:480px){
+  .nav-logo-text{font-size:15px;letter-spacing:2px}
+  .nav-logo-sub{display:none}
+  .nav-add-btn{padding:6px 10px;font-size:12px}
+  .nav-add-btn span{display:none}
+  .btn-theme-toggle{width:28px;height:28px;font-size:13px}
+}
+
+/* ── Dashboard filter bar ── */
+@media(max-width:600px){
+  .page-header{flex-direction:column;align-items:flex-start;gap:10px}
+  .dash-filter-bar{width:100%}
+  .dash-filter-btn{flex:1;text-align:center;padding:5px 6px;font-size:11px}
+}
+
+/* ── Stats grid ── */
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .stat-value{font-size:20px}
+}
+
+/* ── Account & credit cards grid ── */
+@media(max-width:600px){
+  .cards-grid{grid-template-columns:1fr}
+  .account-card-footer{flex-wrap:wrap}
+  .account-card-footer .btn{flex:1;justify-content:center;font-size:12px}
+}
+
+/* ── Transaction table on mobile: horizontal scroll ── */
+@media(max-width:768px){
+  .table-container{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .table-toolbar{gap:6px}
+  #txnSearch{width:100%!important}
+  table{min-width:600px}
+  .table-toolbar-right{width:100%}
+}
+
+/* ── Filters on mobile: stack ── */
+@media(max-width:600px){
+  .table-toolbar{flex-direction:column;align-items:stretch}
+  .table-toolbar input[type="date"],
+  .table-toolbar select{width:100%!important}
+  .table-toolbar-right{flex-wrap:wrap;gap:6px}
+  .table-toolbar-right .btn{flex:1}
+}
+
+/* ── Grid-2 (dashboard side-by-side panels) ── */
+@media(max-width:600px){
+  .grid-2{grid-template-columns:1fr}
+}
+
+/* ── Modal ── */
+@media(max-width:500px){
+  .modal{border-radius:var(--r-lg) var(--r-lg) 0 0;max-height:95vh}
+  .modal-overlay{align-items:flex-end;padding:0}
+  .form-row,.form-row-3{grid-template-columns:1fr}
+  .modal-body{padding:14px 16px}
+  .modal-header{padding:14px 16px 12px}
+  .modal-footer{padding:12px 16px}
+}
+
+/* ── Color picker wrapping ── */
+@media(max-width:480px){
+  .color-picker-row{gap:6px}
+  .c-swatch{width:24px;height:24px}
+}
+
+/* ── Fee item (fixed expenses) ── */
+@media(max-width:500px){
+  .fe-item{flex-wrap:wrap;gap:8px}
+  .fe-item > div[style*="flex:1"]{min-width:0;width:calc(100% - 80px)}
+}
+
+/* ── Charts grid ── */
+@media(max-width:600px){
+  .charts-grid-2{grid-template-columns:1fr}
+}
+
+/* ── Layer bars ── */
+@media(max-width:480px){
+  .layer-bar{flex-wrap:wrap;gap:6px}
+  .layer-name{flex:1 1 80px}
+}
+
+/* ══ CAT-ROW INTERNAL LAYOUT (desktop + mobile) ═════════════ */
+.cat-row-info{
+  flex:1;min-width:0;overflow:hidden;
+}
+.cat-row-name{
+  font-weight:600;font-size:13px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.cat-row-meta{
+  display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;
+}
+.cat-month-spend{
+  font-size:12px;color:var(--tx-secondary);white-space:nowrap;
+}
+.cat-row-actions{
+  display:flex;gap:3px;flex-shrink:0;margin-left:auto;
+}
+
+/* Mobile: reorganise cat-row */
+@media(max-width:540px){
+  .cat-row{ flex-wrap:wrap; padding:10px 10px; row-gap:8px; }
+
+  /* Row 1: handle | icon | name+meta (fills width) | actions */
+  .cat-drag-handle{ order:0; align-self:center; }
+  .cat-row > img,
+  .cat-row > div[style*="width:32px"]{ order:1; align-self:center; }
+  .cat-row-info{ order:2; flex:1 1 0; min-width:0; }
+  .cat-row-actions{ order:3; align-self:center; }
+
+  .cat-row-actions .btn-icon{ width:28px; height:28px; font-size:12px; }
+}
+
+/* ══ FAB 快速記帳 ════════════════════════════════════════════ */
+.fab-btn{
+  position:fixed;bottom:28px;right:24px;z-index:1500;
+  width:58px;height:58px;border-radius:50%;
+  background:linear-gradient(135deg,var(--m-blue),var(--m-violet));
+  border:none;color:#fff;font-size:28px;
+  cursor:pointer;box-shadow:0 4px 20px rgba(0,87,184,.5);
+  display:flex;align-items:center;justify-content:center;
+  transition:all .25s cubic-bezier(.34,1.56,.64,1);
+}
+.fab-btn:hover{transform:scale(1.12) rotate(90deg);box-shadow:0 6px 28px rgba(0,87,184,.65)}
+.fab-btn:active{transform:scale(.95)}
+.fab-icon{line-height:1;transition:transform .25s}
+
+/* ══ BACKUP BANNER ═══════════════════════════════════════════ */
+.backup-banner{
+  position:fixed;bottom:0;left:0;right:0;z-index:1400;
+  background:linear-gradient(135deg,#1a1220,#1a1a2e);
+  border-top:2px solid var(--m-blue);
+  padding:12px 20px;display:flex;align-items:center;
+  justify-content:space-between;gap:12px;flex-wrap:wrap;
+  box-shadow:0 -4px 20px rgba(0,0,0,.4);
+  font-size:13px;color:var(--tx-primary);
+}
+.backup-banner span{flex:1;min-width:200px}
+
+/* ══ EXCHANGE RATE BADGE ═════════════════════════════════════ */
+.fx-rate-badge{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  margin-top:6px;padding:6px 10px;
+  background:rgba(0,87,184,0.1);border:1px solid rgba(0,87,184,0.2);
+  border-radius:var(--r);font-size:11px;
+}
+.fx-cur{font-family:var(--ff-display);font-weight:700;color:var(--tx-blue);font-size:12px}
+.fx-arrow{color:var(--tx-muted)}
+.fx-val{color:var(--tx-primary)}
+.fx-twd{color:var(--tx-green);font-weight:600;margin-left:4px}
+
+/* ══ FAB bottom offset when backup banner visible ════════════ */
+body:has(.backup-banner:not([style*="display:none"])) .fab-btn{
+  bottom:80px;
+}
+
+/* Mobile: FAB slightly smaller */
+@media(max-width:480px){
+  .fab-btn{width:52px;height:52px;font-size:24px;right:16px;bottom:20px}
+}
