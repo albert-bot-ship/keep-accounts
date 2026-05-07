@@ -434,8 +434,17 @@ function thisMonthCCSpend() {
     .reduce((s,t)=>s+t.amount,0);
 }
 function catMonthSpend(id) {
+  // 類別頁顯示「當月」全月花費，薪資週期只用於儀表板
+  return DB.transactions
+    .filter(t=>t.category===id && t.amount<0 && ym(t.date)===nowYM())
+    .reduce((s,t)=>s+Math.abs(t.amount),0);
+}
+
+// 薪資週期內的類別花費（用於超支判斷）
+function catSalarySpend(id) {
   const { from, to } = getSalaryCycle();
-  return DB.transactions.filter(t=>t.category===id&&t.amount<0&&t.date>=from&&t.date<=to)
+  return DB.transactions
+    .filter(t=>t.category===id && t.amount<0 && t.date>=from && t.date<=to)
     .reduce((s,t)=>s+Math.abs(t.amount),0);
 }
 function sourceName(t) {
@@ -1052,7 +1061,7 @@ function renderSettings() {
       <div class="cat-row-info">
         <div class="cat-row-name">${escHtml(c.name)}</div>
         <div class="cat-row-meta">
-          <span class="cat-month-spend">薪資週期：${fmt(-spent)}</span>
+          <span class="cat-month-spend">本月：${fmt(-spent)}</span>
           ${c.budget>0?`<span class="badge ${isOver?'badge-red':'badge-green'}" style="font-size:10px">${isOver?'⚠ 超支':'正常'}　${fmt(-c.budget)}</span>`:'<span class="badge badge-gray" style="font-size:10px">無額度</span>'}
         </div>
         ${c.budget>0?`<div class="prog-wrap" style="max-width:160px;margin-top:4px"><div class="prog-bar" style="width:${pct}%;background:${isOver?'var(--m-red)':'var(--m-blue)'}"></div></div>`:''}
