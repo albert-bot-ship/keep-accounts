@@ -870,23 +870,59 @@ function renderAnalytics() {
 // SETTINGS
 // ════════════════════════════════════════════════════════════════
 function renderSettings() {
-  let html=DB.categories.length?DB.categories.map(c=>{
+  const wrap = document.getElementById('catList');
+  if (!DB.categories.length) { wrap.innerHTML=emptyState('🏷','尚無類別'); return; }
+  wrap.innerHTML = DB.categories.map((c,i) => {
     const spent=catMonthSpend(c.id), isOver=c.budget>0&&spent>c.budget;
     const pct=c.budget>0?Math.min(100,spent/c.budget*100):0;
-    return `<div class="fe-item">
-      <div style="width:14px;height:14px;border-radius:50%;background:${c.color};flex-shrink:0"></div>
-      <div style="flex:1">
+    const iconEl = c.icon
+      ? `<img src="${c.icon}" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0">`
+      : `<div style="width:32px;height:32px;border-radius:8px;background:${c.color};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${c.emoji||'🏷'}</div>`;
+    return `<div class="cat-row" draggable="true" data-id="${c.id}" data-index="${i}"
+      ondragstart="catDragStart(event,${i})" ondragover="catDragOver(event)" ondrop="catDrop(event,${i})" ondragend="catDragEnd(event)">
+      <span class="cat-drag-handle" title="拖曳排序">⠿</span>
+      ${iconEl}
+      <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:13px">${escHtml(c.name)}</div>
-        ${c.budget>0?`<div class="prog-wrap mt-2" style="max-width:200px"><div class="prog-bar" style="width:${pct}%;background:${isOver?'var(--m-red)':'var(--m-blue)'}"></div></div>`:''}
+        ${c.budget>0?`<div class="prog-wrap mt-2" style="max-width:180px"><div class="prog-bar" style="width:${pct}%;background:${isOver?'var(--m-red)':'var(--m-blue)'}"></div></div>`:''}
       </div>
-      <span style="font-size:12px;color:var(--tx-secondary)">本月：${fmt(-spent)}</span>
-      ${c.budget>0?`<span class="badge ${isOver?'badge-red':'badge-green'}">${isOver?'⚠ 超支':'正常'}　額度${fmt(-c.budget)}</span>`:'<span class="badge badge-gray">無額度</span>'}
-      <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCat','${c.id}')">✏️</button>
-      <button class="btn btn-danger btn-icon btn-sm" onclick="deleteCat('${c.id}')">🗑</button>
+      <span style="font-size:12px;color:var(--tx-secondary);margin-right:6px">本月：${fmt(-spent)}</span>
+      ${c.budget>0?`<span class="badge ${isOver?'badge-red':'badge-green'}">${isOver?'⚠ 超支':'正常'}　${fmt(-c.budget)}</span>`:'<span class="badge badge-gray">無額度</span>'}
+      <div style="display:flex;gap:2px;margin-left:6px">
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveCat(${i},-1)" title="上移" ${i===0?'disabled':''}>▲</button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveCat(${i},1)"  title="下移" ${i===DB.categories.length-1?'disabled':''}>▼</button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCat','${c.id}')">✏️</button>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="deleteCat('${c.id}')">🗑</button>
+      </div>
     </div>`;
-  }).join(''):emptyState('🏷','尚無類別');
-  document.getElementById('catList').innerHTML=html;
+  }).join('');
 }
+
+// ── CATEGORY REORDER ─────────────────────────────────────────
+let catDragIdx = null;
+function moveCat(idx, dir) {
+  const to = idx + dir;
+  if (to < 0 || to >= DB.categories.length) return;
+  [DB.categories[idx], DB.categories[to]] = [DB.categories[to], DB.categories[idx]];
+  saveDB(); renderSettings();
+}
+function catDragStart(e, idx) {
+  catDragIdx = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('cat-dragging');
+}
+function catDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect='move'; }
+function catDrop(e, toIdx) {
+  e.preventDefault();
+  if (catDragIdx === null || catDragIdx === toIdx) return;
+  const arr = [...DB.categories];
+  const [item] = arr.splice(catDragIdx, 1);
+  arr.splice(toIdx, 0, item);
+  DB.categories = arr;
+  catDragIdx = null;
+  saveDB(); renderSettings();
+}
+function catDragEnd(e) { e.currentTarget.classList.remove('cat-dragging'); catDragIdx=null; }
 function deleteCat(id) {
   if (!confirm('確定刪除？')) return;
   DB.categories=DB.categories.filter(c=>c.id!==id);
@@ -1115,9 +1151,21 @@ function openModal(type,id,preCard,preAcc,extraId) {
   // ── CATEGORY ──
   else if (type==='addCat'||type==='editCat') {
     t=cat?'編輯類別':'新增類別';
-    b=`<div class="form-group"><label class="form-label">類別名稱</label><input class="form-input" id="catN" value="${escAttr(cat?.name||'')}" placeholder="e.g. 旅遊"></div>
-    <div class="form-group"><label class="form-label">月度消費額度（0=不設限）</label><input class="form-input" id="catB" type="number" value="${cat?.budget||0}"></div>
-    <div class="form-group"><label class="form-label">類別顏色</label>${colorPicker('catC',cat?.color||'#0057B8')}</div>`;
+    b=`<div style="display:flex;gap:14px;align-items:flex-start">
+      <div>
+        ${iconUpload('catIcon', cat?.icon||'')}
+        <div style="text-align:center;margin-top:6px">
+          <div class="form-label" style="margin-bottom:4px">Emoji 圖示</div>
+          <input class="form-input" id="catEmoji" value="${escAttr(cat?.emoji||'')}" placeholder="e.g. 🍔" style="width:64px;text-align:center;font-size:18px">
+        </div>
+      </div>
+      <div style="flex:1">
+        <div class="form-group"><label class="form-label">類別名稱</label><input class="form-input" id="catN" value="${escAttr(cat?.name||'')}" placeholder="e.g. 旅遊"></div>
+        <div class="form-group"><label class="form-label">月度消費額度（0=不設限）</label><input class="form-input" id="catB" type="number" value="${cat?.budget||0}"></div>
+        <div class="form-group"><label class="form-label" style="margin-bottom:6px">類別顏色</label>${colorPicker('catC',cat?.color||'#0057B8')}</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--tx-secondary);margin-top:8px">💡 可上傳圖片或輸入 Emoji，圖片優先顯示</div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCat()">儲存</button>`;
   }
 
@@ -1217,9 +1265,12 @@ function saveFixed() {
 }
 function saveCat() {
   const name=document.getElementById('catN').value.trim(),budget=+v('catB')||0,color=v('catC');
+  const icon=(document.getElementById('catIcon')?.value)||'';
+  const emoji=(document.getElementById('catEmoji')?.value||'').trim();
   if(!name){toast('請填入類別名稱','danger');return;}
-  if(modalType==='editCat'){Object.assign(DB.categories.find(c=>c.id===editTarget),{name,budget,color});toast('類別已更新','success');}
-  else{DB.categories.push({id:uid(),name,budget,color});toast('類別新增成功','success');}
+  const obj={name,budget,color,icon,emoji};
+  if(modalType==='editCat'){Object.assign(DB.categories.find(c=>c.id===editTarget),obj);toast('類別已更新','success');}
+  else{DB.categories.push({id:uid(),...obj});toast('類別新增成功','success');}
   saveDB();closeModal();renderSettings();
 }
 
