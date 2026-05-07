@@ -458,8 +458,33 @@ function thisMonthCCSpend() {
 }
 // 依類別設定的週期計算花費
 function catPeriodRange(cat) {
-  const period = cat?.budgetPeriod || 'cycle';
   const todayStr = today();
+  // 新版：自訂起訖日（startDay/endDay 為每月幾號）
+  if (cat?.budgetStartDay != null && cat?.budgetEndDay != null) {
+    const sd = cat.budgetStartDay, ed = cat.budgetEndDay;
+    const now = new Date(), y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+    const pad2 = n => String(n).padStart(2,'0');
+    let fromDate, toDate;
+    if (sd <= ed) {
+      // 同月區間 e.g. 1→25
+      fromDate = new Date(y, m, sd);
+      toDate   = new Date(y, m, ed);
+      if (d < sd) { fromDate.setMonth(m-1); toDate.setMonth(m-1); }
+    } else {
+      // 跨月區間 e.g. 8→5（下個月）
+      if (d >= sd) {
+        fromDate = new Date(y, m, sd);
+        toDate   = new Date(y, m+1, ed);
+      } else {
+        fromDate = new Date(y, m-1, sd);
+        toDate   = new Date(y, m, ed);
+      }
+    }
+    const toStr = toDate.toISOString().slice(0,10) < todayStr ? toDate.toISOString().slice(0,10) : todayStr;
+    return { from: fromDate.toISOString().slice(0,10), to: toStr };
+  }
+  // 舊版相容
+  const period = cat?.budgetPeriod || 'cycle';
   if (period === 'cycle') {
     return getSalaryCycle();
   } else if (period === 'month') {
@@ -467,7 +492,7 @@ function catPeriodRange(cat) {
     return { from: now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-01', to: todayStr };
   } else if (period === 'week') {
     const now = new Date();
-    const dow = now.getDay(); // 0=日
+    const dow = now.getDay();
     const mon = new Date(now); mon.setDate(now.getDate() - (dow===0?6:dow-1));
     return { from: mon.toISOString().slice(0,10), to: todayStr };
   } else if (period === 'custom') {
@@ -607,6 +632,14 @@ function renderDashboard() {
     statCard('信用卡未償還', fmt(-totalDebt), totalDebt>0?'danger':'success', '所有卡片累積', '💳') +
     statCard('銀行總資產', fmt(totalBank), 'blue', '所有帳戶餘額', '🏦') +
     statCard('本月剩餘生活費', fmt(salarySum-ccSpend), (salarySum-ccSpend)<0?'danger':(salarySum-ccSpend)<salarySum*0.2?'warning':'success','薪水 − 本月CC消費','💰');
+
+  // CountUp 動畫
+  setTimeout(() => {
+    document.querySelectorAll('#dashStats .stat-val').forEach(el => {
+      const txt = el.textContent;
+      countUp(el, txt, 700);
+    });
+  }, 30);
 
   document.getElementById('dashCards').innerHTML =
     DB.creditCards.map(c=>{
@@ -925,7 +958,7 @@ function txnTable(txns, withActions) {
           <button class="btn btn-danger btn-icon btn-sm" onclick="deleteTxn('${t.id}')">🗑</button>
         </td>`
       : '';
-    return `<tr>
+    return `<tr class="txn-row">
       ${chk}
       <td style="white-space:nowrap">${t.date}</td>
       <td>${escHtml(t.desc)}${tags}</td>
@@ -1108,26 +1141,34 @@ function renderAnalytics() {
 function renderSettings() {
   const wrap = document.getElementById('catList');
   if (!DB.categories.length) { wrap.innerHTML=emptyState('🏷','尚無類別'); return; }
-  wrap.innerHTML = DB.categories.map((c,i) => {
+
+  function buildCatRow(c, i) {
     const spent=catMonthSpend(c.id), isOver=c.budget>0&&spent>c.budget;
     const pct=c.budget>0?Math.min(100,spent/c.budget*100):0;
     const iconEl = c.icon
       ? `<img src="${c.icon}" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0">`
       : `<div style="width:32px;height:32px;border-radius:8px;background:${c.color};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${c.emoji||'🏷'}</div>`;
+    // 週期標籤
+    const periodLabel = (()=>{
+      if (c.budgetStartDay != null && c.budgetEndDay != null) {
+        return `每月${c.budgetStartDay}日～${c.budgetEndDay <= c.budgetStartDay ? '次月' : ''}${c.budgetEndDay}日`;
+      }
+      const p=c.budgetPeriod||'cycle';
+      return {cycle:'本期(8～5日)',month:'本月',week:'本週',custom:(c.budgetDays||30)+'天'}[p]||'本期';
+    })();
+    // 進度條顏色：正常藍→橘→紅
+    const barColor = pct>=100?'var(--m-red)':pct>=80?'var(--warn)':'var(--m-blue)';
     return `<div class="cat-row" draggable="true" data-id="${c.id}" data-index="${i}"
       ondragstart="catDragStart(event,${i})" ondragover="catDragOver(event)" ondrop="catDrop(event,${i})" ondragend="catDragEnd(event)">
       <span class="cat-drag-handle" title="拖曳排序">⠿</span>
       ${iconEl}
       <div class="cat-row-info">
-        <div style="display:flex;align-items:center;gap:6px">
-          <div class="cat-row-name">${escHtml(c.name)}</div>
-          <span class="badge" style="font-size:9px;padding:1px 6px;${(c.forType||'expense')==='income'?'background:#27ae6022;color:#27ae60;border:1px solid #27ae6055':(c.forType==='both'?'background:#1c69d422;color:#1c69d4;border:1px solid #1c69d455':'background:#e3183622;color:#e31836;border:1px solid #e3183655')}">${(c.forType||'expense')==='income'?'📥 收入':c.forType==='both'?'⇄ 兩者':'💸 支出'}</span>
-        </div>
+        <div class="cat-row-name">${escHtml(c.name)}</div>
         <div class="cat-row-meta">
-          <span class="cat-month-spend">${(()=>{const p=c.budgetPeriod||'cycle';const lbl={cycle:'本期',month:'本月',week:'本週',custom:(c.budgetDays||30)+'天'}[p]||'本期';return lbl+'：'+fmt(-spent);})()}</span>
-          ${c.budget>0?`<span class="badge ${isOver?'badge-red':'badge-green'}" style="font-size:10px">${isOver?'⚠ 超支':'正常'}　上限 ${fmt(-c.budget)}</span>`:'<span class="badge badge-gray" style="font-size:10px">無額度</span>'}
+          <span class="cat-month-spend">${periodLabel}：${fmt(-spent)}</span>
+          ${c.budget>0?`<span class="badge ${isOver?'badge-red':pct>=80?'badge-warn':'badge-green'}" style="font-size:10px">${isOver?'⚠ 超支':pct>=80?'⚡ 接近上限':'正常'} 上限 ${fmt(-c.budget)}</span>`:'<span class="badge badge-gray" style="font-size:10px">無額度</span>'}
         </div>
-        ${c.budget>0?`<div class="prog-wrap" style="max-width:160px;margin-top:4px"><div class="prog-bar" style="width:${pct}%;background:${isOver?'var(--m-red)':'var(--m-blue)'}"></div></div>`:''}
+        ${c.budget>0?`<div class="prog-wrap" style="max-width:180px;margin-top:4px"><div class="prog-bar-gradient" style="width:${pct}%;background:${barColor};transition:width .6s ease,background .4s ease"></div></div>`:''}
       </div>
       <div class="cat-row-actions">
         <button class="btn btn-ghost btn-icon btn-sm" onclick="moveCat(${i},-1)" title="上移" ${i===0?'disabled':''}>▲</button>
@@ -1136,7 +1177,23 @@ function renderSettings() {
         <button class="btn btn-danger btn-icon btn-sm" onclick="deleteCat('${c.id}')">🗑</button>
       </div>
     </div>`;
-  }).join('');
+  }
+
+  const expCats  = DB.categories.map((c,i)=>({c,i})).filter(({c})=>(c.forType||'expense')==='expense');
+  const incCats  = DB.categories.map((c,i)=>({c,i})).filter(({c})=>c.forType==='income');
+  const bothCats = DB.categories.map((c,i)=>({c,i})).filter(({c})=>c.forType==='both');
+
+  function section(label, color, items) {
+    if (!items.length) return '';
+    return `<div class="cat-section-header" style="border-left:3px solid ${color}">
+      <span>${label}</span><span class="cat-section-count">${items.length} 個類別</span>
+    </div>` + items.map(({c,i})=>buildCatRow(c,i)).join('');
+  }
+
+  wrap.innerHTML =
+    section('💸 支出類別', 'var(--m-red)',    expCats) +
+    section('📥 收入類別', 'var(--tx-green)',  incCats) +
+    section('⇄ 兩者通用', 'var(--m-blue)',    bothCats);
 
   // ── Tag list ──
   const tagListEl = document.getElementById('tagList');
@@ -1506,6 +1563,9 @@ function openModal(type,id,preCard,preAcc,extraId) {
 
   else if (type==='addCat'||type==='editCat') {
     t=cat?'編輯類別':'新增類別';
+    // 預設值：有新版 startDay 就用，否則從舊版換算
+    const defStart = cat?.budgetStartDay ?? (cat?.budgetPeriod==='month'?1:8);
+    const defEnd   = cat?.budgetEndDay   ?? (cat?.budgetPeriod==='month'?31:5);
     b=`<div style="display:flex;gap:14px;align-items:flex-start">
       <div>
         ${iconUpload('catIcon', cat?.icon||'')}
@@ -1516,32 +1576,42 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>
       <div style="flex:1">
         <div class="form-group"><label class="form-label">類別名稱</label><input class="form-input" id="catN" value="${escAttr(cat?.name||'')}" placeholder="e.g. 旅遊"></div>
-        <div class="form-row" style="grid-template-columns:1fr 1fr;gap:10px">
-          <div class="form-group" style="margin:0"><label class="form-label">適用類型</label>
-            <select class="form-select" id="catForType">
-              <option value="expense"${(cat?.forType||'expense')==='expense'?' selected':''}>💸 支出</option>
-              <option value="income"${cat?.forType==='income'?' selected':''}>📥 收入</option>
-              <option value="both"${cat?.forType==='both'?' selected':''}>⇄ 兩者</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin:0"><label class="form-label">額度週期</label>
-            <select class="form-select" id="catBPeriod" onchange="toggleCustomDays(this.value)">
-              <option value="cycle"${(cat?.budgetPeriod||'cycle')==='cycle'?' selected':''}>本期(8日起)</option>
-              <option value="month"${cat?.budgetPeriod==='month'?' selected':''}>當月</option>
-              <option value="week"${cat?.budgetPeriod==='week'?' selected':''}>本週</option>
-              <option value="custom"${cat?.budgetPeriod==='custom'?' selected':''}>自訂天數</option>
-            </select>
-          </div>
+        <div class="form-group" style="margin:0"><label class="form-label">適用類型</label>
+          <select class="form-select" id="catForType">
+            <option value="expense"${(cat?.forType||'expense')==='expense'?' selected':''}>💸 支出</option>
+            <option value="income"${cat?.forType==='income'?' selected':''}>📥 收入</option>
+            <option value="both"${cat?.forType==='both'?' selected':''}>⇄ 兩者</option>
+          </select>
         </div>
-        <div class="form-row" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-          <div class="form-group" style="margin:0"><label class="form-label">消費額度上限（0=不設限）</label><input class="form-input" id="catB" type="number" value="${cat?.budget||0}" placeholder="0"></div>
-          <div class="form-group" id="customDaysGroup" style="margin:0;${cat?.budgetPeriod==='custom'?'':'display:none'}"><label class="form-label">自訂天數</label><input class="form-input" id="catCustomDays" type="number" min="1" value="${cat?.budgetDays||30}" placeholder="30"></div>
+        <div class="form-group" style="margin-top:10px">
+          <label class="form-label">額度計算區間（每月幾號起 ～ 幾號止）</label>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <input class="form-input" id="catStartDay" type="number" min="1" max="31" value="${defStart}" style="width:70px;text-align:center" placeholder="8">
+            <span style="color:var(--tx-muted);font-size:13px">日 起 ～</span>
+            <input class="form-input" id="catEndDay" type="number" min="1" max="31" value="${defEnd}" style="width:70px;text-align:center" placeholder="5">
+            <span style="color:var(--tx-muted);font-size:13px">日 止</span>
+          </div>
+          <div id="catRangeHint" style="font-size:11px;color:var(--tx-secondary);margin-top:4px"></div>
         </div>
+        <div class="form-group" style="margin-top:10px"><label class="form-label">消費額度上限（0=不設限）</label><input class="form-input" id="catB" type="number" value="${cat?.budget||0}" placeholder="0"></div>
         <div class="form-group" style="margin-top:10px"><label class="form-label" style="margin-bottom:6px">類別顏色</label>${colorPicker('catC',cat?.color||'#0057B8')}</div>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--tx-secondary);margin-top:8px">💡 可上傳圖片或輸入 Emoji，圖片優先顯示</div>`;
+    <div style="font-size:11px;color:var(--tx-secondary);margin-top:8px">💡 起日 > 止日 → 跨月週期（如 8～5 = 每月8日起至次月5日）；起日 ≤ 止日 → 同月區間（如 1～31 = 整月）</div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCat()">儲存</button>`;
+    setTimeout(()=>{
+      const s=document.getElementById('catStartDay'), e=document.getElementById('catEndDay');
+      function updateHint(){
+        const sd=+s?.value||1, ed=+e?.value||31;
+        const hint=document.getElementById('catRangeHint');
+        if(!hint) return;
+        if(sd>ed) hint.textContent=`📅 跨月：每月 ${sd} 日 ～ 次月 ${ed} 日`;
+        else      hint.textContent=`📅 同月：每月 ${sd} 日 ～ ${ed} 日`;
+      }
+      if(s) s.addEventListener('input',updateHint);
+      if(e) e.addEventListener('input',updateHint);
+      updateHint();
+    },60);
   }
 
   document.getElementById('modalTitle').textContent=t;
@@ -1660,25 +1730,68 @@ function saveCat() {
   const icon=(document.getElementById('catIcon')?.value)||'';
   const emoji=(document.getElementById('catEmoji')?.value||'').trim();
   const forType=v('catForType')||'expense';
-  const budgetPeriod=v('catBPeriod')||'cycle';
-  const budgetDays=+v('catCustomDays')||30;
+  const budgetStartDay=+(document.getElementById('catStartDay')?.value)||8;
+  const budgetEndDay  =+(document.getElementById('catEndDay')?.value)||5;
   if(!name){toast('請填入類別名稱','danger');return;}
-  const obj={name,budget,color,icon,emoji,forType,budgetPeriod,budgetDays};
+  const obj={name,budget,color,icon,emoji,forType,budgetStartDay,budgetEndDay};
   if(modalType==='editCat'){Object.assign(DB.categories.find(c=>c.id===editTarget),obj);toast('類別已更新','success');}
   else{DB.categories.push({id:uid(),...obj});toast('類別新增成功','success');}
   saveDB();closeModal();renderSettings();
 }
 
 // ════════════════════════════════════════════════════════════════
-// TOAST
+// 行動版底部導覽列
+// ════════════════════════════════════════════════════════════════
+function mbnNav(el, page) {
+  document.querySelectorAll('.mbn-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  // 同步側欄高亮
+  const sideEl = document.querySelector(`[data-page="${page}"]`);
+  if (sideEl) nav(sideEl, page);
+  else {
+    document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
+    document.getElementById('page-'+page)?.classList.add('active');
+    renderPage(page);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// CountUp 數字動畫
+// ════════════════════════════════════════════════════════════════
+function countUp(el, targetText, duration=600) {
+  if (!el) return;
+  // 抓出數字部分
+  const match = targetText.replace(/,/g,'').match(/[\d.]+/);
+  if (!match) { el.textContent = targetText; return; }
+  const target = parseFloat(match[0]);
+  const prefix = targetText.slice(0, targetText.indexOf(match[0]));
+  const suffix = targetText.slice(targetText.indexOf(match[0]) + match[0].length);
+  const start = performance.now();
+  const from  = 0;
+  function step(now) {
+    const p = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3); // easeOutCubic
+    const cur = Math.round(from + (target - from) * ease);
+    el.textContent = prefix + cur.toLocaleString('zh-TW') + suffix;
+    if (p < 1) requestAnimationFrame(step);
+    else el.textContent = targetText;
+  }
+  requestAnimationFrame(step);
+}
+
+// ════════════════════════════════════════════════════════════════
+// Toast 退場動畫
 // ════════════════════════════════════════════════════════════════
 function toast(msg,type) {
-  const icons={success:'✅',danger:'❌',info:'ℹ️'};
+  const icons={success:'✅',danger:'❌',info:'ℹ️',warn:'⚠️'};
   const el=document.createElement('div');
   el.className='toast '+(type||'info');
   el.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
   document.getElementById('toastWrap').prepend(el);
-  setTimeout(()=>el.remove(),3500);
+  setTimeout(()=>{
+    el.classList.add('fade-out');
+    setTimeout(()=>el.remove(), 320);
+  }, 3200);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2035,6 +2148,27 @@ function init() {
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>
+
+<!-- ══ MOBILE BOTTOM NAV ══════════════════════════════════════ -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+  <div class="mbn-items">
+    <div class="mbn-item active" id="mbn-dashboard" onclick="mbnNav(this,'dashboard')">
+      <span class="mbn-icon">📊</span><span>儀表板</span>
+    </div>
+    <div class="mbn-item" id="mbn-txns" onclick="mbnNav(this,'txns')">
+      <span class="mbn-icon">📋</span><span>記帳</span>
+    </div>
+    <div class="mbn-item" id="mbn-cards" onclick="mbnNav(this,'cards')">
+      <span class="mbn-icon">💳</span><span>信用卡</span>
+    </div>
+    <div class="mbn-item" id="mbn-analytics" onclick="mbnNav(this,'analytics')">
+      <span class="mbn-icon">📈</span><span>分析</span>
+    </div>
+    <div class="mbn-item" id="mbn-settings" onclick="mbnNav(this,'settings')">
+      <span class="mbn-icon">⚙️</span><span>設定</span>
+    </div>
+  </div>
+</nav>
 
 <!-- ══ FAB 快速記帳 ═══════════════════════════════════════════ -->
 <button class="fab-btn" id="fabBtn" onclick="openQuickAdd()" title="快速記帳">
