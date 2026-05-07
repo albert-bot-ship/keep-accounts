@@ -1151,3 +1151,40 @@ body.light-theme .account-card:hover{
   pointer-events:none;
 }
 .account-card:hover .card-tap-hint{ opacity:1; }
+
+/* ══ BILLING DATE BADGE ══════════════════════════════════════ */
+@keyframes billingBlinkSlow{
+  0%,100%{ opacity:1; box-shadow:0 0 6px rgba(0,191,255,.4); }
+  50%    { opacity:.55; box-shadow:0 0 14px rgba(0,191,255,.7); }
+}
+@keyframes billingBlinkFast{
+  0%,100%{ opacity:1; box-shadow:0 0 8px rgba(0,191,255,.6); }
+  50%    { opacity:.4; box-shadow:0 0 18px rgba(0,191,255,.9); }
+}
+
+.billing-badge{
+  font-size:11px;font-weight:600;
+  padding:4px 10px;border-radius:20px;
+  display:inline-block;
+  background:rgba(0,191,255,0.12);
+  color:#00BFFF;
+  border:1px solid rgba(0,191,255,0.4);
+}
+.billing-badge.billing-blink{
+  animation:billingBlinkSlow 2s ease-in-out infinite;
+}
+.billing-badge.billing-blink-fast{
+  animation:billingBlinkFast 1s ease-in-out infinite;
+}
+
+/* 繳款日 badge 也加慢閃（靠近時）*/
+@keyframes dueBadgeBlink{
+  0%,100%{ opacity:1; }
+  50%    { opacity:.45; }
+}
+.due-badge.orange-txt{
+  animation:dueBadgeBlink 2s ease-in-out infinite;
+}
+.due-badge.glow-red-txt{
+  animation:dueBadgeBlink .9s ease-in-out infinite;
+}
