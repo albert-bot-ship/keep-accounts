@@ -56,6 +56,9 @@
   </div>
 </aside>
 
+<!-- ══ SIDEBAR OVERLAY ══════════════════════════════════════ -->
+<div id="sidebarOverlay" class="sidebar-overlay"></div>
+
 <!-- ══ MAIN ══════════════════════════════════════════════════ -->
 <div class="app-wrapper">
   <main class="main-content">
@@ -426,6 +429,25 @@ function renderPage(page) {
 }
 
 // ════════════════════════════════════════════════════════════════
+// NAVIGATE TO SPECIFIC ITEM
+// ════════════════════════════════════════════════════════════════
+function navToItem(page, elementId) {
+  const navEl = document.querySelector(`[data-page="${page}"]`);
+  if (!navEl) return;
+  nav(navEl, page);
+  // scroll to target element after render
+  setTimeout(() => {
+    const el = document.getElementById(elementId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // flash highlight
+      el.classList.add('highlight-pulse');
+      setTimeout(() => el.classList.remove('highlight-pulse'), 1800);
+    }
+  }, 120);
+}
+
+// ════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ════════════════════════════════════════════════════════════════
 function setDashRange(el, range) {
@@ -460,21 +482,23 @@ function renderDashboard() {
       const bal=cardBalance(c.id);
       const due=daysUntilDue(c);
       const dueCls=due!==null?(due<=2?'a-over':due<=5?'a-neg':''):'';
-      return `<div class="layer-bar" style="border-left:3px solid ${c.color}">
+      return `<div class="layer-bar dash-link" style="border-left:3px solid ${c.color}" onclick="navToItem('cards','card-${c.id}')" title="前往信用卡詳情">
         <div style="width:8px;height:8px;border-radius:50%;background:${c.color};flex-shrink:0"></div>
         <span style="flex:1;font-size:13px">${c.name}</span>
         ${due!==null?`<span class="${dueCls}" style="font-size:11px;margin-right:8px">${due<=0?'今日截止':due+'天後繳款'}</span>`:''}
         <span class="layer-amt ${bal<0?'a-neg':'a-pos'}">${bal<0?'−':'+'}${fmt(Math.abs(bal))}</span>
+        <span class="dash-link-arrow">›</span>
       </div>`;
     }).join('')||emptyState('💳','尚無信用卡');
 
   document.getElementById('dashAccounts').innerHTML =
     DB.bankAccounts.map(a=>{
       const bal=accountBalance(a.id);
-      return `<div class="layer-bar" style="border-left:3px solid ${a.color}">
+      return `<div class="layer-bar dash-link" style="border-left:3px solid ${a.color}" onclick="navToItem('accounts','account-${a.id}')" title="前往帳戶詳情">
         <div style="width:8px;height:8px;border-radius:50%;background:${a.color};flex-shrink:0"></div>
         <span style="flex:1;font-size:13px">${a.name}</span>
         <span class="layer-amt ${bal<0?'a-neg':'a-pos'}">${fmt(bal)}</span>
+        <span class="dash-link-arrow">›</span>
       </div>`;
     }).join('')||emptyState('🏦','尚無銀行帳戶');
 
@@ -515,7 +539,7 @@ function renderCards() {
       ? `<div class="due-badge ${dueCls}">${due<=0?'⚠ 今日繳款截止':due<=2?'⚠ '+due+'天後到期':due+'天後繳款'}</div>`
       : '';
 
-    return `<div class="account-card">
+    return `<div class="account-card" id="card-${c.id}">
       <div class="account-card-header" style="border-top:3px solid ${c.color}">
         <div class="account-card-icon" style="background:${c.color}22">${icon}</div>
         <div style="flex:1">
@@ -584,7 +608,7 @@ function renderAccounts() {
         <button class="btn btn-danger btn-icon btn-sm" onclick="delLayer('${a.id}','${l.id}')">✕</button>
       </div>`).join('');
 
-    return `<div class="account-card${isLow?' low-balance':''}">
+    return `<div class="account-card${isLow?' low-balance':''}" id="account-${a.id}">
       <div class="account-card-header" style="border-top:3px solid ${a.color}">
         <div class="account-card-icon" style="background:${a.color}22">${icon}</div>
         <div style="flex:1;min-width:0;overflow:hidden">
@@ -1553,8 +1577,39 @@ function init() {
   const now=new Date();
   document.getElementById('navMonth').textContent=
     now.getFullYear()+' / '+String(now.getMonth()+1).padStart(2,'0');
-  document.getElementById('menuToggle').onclick=()=>
+  // Sidebar toggle button
+  document.getElementById('menuToggle').onclick = () =>
     document.getElementById('sidebar').classList.toggle('open');
+
+  // 點擊遮罩任意處關閉側欄
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('open');
+    });
+  }
+
+  // 手勢：從左側往右滑開啟側欄；側欄開啟時往左滑關閉
+  let touchStartX = 0, touchStartY = 0;
+  document.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+    const sidebar = document.getElementById('sidebar');
+    // 橫向滑動為主（dy < 60 避免垂直捲動誤觸）
+    if (dy > 60) return;
+    if (dx > 60 && touchStartX < 40) {
+      // 從左邊緣往右滑 → 開側欄
+      sidebar.classList.add('open');
+    } else if (dx < -60 && sidebar.classList.contains('open')) {
+      // 側欄開啟時往左滑 → 關側欄
+      sidebar.classList.remove('open');
+    }
+  }, { passive: true });
 
   const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');
   document.getElementById('filterFrom').value=y+'-'+m+'-01';
