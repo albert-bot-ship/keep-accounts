@@ -1564,7 +1564,8 @@ function openQuickAdd() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="form-group" style="margin:0">
         <label class="form-label">金額（NT$）</label>
-        <input class="form-input" id="qaAmt" type="number" placeholder="0" autofocus style="font-size:22px;font-weight:700;font-family:var(--ff-display)">
+        <input class="form-input" id="qaAmt" type="number" placeholder="0" autofocus
+          style="font-size:22px;font-weight:700;font-family:var(--ff-display)">
       </div>
       <div class="form-group" style="margin:0">
         <label class="form-label">類型</label>
@@ -1585,8 +1586,16 @@ function openQuickAdd() {
       </div>
       <div class="form-group" style="margin:0">
         <label class="form-label">帳戶/卡片</label>
-        <select class="form-select" id="qaSrc"><option value="">請選擇</option>${srcOpts2()}</select>
+        <select class="form-select" id="qaSrc" onchange="onQaSrcChange(this.value)">
+          <option value="">請選擇</option>${srcOpts2()}
+        </select>
       </div>
+    </div>
+    <div class="form-group" id="qaLayerGroup" style="display:none">
+      <label class="form-label">扣款分層（選填）</label>
+      <select class="form-select" id="qaLayer">
+        <option value="">不指定分層</option>
+      </select>
     </div>
     <input type="hidden" id="qaDate" value="${today()}">
   `;
@@ -1597,21 +1606,44 @@ function openQuickAdd() {
   setTimeout(() => { const el = document.getElementById('qaAmt'); if(el) el.focus(); }, 80);
 }
 
+// 快速記帳帳戶切換 → 動態顯示分層
+function onQaSrcChange(srcVal) {
+  const group = document.getElementById('qaLayerGroup');
+  const sel   = document.getElementById('qaLayer');
+  if (!group || !sel) return;
+  if (!srcVal || !srcVal.startsWith('account_')) {
+    group.style.display = 'none'; return;
+  }
+  const acc = getAcc(srcVal.split('_')[1]);
+  const layers = acc?.layers || [];
+  if (!layers.length) { group.style.display = 'none'; return; }
+  sel.innerHTML = '<option value="">不指定分層</option>' +
+    layers.map(l => `<option value="${l.id}">${escHtml(l.label)}（${fmt(l.amount)}）</option>`).join('');
+  group.style.display = '';
+}
+
 function saveQuickAdd() {
   const amt    = +v('qaAmt');
   const desc   = (document.getElementById('qaDesc')?.value||'').trim() || '快速記帳';
   const catId  = v('qaCat');
   const srcVal = v('qaSrc');
   const type   = v('qaType');
+  const layerId= v('qaLayer') || null;
   if (!amt || !srcVal) { toast('請填入金額並選擇帳戶','danger'); return; }
   const [sType, sId] = srcVal.split('_');
   const amount = type === 'income' ? Math.abs(amt) : -Math.abs(amt);
-  DB.transactions.push({ id:uid(), date:today(), amount, desc, category:catId,
-    sourceId:sId, sourceType:sType, notes:'', isFixed:false });
+  DB.transactions.push({
+    id:uid(), date:today(), amount, desc, category:catId,
+    sourceId:sId, sourceType:sType, notes:'', isFixed:false, tags:[], layerId
+  });
   const cat = getCat(catId);
   if (cat.budget>0 && amount<0 && catMonthSpend(catId)>cat.budget)
     toast('⚠ 類別「'+cat.name+'」已超過本月額度！','danger');
-  saveDB(); closeModal(); renderDashboard(); toast('✅ 記帳成功：'+fmt(Math.abs(amt)),'success');
+  const layerName = layerId ? (getAcc(sId)?.layers||[]).find(l=>l.id===layerId)?.label : null;
+  const successMsg = layerName
+    ? `✅ 已記帳 ${fmt(Math.abs(amt))}（${layerName}）`
+    : `✅ 記帳成功：${fmt(Math.abs(amt))}`;
+  saveDB(); closeModal(); renderDashboard(); toast(successMsg,'success');
 }
 
 // ════════════════════════════════════════════════════════════════
