@@ -1446,26 +1446,50 @@ function saveQuickAdd() {
 let exchangeRates = {};
 
 async function fetchExchangeRates() {
-  // Load cache first so UI can show something immediately
-  const cached = localStorage.getItem('mwallet_rates');
+  const CACHE_KEY = 'mwallet_rates';
+  const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 小時才重新抓
+
+  // ① 先讀快取，立即渲染，不等 API
+  const cached = localStorage.getItem(CACHE_KEY);
   if (cached) {
-    try { const d = JSON.parse(cached); exchangeRates = d.rates; renderAccounts(); } catch {}
+    try {
+      const d = JSON.parse(cached);
+      exchangeRates = d.rates;
+      renderAccounts();
+      // 快取還新鮮 → 不重抓
+      if (Date.now() - d.ts < CACHE_TTL) return;
+    } catch {}
   }
-  try {
-    // from=TWD gives: 1 TWD = X foreign → invert to get 1 foreign = Y TWD
-    const res  = await fetch('https://api.frankfurter.app/latest?from=TWD&to=USD,JPY,EUR,CNY,GBP,HKD,KRW,SGD,AUD,CHF,CAD');
-    const data = await res.json();
-    exchangeRates = { TWD: 1 };
-    Object.entries(data.rates).forEach(([cur, twdPerUnit]) => {
-      // data.rates[cur] = how many of that currency 1 TWD buys
-      // So 1 cur = 1 / data.rates[cur] TWD
-      exchangeRates[cur] = +(1 / twdPerUnit);
-    });
-    localStorage.setItem('mwallet_rates', JSON.stringify({ ts: Date.now(), rates: exchangeRates }));
-    renderAccounts(); // refresh after fresh data
-  } catch (e) {
-    if (!cached) console.warn('匯率取得失敗，無快取可用');
+
+  // ② 背景更新匯率（CDN 快取，台灣取速度快）
+  // 來源：fawazahmed0/currency-api via jsDelivr CDN
+  // 回傳格式：{ twd: { usd: 0.0312, jpy: 4.72, ... } }
+  const URLS = [
+    'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/twd.json',
+    'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/twd.min.json',
+  ];
+
+  for (const url of URLS) {
+    try {
+      const res  = await fetch(url, { cache: 'no-store' });
+      const data = await res.json();
+      const twd  = data.twd || data; // 格式保險
+      if (!twd || typeof twd !== 'object') continue;
+
+      exchangeRates = { TWD: 1 };
+      Object.entries(twd).forEach(([cur, rate]) => {
+        // rate = 1 TWD → X cur，所以 1 cur = 1/rate TWD
+        if (typeof rate === 'number' && rate > 0) {
+          exchangeRates[cur.toUpperCase()] = 1 / rate;
+        }
+      });
+
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), rates: exchangeRates }));
+      renderAccounts();
+      return; // 成功就停
+    } catch {}
   }
+  // 所有來源都失敗 → 沿用快取，靜默忽略
 }
 
 // 1 unit of currency → TWD amount
