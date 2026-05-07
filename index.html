@@ -69,6 +69,7 @@
         <div class="page-title">儀表板</div>
         <div class="dash-filter-bar">
           <button class="dash-filter-btn active" data-range="month" onclick="setDashRange(this,'month')">本月</button>
+          <button class="dash-filter-btn" data-range="salary" onclick="setDashRange(this,'salary')">薪資週期</button>
           <button class="dash-filter-btn" data-range="30" onclick="setDashRange(this,'30')">近30天</button>
           <button class="dash-filter-btn" data-range="7" onclick="setDashRange(this,'7')">近7天</button>
           <button class="dash-filter-btn" data-range="today" onclick="setDashRange(this,'today')">今天</button>
@@ -298,6 +299,33 @@ function fmt(n) { return 'NT$' + Math.abs(Math.round(n)).toLocaleString('zh-TW')
 function fmtDecimal(n, dec=2) { return Math.abs(n).toLocaleString('zh-TW',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
 function today() { return new Date().toISOString().slice(0,10); }
 function nowYM() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+// 薪水發放日：每月25日，若為六(6)提前2天，若為日(0)提前1天
+function getSalaryDate(year, month) {
+  // month: 0-indexed
+  const d = new Date(year, month, 25);
+  const dow = d.getDay();
+  if (dow === 6) d.setDate(23); // 六 → 23
+  else if (dow === 0) d.setDate(24); // 日 → 24
+  return d;
+}
+
+// 取得薪資週期起迄：從上月薪資日 到 本月薪資日前一天
+function getSalaryCycle() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth(); // 0-indexed
+  const thisPayday = getSalaryDate(y, m);
+  let startPayday;
+  if (now >= thisPayday) {
+    // 已過本月薪資日，週期從本月薪資日開始
+    startPayday = thisPayday;
+  } else {
+    // 未到本月薪資日，週期從上月薪資日開始
+    startPayday = getSalaryDate(m === 0 ? y-1 : y, m === 0 ? 11 : m-1);
+  }
+  const fmt2 = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return { from: fmt2(startPayday), to: fmt2(now) };
+}
 function ym(d) { return (d||'').slice(0,7); }
 function getCat(id) { return DB.categories.find(c=>c.id===id)||{name:'—',color:'#7f8c8d',budget:0}; }
 function getCard(id) { return DB.creditCards.find(c=>c.id===id); }
@@ -393,6 +421,10 @@ function rangedTxns() {
   }
   if (dashRange === 'month')
     return DB.transactions.filter(t=>ym(t.date)===nowYM());
+  if (dashRange === 'salary') {
+    const { from, to } = getSalaryCycle();
+    return DB.transactions.filter(t=>t.date>=from && t.date<=to);
+  }
   return DB.transactions;
 }
 function thisMonthCCSpend() {
@@ -510,7 +542,7 @@ function renderDashboard() {
   const salarySum = DB.bankAccounts.reduce((s,a)=>{
     const l=(a.layers||[]).find(l=>l.label.includes('薪')); return s+(l?l.amount:0);
   },0);
-  const labels = {month:'本月',30:'近30天',7:'近7天',today:'今天',all:'全部'};
+  const labels = {month:'本月',salary:'薪資週期',30:'近30天',7:'近7天',today:'今天',all:'全部'};
   const lbl = labels[dashRange]||'';
 
   document.getElementById('dashStats').innerHTML =
@@ -545,7 +577,7 @@ function renderDashboard() {
       </div>`;
     }).join('')||emptyState('🏦','尚無銀行帳戶');
 
-  const rangeLabel = {month:'最近消費',30:'近30天消費',7:'近7天消費',today:'今天消費',all:'全部消費'};
+  const rangeLabel = {month:'最近消費',salary:'薪資週期消費',30:'近30天消費',7:'近7天消費',today:'今天消費',all:'全部消費'};
   document.getElementById('dashRecentLabel').textContent = rangeLabel[dashRange]||'最近消費';
   const recent = [...rtx].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
   document.getElementById('dashRecent').innerHTML = txnTable(recent, false);
@@ -582,7 +614,7 @@ function renderCards() {
       ? `<div class="due-badge ${dueCls}">${due<=0?'⚠ 今日繳款截止':due<=2?'⚠ '+due+'天後到期':due+'天後繳款'}</div>`
       : '';
 
-    return `<div class="account-card" id="card-${c.id}">
+    return `<div class="account-card" id="card-${c.id}" onclick="cardClickHandler(event,'card','${c.id}')" style="cursor:pointer">
       <div class="account-card-header" style="border-top:3px solid ${c.color}">
         <div class="account-card-icon" style="background:${c.color}22">${icon}</div>
         <div style="flex:1">
@@ -609,6 +641,7 @@ function renderCards() {
         <button class="btn btn-sm btn-ghost"   onclick="openModal('addTxn',null,'${c.id}')">＋ 消費</button>
         <button class="btn btn-sm btn-ghost"   onclick="filterByCard('${c.id}')">📋 明細</button>
       </div>
+      <div class="card-tap-hint">點擊卡片查看消費明細 ›</div>
     </div>`;
   }).join('');
   html += `<div class="add-card-btn" onclick="openModal('addCard')"><div class="add-card-icon">＋</div><div class="add-card-label">新增信用卡</div></div>`;
@@ -621,6 +654,27 @@ function deleteCard(id) {
   DB.transactions = DB.transactions.filter(t=>!(t.sourceType==='card'&&t.sourceId===id));
   saveDB(); renderCards(); toast('信用卡已刪除','danger');
 }
+// 點擊卡片主體 → 跳轉消費紀錄（避免按鈕被誤觸）
+function cardClickHandler(e, type, id) {
+  // 如果點到 button 或 input，不觸發
+  if (e.target.closest('button,input,select,a,label')) return;
+  if (type === 'card') {
+    const el = document.querySelector('[data-page="txns"]');
+    nav(el, 'txns');
+    setTimeout(() => {
+      document.getElementById('filterSource').value = 'card_' + id;
+      renderTxns();
+    }, 60);
+  } else {
+    const el = document.querySelector('[data-page="txns"]');
+    nav(el, 'txns');
+    setTimeout(() => {
+      document.getElementById('filterSource').value = 'account_' + id;
+      renderTxns();
+    }, 60);
+  }
+}
+
 function filterByCard(cardId) {
   const el = document.querySelector('[data-page="txns"]');
   nav(el,'txns');
@@ -658,7 +712,7 @@ function renderAccounts() {
       </div>`;
     }).join('');
 
-    return `<div class="account-card${isLow?' low-balance':''}" id="account-${a.id}">
+    return `<div class="account-card${isLow?' low-balance':''}" id="account-${a.id}" onclick="cardClickHandler(event,'account','${a.id}')" style="cursor:pointer">
       <div class="account-card-header" style="border-top:3px solid ${a.color}">
         <div class="account-card-icon" style="background:${a.color}22">${icon}</div>
         <div style="flex:1;min-width:0;overflow:hidden">
@@ -711,6 +765,7 @@ function renderAccounts() {
         <button class="btn btn-sm btn-ghost"   onclick="openModal('addTxn',null,null,'${a.id}')">＋ 記帳</button>
         <button class="btn btn-sm btn-violet"  onclick="openModal('transfer','${a.id}')">🔄 轉帳</button>
       </div>
+      <div class="card-tap-hint">點擊卡片查看消費明細 ›</div>
     </div>`;
   }).join('');
   html += `<div class="add-card-btn" onclick="openModal('addAccount')"><div class="add-card-icon">＋</div><div class="add-card-label">新增銀行帳戶</div></div>`;
@@ -755,7 +810,7 @@ function renderTxns() {
         tagVal=tagSel?.value||'',
         keyword=(v('txnSearch')||'').toLowerCase().trim();
 
-  let txns=[...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date));
+  let txns=[...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date)||0);
   if (from)     txns=txns.filter(t=>t.date>=from);
   if (to)       txns=txns.filter(t=>t.date<=to);
   if (srcVal)   { const [tp,sid]=srcVal.split('_'); txns=txns.filter(t=>t.sourceType===tp&&t.sourceId===sid); }
@@ -1796,8 +1851,8 @@ function init() {
   setInterval(autoTheme, 60000);
 
   const now=new Date();
-  document.getElementById('navMonth').textContent=
-    now.getFullYear()+' / '+String(now.getMonth()+1).padStart(2,'0');
+  const _m=String(now.getMonth()+1).padStart(2,'0'),_d=String(now.getDate()).padStart(2,'0');
+  document.getElementById('navMonth').textContent=now.getFullYear()+' / '+_m+' / '+_d;
   // Sidebar toggle button
   document.getElementById('menuToggle').onclick = () =>
     document.getElementById('sidebar').classList.toggle('open');
