@@ -147,6 +147,9 @@
             <option value="expense">支出</option>
             <option value="income">收入</option>
           </select>
+          <select class="form-select" id="filterTag" style="width:100px" onchange="renderTxns()">
+            <option value="">全部標籤</option>
+          </select>
           <button class="btn btn-ghost btn-sm" onclick="renderTxns()">篩選</button>
           <div class="table-toolbar-right">
             <button class="btn btn-danger btn-sm" id="batchDelBtn" style="display:none" onclick="batchDelete()">🗑 刪除已選(<span id="batchCount">0</span>)</button>
@@ -194,10 +197,22 @@
     <section class="page-section" id="page-settings">
       <div class="page-header">
         <div class="page-title">設定 / 類別</div>
-        <button class="btn btn-primary" onclick="openModal('addCat')">＋ 新增類別</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="openModal('addTag')">🏷 新增標籤</button>
+          <button class="btn btn-primary" onclick="openModal('addCat')">＋ 新增類別</button>
+        </div>
       </div>
       <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">設定消費類別與月度預算額度，超過額度時記錄會以紅色警示閃爍顯示。</p>
       <div id="catList"></div>
+
+      <div class="section-div mt-4">
+        <div class="section-div-line"></div>
+        <div class="section-div-label">標籤管理</div>
+        <div class="section-div-line"></div>
+      </div>
+      <p style="color:var(--tx-secondary);font-size:12px;margin:8px 0 12px">自訂標籤可在新增消費時多選，方便跨類別篩選（如 #出差、#家用）。</p>
+      <div id="tagList"></div>
+
       <div class="section-div mt-4">
         <div class="section-div-line"></div>
         <div class="section-div-label">資料管理</div>
@@ -251,6 +266,11 @@ function defaultDB() {
       { id: uid(), name: '醫療',   color: '#27ae60', budget: 0 },
       { id: uid(), name: '訂閱',   color: '#00bcd4', budget: 0 },
       { id: uid(), name: '其他',   color: '#7f8c8d', budget: 0 },
+    ],
+    userTags: [
+      { id: uid(), name: '出差',   color: '#e67e22' },
+      { id: uid(), name: '家用',   color: '#27ae60' },
+      { id: uid(), name: '個人',   color: '#9b59b6' },
     ]
   };
 }
@@ -259,6 +279,7 @@ function loadDB() {
   return defaultDB();
 }
 function saveDB() { localStorage.setItem(SK, JSON.stringify(DB)); }
+function ensureTags() { if (!DB.userTags) DB.userTags = []; }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function fmt(n) { return 'NT$' + Math.abs(Math.round(n)).toLocaleString('zh-TW'); }
 function fmtDecimal(n, dec=2) { return Math.abs(n).toLocaleString('zh-TW',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
@@ -370,8 +391,17 @@ function catMonthSpend(id) {
     .reduce((s,t)=>s+Math.abs(t.amount),0);
 }
 function sourceName(t) {
-  if (t.sourceType==='card')    { const c=getCard(t.sourceId); return c?c.name:'已刪除'; }
-  if (t.sourceType==='account') { const a=getAcc(t.sourceId);  return a?a.name:'已刪除'; }
+  if (t.sourceType==='card') {
+    const c=getCard(t.sourceId); return c?c.name:'已刪除';
+  }
+  if (t.sourceType==='account') {
+    const a=getAcc(t.sourceId); if(!a) return '已刪除';
+    if (t.layerId) {
+      const l=(a.layers||[]).find(l=>l.id===t.layerId);
+      return l ? `${a.name} ／ ${l.label}` : a.name;
+    }
+    return a.name;
+  }
   return '—';
 }
 // Days until credit card due date
@@ -599,14 +629,21 @@ function renderAccounts() {
     const mthIn  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount>0&&ym(t.date)===nowYM()).reduce((s,t)=>s+t.amount,0);
     const typeBadge = a.accType?`<span class="badge badge-blue" style="font-size:9px">${a.accType}</span>`:'';
     const last4show = a.last4?`<span style="color:var(--tx-muted);font-size:11px;letter-spacing:2px">•••• ${a.last4}</span>`:'';
-    const layersHtml = (a.layers||[]).map(l=>`
-      <div class="layer-bar">
+    const layersHtml = (a.layers||[]).map(l=>{
+      const lSpend = DB.transactions
+        .filter(t=>t.layerId===l.id && t.amount<0 && ym(t.date)===nowYM())
+        .reduce((s,t)=>s+Math.abs(t.amount),0);
+      return `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||a.color}"></div>
-        <span class="layer-name">${escHtml(l.label)}</span>
+        <div style="flex:1;min-width:0">
+          <div class="layer-name">${escHtml(l.label)}</div>
+          ${lSpend>0?`<div style="font-size:10px;color:var(--tx-red);margin-top:2px">本月支出 −${fmt(-lSpend)}</div>`:''}
+        </div>
         <span class="layer-amt">${a.accType==='外幣'&&a.currency ? fmtFX(l.amount,a.currency) : fmt(l.amount)}</span>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editLayer','${a.id}',null,null,'${l.id}')">✏️</button>
         <button class="btn btn-danger btn-icon btn-sm" onclick="delLayer('${a.id}','${l.id}')">✕</button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
     return `<div class="account-card${isLow?' low-balance':''}" id="account-${a.id}">
       <div class="account-card-header" style="border-top:3px solid ${a.color}">
@@ -694,8 +731,15 @@ function renderTxns() {
   DB.categories.forEach(c=>{catSel.innerHTML+=`<option value="${c.id}">${escHtml(c.name)}</option>`;});
   catSel.value=oldCat;
 
+  // Tag filter
+  const tagSel=document.getElementById('filterTag'), oldTag=tagSel?.value||'';
+  if(tagSel){ tagSel.innerHTML='<option value="">全部標籤</option>';
+    (DB.userTags||[]).forEach(tg=>{tagSel.innerHTML+=`<option value="${tg.id}">#${escHtml(tg.name)}</option>`;});
+    tagSel.value=oldTag; }
+
   const from=v('filterFrom'), to=v('filterTo'), srcVal=srcSel.value,
         catVal=catSel.value, typeVal=v('filterType'),
+        tagVal=tagSel?.value||'',
         keyword=(v('txnSearch')||'').toLowerCase().trim();
 
   let txns=[...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date));
@@ -705,6 +749,7 @@ function renderTxns() {
   if (catVal)   txns=txns.filter(t=>t.category===catVal);
   if (typeVal==='expense') txns=txns.filter(t=>t.amount<0);
   if (typeVal==='income')  txns=txns.filter(t=>t.amount>0);
+  if (tagVal)   txns=txns.filter(t=>(t.tags||[]).includes(tagVal));
   if (keyword)  txns=txns.filter(t=>(t.desc||'').toLowerCase().includes(keyword)||(t.notes||'').toLowerCase().includes(keyword));
 
   document.getElementById('txnTableWrap').innerHTML = txnTable(txns, true);
@@ -719,10 +764,15 @@ function txnTable(txns, withActions) {
     const isOver = cat.budget>0&&spent>cat.budget&&t.amount<0;
     const amtCls = t.amount>0?'a-pos':isOver?'a-over':'a-neg';
     const sign   = t.amount>0?'+':'−';
-    const tags   = (t.isFixed?'<span class="badge badge-violet" style="margin-left:4px">固定</span>':'')
+    const sysTags = (t.isFixed?'<span class="badge badge-violet" style="margin-left:4px">固定</span>':'')
                  + (t.isPayment?'<span class="badge badge-green" style="margin-left:4px">繳款</span>':'')
                  + (t.isTransfer?'<span class="badge badge-blue" style="margin-left:4px">轉帳</span>':'')
                  + (t.isRedemption?'<span class="badge" style="margin-left:4px;background:#f39c1222;color:#f39c12;border:1px solid #f39c1244">折抵</span>':'');
+    const userTagBadges = (t.tags||[]).map(tid=>{
+      const tg=(DB.userTags||[]).find(x=>x.id===tid);
+      return tg?`<span class="user-tag-badge" style="background:${tg.color}22;color:${tg.color};border:1px solid ${tg.color}66">#${escHtml(tg.name)}</span>`:'';
+    }).join('');
+    const tags = sysTags + userTagBadges;
     const chk = withActions
       ? `<td><input type="checkbox" class="txn-chk" data-id="${t.id}" onchange="updateBatchUI()"></td>`
       : '';
@@ -941,6 +991,24 @@ function renderSettings() {
       </div>
     </div>`;
   }).join('');
+
+  // ── Tag list ──
+  const tagListEl = document.getElementById('tagList');
+  if (tagListEl) {
+    const tgs = DB.userTags||[];
+    tagListEl.innerHTML = tgs.length ? tgs.map(tg=>{
+      const usedCount = DB.transactions.filter(t=>(t.tags||[]).includes(tg.id)).length;
+      return `<div class="cat-row" style="padding:8px 14px">
+        <div style="width:28px;height:28px;border-radius:8px;background:${tg.color};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0">#</div>
+        <div class="cat-row-info">
+          <div class="cat-row-name">#${escHtml(tg.name)}</div>
+          <div class="cat-row-meta"><span class="cat-month-spend">已使用 ${usedCount} 筆</span></div>
+        </div>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editTag','${tg.id}')">✏️</button>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="deleteTag('${tg.id}')">🗑</button>
+      </div>`;
+    }).join('') : '<div style="font-size:12px;color:var(--tx-muted);padding:10px 0">尚無自訂標籤</div>';
+  }
 }
 
 // ── CATEGORY REORDER ─────────────────────────────────────────
@@ -968,6 +1036,36 @@ function catDrop(e, toIdx) {
   saveDB(); renderSettings();
 }
 function catDragEnd(e) { e.currentTarget.classList.remove('cat-dragging'); catDragIdx=null; }
+// ── TAG MODAL & CRUD ─────────────────────────────────────────
+function deleteTag(id) {
+  if (!confirm('確定刪除此標籤？')) return;
+  DB.userTags = (DB.userTags||[]).filter(t=>t.id!==id);
+  DB.transactions.forEach(t=>{ if(t.tags) t.tags=t.tags.filter(x=>x!==id); });
+  saveDB(); renderSettings(); toast('標籤已刪除','danger');
+}
+function saveTag() {
+  const name = document.getElementById('tagN').value.trim();
+  const color = v('tagC');
+  if (!name) { toast('請填入標籤名稱','danger'); return; }
+  if (!DB.userTags) DB.userTags=[];
+  if (modalType==='editTag') {
+    Object.assign(DB.userTags.find(t=>t.id===editTarget), {name,color});
+    toast('標籤已更新','success');
+  } else {
+    DB.userTags.push({id:uid(),name,color});
+    toast('標籤新增成功','success');
+  }
+  saveDB(); closeModal(); renderSettings();
+}
+function toggleTxnTag(el, tagId) {
+  const inp = document.getElementById('tTagsVal');
+  if (!inp) return;
+  let arr = JSON.parse(inp.value||'[]');
+  if (arr.includes(tagId)) { arr=arr.filter(x=>x!==tagId); el.classList.remove('active'); }
+  else { arr.push(tagId); el.classList.add('active'); }
+  inp.value = JSON.stringify(arr);
+}
+
 function deleteCat(id) {
   if (!confirm('確定刪除？')) return;
   DB.categories=DB.categories.filter(c=>c.id!==id);
@@ -1145,11 +1243,28 @@ function openModal(type,id,preCard,preAcc,extraId) {
     </div>
     <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="tDesc" value="${escAttr(txn?.desc||'')}" placeholder="e.g. 全聯購物"></div>
     <div class="form-group"><label class="form-label">帳戶 / 卡片</label>
-      <select class="form-select" id="tSrc"><option value="">請選擇</option>${srcOpts('both')}</select>
+      <select class="form-select" id="tSrc" onchange="onTxnSrcChange(this.value)"><option value="">請選擇</option>${srcOpts('both')}</select>
+    </div>
+    <div class="form-group" id="tLayerGroup" style="display:none">
+      <label class="form-label">扣款分層（選填）</label>
+      <select class="form-select" id="tLayer">
+        <option value="">不指定分層</option>
+      </select>
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 選擇後可追蹤每筆消費從哪個分層支出</div>
+    </div>
+    <div class="form-group"><label class="form-label">標籤（選填，可多選）</label>
+      <div class="tag-picker" id="tTagPicker">
+        ${(DB.userTags||[]).map(tg=>`<span class="tag-pick-btn${(txn?.tags||[]).includes(tg.id)?' active':''}" data-id="${tg.id}" style="--tclr:${tg.color}" onclick="toggleTxnTag(this,'${tg.id}')">#${escHtml(tg.name)}</span>`).join('')}
+        ${(DB.userTags||[]).length===0?'<span style="font-size:12px;color:var(--tx-muted)">尚無標籤，請至設定頁新增</span>':''}
+      </div>
+      <input type="hidden" id="tTagsVal" value="${JSON.stringify(txn?.tags||[])}">
     </div>
     <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tNotes" value="${escAttr(txn?.notes||'')}"></div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveTxn()">儲存</button>`;
-    setTimeout(()=>{const el=document.getElementById('tSrc');if(el&&preSrc)el.value=preSrc;},60);
+    setTimeout(()=>{
+      const el=document.getElementById('tSrc');
+      if(el&&preSrc){ el.value=preSrc; onTxnSrcChange(preSrc, txn?.layerId||''); }
+    },60);
   }
 
   // ── PAYMENT ──
@@ -1201,6 +1316,16 @@ function openModal(type,id,preCard,preAcc,extraId) {
   }
 
   // ── CATEGORY ──
+  else if (type==='addTag'||type==='editTag') {
+    const tg = id&&type==='editTag' ? (DB.userTags||[]).find(x=>x.id===id) : null;
+    t = tg ? '編輯標籤' : '新增標籤';
+    b = `<div class="form-group"><label class="form-label">標籤名稱（不含 #）</label>
+      <input class="form-input" id="tagN" value="${escAttr(tg?.name||'')}" placeholder="e.g. 出差、家用、個人"></div>
+    <div class="form-group"><label class="form-label">標籤顏色</label>${colorPicker('tagC', tg?.color||'#e67e22')}</div>
+    <div style="font-size:11px;color:var(--tx-secondary);margin-top:8px">預覽：<span class="user-tag-badge" id="tagPreview" style="background:${tg?.color||'#e67e22'}22;color:${tg?.color||'#e67e22'};border:1px solid ${tg?.color||'#e67e22'}66">#${escHtml(tg?.name||'標籤名稱')}</span></div>`;
+    f = `<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveTag()">儲存</button>`;
+  }
+
   else if (type==='addCat'||type==='editCat') {
     t=cat?'編輯類別':'新增類別';
     b=`<div style="display:flex;gap:14px;align-items:flex-start">
@@ -1283,16 +1408,19 @@ function saveLayer() {
 function saveTxn() {
   const date=v('tDate'),type=v('tType'),amt=+v('tAmt'),
         desc=document.getElementById('tDesc').value.trim(),
-        catId=v('tCat'),srcVal=v('tSrc'),notes=v('tNotes');
+        catId=v('tCat'),srcVal=v('tSrc'),notes=v('tNotes'),
+        layerId=v('tLayer')||null,
+        tags=JSON.parse(v('tTagsVal')||'[]');
   if(!date||!amt||!desc||!srcVal){toast('請填寫完整資訊','danger');return;}
   const [sType,sId]=srcVal.split('_');
   const isRed = type==='redemption';
   const amount = type==='income'||isRed ? Math.abs(amt) : -Math.abs(amt);
+  const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,tags};
   if(modalType==='editTxn'){
-    Object.assign(DB.transactions.find(t=>t.id===editTarget),{date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed});
+    Object.assign(DB.transactions.find(t=>t.id===editTarget), txnObj);
     toast('記錄已更新','success');
   } else {
-    DB.transactions.push({id:uid(),date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isFixed:false,isRedemption:isRed});
+    DB.transactions.push({id:uid(),...txnObj,isFixed:false});
     const cat=getCat(catId);
     if(cat.budget>0&&amount<0&&catMonthSpend(catId)>cat.budget)toast('⚠ 類別「'+cat.name+'」已超過本月額度！','danger');
     else toast('記錄新增成功','success');
@@ -1358,6 +1486,28 @@ function toast(msg,type) {
 // ════════════════════════════════════════════════════════════════
 // HELPERS FOR MODALS
 // ════════════════════════════════════════════════════════════════
+
+// 帳戶來源切換時，動態顯示分層選單
+function onTxnSrcChange(srcVal, preLayerId) {
+  const group = document.getElementById('tLayerGroup');
+  const sel   = document.getElementById('tLayer');
+  if (!group || !sel) return;
+  if (!srcVal || !srcVal.startsWith('account_')) {
+    group.style.display = 'none';
+    return;
+  }
+  const accId = srcVal.split('_')[1];
+  const acc   = getAcc(accId);
+  const layers = acc?.layers || [];
+  if (!layers.length) { group.style.display = 'none'; return; }
+  sel.innerHTML = '<option value="">不指定分層</option>' +
+    layers.map(l => {
+      const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${l.color||'#888'};margin-right:4px"></span>`;
+      return `<option value="${l.id}"${l.id===preLayerId?' selected':''}>${l.label}（${fmt(l.amount)}）</option>`;
+    }).join('');
+  if (preLayerId) sel.value = preLayerId;
+  group.style.display = '';
+}
 function toggleCurrencyField(accType) {
   const el = document.getElementById('currencyGroup');
   if (el) el.style.display = accType === '外幣' ? '' : 'none';
@@ -1615,6 +1765,7 @@ function init() {
   document.getElementById('filterFrom').value=y+'-'+m+'-01';
   document.getElementById('filterTo').value=today();
 
+  ensureTags();
   generateFixed();
   renderDashboard();
 
