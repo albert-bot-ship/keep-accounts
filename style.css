@@ -847,3 +847,189 @@ body:has(.backup-banner:not([style*="display:none"])) .fab-btn{
   animation:highlightPulse .6s ease-out 2;
   border-color:var(--m-blue) !important;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 1 — 玻璃擬態卡片 Glassmorphism
+   ══════════════════════════════════════════════════════════════ */
+.account-card{
+  backdrop-filter:blur(16px) saturate(1.6);
+  -webkit-backdrop-filter:blur(16px) saturate(1.6);
+  background:rgba(16,16,40,0.78) !important;
+  border:1px solid rgba(255,255,255,0.06) !important;
+}
+body.light-theme .account-card{
+  background:rgba(255,255,255,0.72) !important;
+  border:1px solid rgba(0,0,0,0.08) !important;
+}
+
+/* stat-card 玻璃效果 */
+.stat-card{
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  background:rgba(16,16,40,0.72) !important;
+  border:1px solid rgba(255,255,255,0.05) !important;
+}
+body.light-theme .stat-card{
+  background:rgba(255,255,255,0.78) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 2 — 自訂滾動條
+   ══════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar{ width:4px; height:4px; }
+::-webkit-scrollbar-track{ background:transparent; }
+::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg,var(--m-blue),var(--m-violet));
+  border-radius:99px;
+}
+::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(180deg,var(--m-violet),var(--m-red));
+}
+*{ scrollbar-width:thin; scrollbar-color:var(--m-blue) transparent; }
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 3 — 卡片 Hover 微動畫 + 頂部光線跑動
+   ══════════════════════════════════════════════════════════════ */
+
+/* 卡片 hover 上浮 + 發光 */
+.account-card{
+  transition:transform .25s cubic-bezier(.34,1.4,.64,1),
+             box-shadow .25s ease;
+  will-change:transform;
+}
+.account-card:hover{
+  transform:translateY(-5px);
+  box-shadow:0 12px 40px rgba(0,87,184,.28),
+             0 2px 8px rgba(0,0,0,.35) !important;
+}
+body.light-theme .account-card:hover{
+  box-shadow:0 12px 40px rgba(0,87,184,.18),
+             0 2px 8px rgba(0,0,0,.12) !important;
+}
+
+/* 頂部光線掃過動畫 */
+@keyframes headerSweep{
+  0%   { background-position:-100% 0; }
+  100% { background-position:200% 0; }
+}
+.account-card-header{
+  position:relative;
+  overflow:hidden;
+}
+.account-card-header::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255,255,255,0.13) 50%,
+    transparent 70%
+  );
+  background-size:200% 100%;
+  opacity:0;
+  transition:opacity .2s;
+  pointer-events:none;
+}
+.account-card:hover .account-card-header::after{
+  opacity:1;
+  animation:headerSweep .7s ease forwards;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 4 — 金額數字等寬字體
+   ══════════════════════════════════════════════════════════════ */
+.account-balance,
+.stat-value,
+.layer-amt,
+.a-pos,.a-neg,.a-over{
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum";
+  letter-spacing:0.01em;
+}
+/* 帳戶餘額用更大的等寬數字 */
+.account-balance{
+  font-family:'Rajdhani',ui-monospace,monospace;
+  font-size:clamp(20px,4vw,28px);
+  font-weight:700;
+  letter-spacing:.02em;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CSS 加強 5 — 卡片頂部 BMW M 三色漸層邊框 + 流光效果
+   ══════════════════════════════════════════════════════════════ */
+@keyframes mStripeRun{
+  0%  { background-position:0% 50%; }
+  50% { background-position:100% 50%; }
+  100%{ background-position:0% 50%; }
+}
+
+/* 覆蓋 inline style 的 border-top，改用 ::before 偽元素做漸層頂線 */
+.account-card-header[style*="border-top"]{
+  border-top:none !important;
+  padding-top:calc(var(--sp-sm) + 3px);
+}
+.account-card-header[style*="border-top"]::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:3px;
+  background:linear-gradient(
+    90deg,
+    #1c69d4 0%,
+    #6f2ca7 33%,
+    #c8102e 66%,
+    #1c69d4 100%
+  );
+  background-size:200% 100%;
+  animation:mStripeRun 3s linear infinite;
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+}
+/* 停止動畫當不 hover（省電）*/
+.account-card:not(:hover) .account-card-header::before{
+  animation-play-state:paused;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   標籤系統樣式
+   ══════════════════════════════════════════════════════════════ */
+.user-tag-badge{
+  display:inline-flex;align-items:center;
+  padding:2px 7px;border-radius:99px;
+  font-size:11px;font-weight:600;
+  margin-left:4px;vertical-align:middle;
+  cursor:default;white-space:nowrap;
+  transition:filter .15s;
+}
+.user-tag-badge:hover{ filter:brightness(1.2); }
+
+/* 新增消費時的標籤選擇器 */
+.tag-picker{
+  display:flex;flex-wrap:wrap;gap:6px;
+  padding:10px 12px;
+  background:var(--bg-secondary);
+  border:1px solid var(--bdr-normal);
+  border-radius:var(--r);
+  min-height:42px;
+  align-items:center;
+}
+.tag-pick-btn{
+  padding:3px 10px;border-radius:99px;
+  font-size:12px;font-weight:600;cursor:pointer;
+  background:var(--bg-card);
+  border:1.5px solid var(--bdr-normal);
+  color:var(--tx-secondary);
+  transition:all .18s;
+  user-select:none;
+}
+.tag-pick-btn:hover{
+  border-color:var(--tclr,var(--m-blue));
+  color:var(--tclr,var(--m-blue));
+  background:color-mix(in srgb,var(--tclr,var(--m-blue)) 10%,transparent);
+}
+.tag-pick-btn.active{
+  background:color-mix(in srgb,var(--tclr,var(--m-blue)) 18%,transparent);
+  border-color:var(--tclr,var(--m-blue));
+  color:var(--tclr,var(--m-blue));
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--tclr,var(--m-blue)) 30%,transparent);
+}
