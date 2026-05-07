@@ -586,12 +586,12 @@ function renderAccounts() {
     return `<div class="account-card${isLow?' low-balance':''}">
       <div class="account-card-header" style="border-top:3px solid ${a.color}">
         <div class="account-card-icon" style="background:${a.color}22">${icon}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <div class="account-card-name">${escHtml(a.name)}</div>${typeBadge}
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
-            <div class="account-card-type">BANK ACCOUNT</div>${last4show}
+        <div style="flex:1;min-width:0;overflow:hidden">
+          <div class="account-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(a.name)}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
+            ${typeBadge}
+            <div class="account-card-type">BANK ACCOUNT</div>
+            ${last4show}
           </div>
         </div>
         <div style="display:flex;gap:4px">
