@@ -801,3 +801,49 @@ body:has(.backup-banner:not([style*="display:none"])) .fab-btn{
 @media(max-width:480px){
   .fab-btn{width:52px;height:52px;font-size:24px;right:16px;bottom:20px}
 }
+
+/* ══ SIDEBAR OVERLAY（點任意處關閉） ═════════════════════════ */
+.sidebar-overlay{
+  display:none;
+  position:fixed;inset:0;z-index:149;
+  background:rgba(0,0,0,0);
+}
+@media(max-width:768px){
+  .sidebar.open ~ .sidebar-overlay,
+  body:has(.sidebar.open) .sidebar-overlay{
+    display:block;
+  }
+}
+
+/* ══ DASHBOARD LINK ROWS ═════════════════════════════════════ */
+.layer-bar.dash-link{
+  cursor:pointer;
+  transition:background .18s, border-color .18s, transform .15s;
+  position:relative;
+}
+.layer-bar.dash-link:hover{
+  background:var(--bg-card-hov);
+  border-color:var(--m-blue);
+  transform:translateX(3px);
+}
+.layer-bar.dash-link:active{ transform:translateX(1px); }
+.dash-link-arrow{
+  font-size:18px;color:var(--tx-muted);
+  margin-left:4px;transition:color .18s, transform .18s;
+  flex-shrink:0;
+}
+.layer-bar.dash-link:hover .dash-link-arrow{
+  color:var(--m-blue);
+  transform:translateX(3px);
+}
+
+/* ══ HIGHLIGHT PULSE（跳轉後閃爍提示） ══════════════════════ */
+@keyframes highlightPulse{
+  0%  { box-shadow:0 0 0 0 rgba(0,87,184,.6); }
+  50% { box-shadow:0 0 0 10px rgba(0,87,184,0); }
+  100%{ box-shadow:0 0 0 0 rgba(0,87,184,0); }
+}
+.highlight-pulse{
+  animation:highlightPulse .6s ease-out 2;
+  border-color:var(--m-blue) !important;
+}
