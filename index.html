@@ -303,10 +303,12 @@ function nowYM() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMo
 // 薪水發放日：每月25日，若為六(6)提前2天，若為日(0)提前1天
 function getSalaryDate(year, month) {
   // month: 0-indexed
+  // 規則：25日若為六或日，提前到當週五；平日（含一）維持25日
   const d = new Date(year, month, 25);
   const dow = d.getDay();
-  if (dow === 6) d.setDate(23); // 六 → 23
-  else if (dow === 0) d.setDate(24); // 日 → 24
+  if (dow === 6) d.setDate(24);      // 六 → 前一天（週五）
+  else if (dow === 0) d.setDate(23); // 日 → 前兩天（週五）
+  // 一～五 → 維持25日不變
   return d;
 }
 
