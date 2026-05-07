@@ -273,13 +273,15 @@ function defaultDB() {
     creditCards: [], bankAccounts: [], transactions: [],
     fixedExpenses: [], generatedFixed: {},
     categories: [
-      { id: uid(), name: '餐飲',   color: '#e31836', budget: 0 },
-      { id: uid(), name: '交通',   color: '#1c69d4', budget: 0 },
-      { id: uid(), name: '購物',   color: '#9b59b6', budget: 0 },
-      { id: uid(), name: '娛樂',   color: '#f39c12', budget: 0 },
-      { id: uid(), name: '醫療',   color: '#27ae60', budget: 0 },
-      { id: uid(), name: '訂閱',   color: '#00bcd4', budget: 0 },
-      { id: uid(), name: '其他',   color: '#7f8c8d', budget: 0 },
+      { id: uid(), name: '餐飲',   color: '#e31836', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '交通',   color: '#1c69d4', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '購物',   color: '#9b59b6', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '娛樂',   color: '#f39c12', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '醫療',   color: '#27ae60', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '訂閱',   color: '#00bcd4', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '其他',   color: '#7f8c8d', budget: 0, forType:'both',    budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '薪水',   color: '#00C853', budget: 0, forType:'income',  budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '獎金',   color: '#f39c12', budget: 0, forType:'income',  budgetPeriod:'cycle', budgetDays:30 },
     ],
     userTags: [
       { id: uid(), name: '出差',   color: '#e67e22' },
@@ -410,9 +412,22 @@ function cardBalance(id) {
 function accountBalance(id) {
   const acc = getAcc(id); if (!acc) return 0;
   const lay = (acc.layers||[]).reduce((s,l)=>s+(l.amount||0),0);
-  const tx  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===id)
+  const tx  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===id&&!t.layerId)
     .reduce((s,t)=>s+t.amount,0);
-  return lay + tx;
+  // 有指定分層的交易，其金額已算在 layerDynamicBalance，不要重複加
+  const layerTx = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===id&&t.layerId)
+    .reduce((s,t)=>s+t.amount,0);
+  return lay + tx + layerTx;
+}
+
+// 分層動態餘額 = 初始金額 + 所有標記此分層的交易加減
+function layerDynamicBalance(accId, layerId) {
+  const acc   = getAcc(accId); if (!acc) return 0;
+  const layer = (acc.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
+  const txSum = DB.transactions
+    .filter(t=>t.layerId===layerId)
+    .reduce((s,t)=>s+t.amount, 0);
+  return (layer.amount||0) + txSum;
 }
 function rangedTxns() {
   const now = new Date();
@@ -441,17 +456,30 @@ function thisMonthCCSpend() {
   return DB.transactions.filter(t=>t.sourceType==='card'&&t.amount<0&&ym(t.date)===nowYM())
     .reduce((s,t)=>s+t.amount,0);
 }
-function catMonthSpend(id) {
-  // 類別頁與儀表板統一使用每月8號起算的週期
-  const { from, to } = getSalaryCycle();
-  return DB.transactions
-    .filter(t=>t.category===id && t.amount<0 && t.date>=from && t.date<=to)
-    .reduce((s,t)=>s+Math.abs(t.amount),0);
+// 依類別設定的週期計算花費
+function catPeriodRange(cat) {
+  const period = cat?.budgetPeriod || 'cycle';
+  const todayStr = today();
+  if (period === 'cycle') {
+    return getSalaryCycle();
+  } else if (period === 'month') {
+    const now = new Date();
+    return { from: now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-01', to: todayStr };
+  } else if (period === 'week') {
+    const now = new Date();
+    const dow = now.getDay(); // 0=日
+    const mon = new Date(now); mon.setDate(now.getDate() - (dow===0?6:dow-1));
+    return { from: mon.toISOString().slice(0,10), to: todayStr };
+  } else if (period === 'custom') {
+    const days = (cat?.budgetDays||30) - 1;
+    const from = new Date(); from.setDate(from.getDate() - days);
+    return { from: from.toISOString().slice(0,10), to: todayStr };
+  }
+  return getSalaryCycle();
 }
-
-// 薪資週期內的類別花費（用於超支判斷）
-function catSalarySpend(id) {
-  const { from, to } = getSalaryCycle();
+function catMonthSpend(id) {
+  const cat = getCat(id);
+  const { from, to } = catPeriodRange(cat);
   return DB.transactions
     .filter(t=>t.category===id && t.amount<0 && t.date>=from && t.date<=to)
     .reduce((s,t)=>s+Math.abs(t.amount),0);
@@ -727,23 +755,30 @@ function renderAccounts() {
     const bal  = accountBalance(a.id);
     const icon = a.icon?`<img src="${a.icon}" alt="">`:'🏦';
     const salaryLayer = (a.layers||[]).find(l=>l.label.includes('薪'));
-    const salaryAmt = salaryLayer?salaryLayer.amount:null;
+    // 薪水剩餘生活費用動態餘額（初始金額 + 此分層的所有交易增減）
+    const salaryDynamic = salaryLayer ? layerDynamicBalance(a.id, salaryLayer.id) : null;
     const isLow = a.minBalance>0 && bal<a.minBalance;
     const mthOut = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount<0&&ym(t.date)===nowYM()).reduce((s,t)=>s+Math.abs(t.amount),0);
     const mthIn  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount>0&&ym(t.date)===nowYM()).reduce((s,t)=>s+t.amount,0);
     const typeBadge = a.accType?`<span class="badge badge-blue" style="font-size:9px">${a.accType}</span>`:'';
     const last4show = a.last4?`<span style="color:var(--tx-muted);font-size:11px;letter-spacing:2px">•••• ${a.last4}</span>`:'';
     const layersHtml = (a.layers||[]).map(l=>{
-      const lSpend = DB.transactions
-        .filter(t=>t.layerId===l.id && t.amount<0 && ym(t.date)===nowYM())
-        .reduce((s,t)=>s+Math.abs(t.amount),0);
+      const dynBal  = layerDynamicBalance(a.id, l.id);
+      const lChange = dynBal - (l.amount||0); // 累積增減
+      const lSpend  = DB.transactions.filter(t=>t.layerId===l.id&&t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0);
+      const lIncome = DB.transactions.filter(t=>t.layerId===l.id&&t.amount>0).reduce((s,t)=>s+t.amount,0);
+      const dynCls  = dynBal < 0 ? 'color:var(--tx-red)' : dynBal < (l.amount||0)*0.2 ? 'color:var(--tx-warning)' : 'color:var(--tx-green)';
       return `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||a.color}"></div>
         <div style="flex:1;min-width:0">
           <div class="layer-name">${escHtml(l.label)}</div>
-          ${lSpend>0?`<div style="font-size:10px;color:var(--tx-red);margin-top:2px">本月支出 −${fmt(-lSpend)}</div>`:''}
+          <div style="font-size:10px;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap">
+            <span style="color:var(--tx-muted)">初始：${a.accType==='外幣'&&a.currency?fmtFX(l.amount,a.currency):fmt(l.amount)}</span>
+            ${lSpend>0?`<span style="color:var(--tx-red)">支出 −${fmt(-lSpend)}</span>`:''}
+            ${lIncome>0?`<span style="color:var(--tx-green)">收入 +${fmt(lIncome)}</span>`:''}
+          </div>
         </div>
-        <span class="layer-amt">${a.accType==='外幣'&&a.currency ? fmtFX(l.amount,a.currency) : fmt(l.amount)}</span>
+        <span class="layer-amt" style="${dynCls};font-weight:700">${a.accType==='外幣'&&a.currency?fmtFX(dynBal,a.currency):fmt(dynBal)}</span>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editLayer','${a.id}',null,null,'${l.id}')">✏️</button>
         <button class="btn btn-danger btn-icon btn-sm" onclick="delLayer('${a.id}','${l.id}')">✕</button>
       </div>`;
@@ -787,7 +822,7 @@ function renderAccounts() {
           </div>`;
         })()}
         ${isLow?`<div style="font-size:11px;color:var(--warn);margin-top:4px">⚠ 低於最低餘額警示 ${fmt(a.minBalance)}</div>`:''}
-        ${salaryAmt!==null?`<div style="font-size:11px;color:var(--tx-secondary);margin-top:6px">薪水剩餘生活費：<span style="color:${salaryAmt-ccSpend<0?'var(--tx-red)':'var(--tx-green)'};font-weight:700">${fmt(salaryAmt-ccSpend)}</span></div>`:''}
+        ${salaryDynamic!==null?`<div style="font-size:11px;color:var(--tx-secondary);margin-top:6px">薪水剩餘生活費：<span style="color:${salaryDynamic<0?'var(--tx-red)':'var(--tx-green)'};font-weight:700">${fmt(salaryDynamic)}</span></div>`:''}
         <div style="display:flex;gap:16px;margin-top:8px">
           <div style="font-size:11px;color:var(--tx-secondary)">本月流出：<span style="color:var(--tx-red)">${fmt(-mthOut)}</span></div>
           <div style="font-size:11px;color:var(--tx-secondary)">本月流入：<span style="color:var(--tx-green)">+${fmt(mthIn)}</span></div>
@@ -1084,10 +1119,13 @@ function renderSettings() {
       <span class="cat-drag-handle" title="拖曳排序">⠿</span>
       ${iconEl}
       <div class="cat-row-info">
-        <div class="cat-row-name">${escHtml(c.name)}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="cat-row-name">${escHtml(c.name)}</div>
+          <span class="badge" style="font-size:9px;padding:1px 6px;${(c.forType||'expense')==='income'?'background:#27ae6022;color:#27ae60;border:1px solid #27ae6055':(c.forType==='both'?'background:#1c69d422;color:#1c69d4;border:1px solid #1c69d455':'background:#e3183622;color:#e31836;border:1px solid #e3183655')}">${(c.forType||'expense')==='income'?'📥 收入':c.forType==='both'?'⇄ 兩者':'💸 支出'}</span>
+        </div>
         <div class="cat-row-meta">
-          <span class="cat-month-spend">本期(8日~隔月5日)：${fmt(-spent)}</span>
-          ${c.budget>0?`<span class="badge ${isOver?'badge-red':'badge-green'}" style="font-size:10px">${isOver?'⚠ 超支':'正常'}　${fmt(-c.budget)}</span>`:'<span class="badge badge-gray" style="font-size:10px">無額度</span>'}
+          <span class="cat-month-spend">${(()=>{const p=c.budgetPeriod||'cycle';const lbl={cycle:'本期',month:'本月',week:'本週',custom:(c.budgetDays||30)+'天'}[p]||'本期';return lbl+'：'+fmt(-spent);})()}</span>
+          ${c.budget>0?`<span class="badge ${isOver?'badge-red':'badge-green'}" style="font-size:10px">${isOver?'⚠ 超支':'正常'}　上限 ${fmt(-c.budget)}</span>`:'<span class="badge badge-gray" style="font-size:10px">無額度</span>'}
         </div>
         ${c.budget>0?`<div class="prog-wrap" style="max-width:160px;margin-top:4px"><div class="prog-bar" style="width:${pct}%;background:${isOver?'var(--m-red)':'var(--m-blue)'}"></div></div>`:''}
       </div>
@@ -1271,8 +1309,14 @@ function srcOpts(type) {
   if(type!=='card')    DB.bankAccounts.forEach(a=>{o+=`<option value="account_${a.id}">[帳] ${escHtml(a.name)}</option>`;});
   return o;
 }
-function catOpts(selId) {
-  return DB.categories.map(c=>`<option value="${c.id}"${c.id===selId?' selected':''}>${escHtml(c.name)}</option>`).join('');
+function catOpts(selId, forType) {
+  // forType: 'expense' | 'income' | undefined（顯示全部）
+  const cats = DB.categories.filter(c=>{
+    if (!forType) return true;
+    const ct = c.forType || 'expense'; // 預設為支出類別
+    return ct === forType || ct === 'both';
+  });
+  return cats.map(c=>`<option value="${c.id}"${c.id===selId?' selected':''}>${escHtml(c.name)}</option>`).join('');
 }
 
 function openModal(type,id,preCard,preAcc,extraId) {
@@ -1364,7 +1408,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
     b=`<div class="form-row">
       <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tDate" type="date" value="${txn?.date||today()}"></div>
       <div class="form-group"><label class="form-label">類型</label>
-        <select class="form-select" id="tType">
+        <select class="form-select" id="tType" onchange="reloadTxnCats(this.value)">
           <option value="expense"${!isInc?' selected':''}>支出</option>
           <option value="income"${isInc?' selected':''}>收入</option>
           <option value="redemption"${txn?.isRedemption?' selected':''}>點數/回饋折抵</option>
@@ -1373,7 +1417,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="tAmt" type="number" value="${txn?Math.abs(txn.amount):''}" placeholder="0"></div>
-      <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="tCat">${catOpts(txn?.category||DB.categories[0]?.id||'')}</select></div>
+      <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="tCat">${catOpts(txn?.category||DB.categories.find(c=>(c.forType||'expense')==='expense')?.id||'', txn?(txn.amount>0?'income':'expense'):undefined)}</select></div>
     </div>
     <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="tDesc" value="${escAttr(txn?.desc||'')}" placeholder="e.g. 全聯購物"></div>
     <div class="form-group"><label class="form-label">帳戶 / 卡片</label>
@@ -1472,8 +1516,28 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>
       <div style="flex:1">
         <div class="form-group"><label class="form-label">類別名稱</label><input class="form-input" id="catN" value="${escAttr(cat?.name||'')}" placeholder="e.g. 旅遊"></div>
-        <div class="form-group"><label class="form-label">月度消費額度（0=不設限）</label><input class="form-input" id="catB" type="number" value="${cat?.budget||0}"></div>
-        <div class="form-group"><label class="form-label" style="margin-bottom:6px">類別顏色</label>${colorPicker('catC',cat?.color||'#0057B8')}</div>
+        <div class="form-row" style="grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group" style="margin:0"><label class="form-label">適用類型</label>
+            <select class="form-select" id="catForType">
+              <option value="expense"${(cat?.forType||'expense')==='expense'?' selected':''}>💸 支出</option>
+              <option value="income"${cat?.forType==='income'?' selected':''}>📥 收入</option>
+              <option value="both"${cat?.forType==='both'?' selected':''}>⇄ 兩者</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0"><label class="form-label">額度週期</label>
+            <select class="form-select" id="catBPeriod" onchange="toggleCustomDays(this.value)">
+              <option value="cycle"${(cat?.budgetPeriod||'cycle')==='cycle'?' selected':''}>本期(8日起)</option>
+              <option value="month"${cat?.budgetPeriod==='month'?' selected':''}>當月</option>
+              <option value="week"${cat?.budgetPeriod==='week'?' selected':''}>本週</option>
+              <option value="custom"${cat?.budgetPeriod==='custom'?' selected':''}>自訂天數</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+          <div class="form-group" style="margin:0"><label class="form-label">消費額度上限（0=不設限）</label><input class="form-input" id="catB" type="number" value="${cat?.budget||0}" placeholder="0"></div>
+          <div class="form-group" id="customDaysGroup" style="margin:0;${cat?.budgetPeriod==='custom'?'':'display:none'}"><label class="form-label">自訂天數</label><input class="form-input" id="catCustomDays" type="number" min="1" value="${cat?.budgetDays||30}" placeholder="30"></div>
+        </div>
+        <div class="form-group" style="margin-top:10px"><label class="form-label" style="margin-bottom:6px">類別顏色</label>${colorPicker('catC',cat?.color||'#0057B8')}</div>
       </div>
     </div>
     <div style="font-size:11px;color:var(--tx-secondary);margin-top:8px">💡 可上傳圖片或輸入 Emoji，圖片優先顯示</div>`;
@@ -1595,8 +1659,11 @@ function saveCat() {
   const name=document.getElementById('catN').value.trim(),budget=+v('catB')||0,color=v('catC');
   const icon=(document.getElementById('catIcon')?.value)||'';
   const emoji=(document.getElementById('catEmoji')?.value||'').trim();
+  const forType=v('catForType')||'expense';
+  const budgetPeriod=v('catBPeriod')||'cycle';
+  const budgetDays=+v('catCustomDays')||30;
   if(!name){toast('請填入類別名稱','danger');return;}
-  const obj={name,budget,color,icon,emoji};
+  const obj={name,budget,color,icon,emoji,forType,budgetPeriod,budgetDays};
   if(modalType==='editCat'){Object.assign(DB.categories.find(c=>c.id===editTarget),obj);toast('類別已更新','success');}
   else{DB.categories.push({id:uid(),...obj});toast('類別新增成功','success');}
   saveDB();closeModal();renderSettings();
@@ -1620,6 +1687,27 @@ function toast(msg,type) {
 // ════════════════════════════════════════════════════════════════
 // HELPERS FOR MODALS
 // ════════════════════════════════════════════════════════════════
+
+// 切換支出/收入時，重載類別選項
+function reloadTxnCats(typeVal) {
+  const sel = document.getElementById('tCat'); if (!sel) return;
+  const forType = typeVal === 'income' ? 'income' : 'expense';
+  const cur = sel.value;
+  sel.innerHTML = catOpts(cur, forType);
+  // 若原來選的類別不在新清單裡，自動選第一個
+  if (!sel.value) sel.selectedIndex = 0;
+}
+function reloadQaCats(typeVal) {
+  const sel = document.getElementById('qaCat'); if (!sel) return;
+  const forType = typeVal === 'income' ? 'income' : 'expense';
+  const cur = sel.value;
+  sel.innerHTML = catOpts(cur, forType);
+  if (!sel.value) sel.selectedIndex = 0;
+}
+function toggleCustomDays(period) {
+  const el = document.getElementById('customDaysGroup');
+  if (el) el.style.display = period === 'custom' ? '' : 'none';
+}
 
 // 帳戶來源切換時，動態顯示分層選單
 function onTxnSrcChange(srcVal, preLayerId) {
@@ -1703,7 +1791,7 @@ function openQuickAdd() {
       </div>
       <div class="form-group" style="margin:0">
         <label class="form-label">類型</label>
-        <select class="form-select" id="qaType">
+        <select class="form-select" id="qaType" onchange="reloadQaCats(this.value)">
           <option value="expense">支出</option>
           <option value="income">收入</option>
         </select>
