@@ -419,7 +419,7 @@ function toggleTheme() {
 function cardBalance(id) {
   return DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===id)
-    .reduce((s,t)=>s+t.amount-(t.fee||0),0);
+    .reduce((s,t)=>s+t.amount-(t.fee||0), 0);
 }
 // 信用卡分層：直接取分層的手動輸入金額
 function cardLayerDynamicBalance(cardId, layerId) {
@@ -578,7 +578,8 @@ function generateFixed() {
     const d = String(Math.min(fe.day,28)).padStart(2,'0');
     DB.transactions.push({ id:uid(), date:curYM+'-'+d, amount:-Math.abs(fe.amount),
       desc:fe.desc+'（固定）', category:fe.category, sourceId:fe.sourceId,
-      sourceType:fe.sourceType, notes:fe.notes||'', isFixed:true, fixedId:fe.id });
+      sourceType:fe.sourceType, notes:fe.notes||'', isFixed:true, fixedId:fe.id,
+      fee:fe.fee||0 });
     DB.generatedFixed[curYM].push(fe.id);
     added++;
   });
@@ -767,8 +768,14 @@ function renderCards() {
       .reduce((s,fl) => s+(+fl.amount||0), 0);
     const unlayeredSpend = DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.layerId&&!t.isPayment)
-      .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0), 0);
-    const totalSpend = layerTotal + feUnmappedAmt + unlayeredSpend;
+      .reduce((s,t)=>s+Math.abs(t.amount), 0);
+
+    // 所有交易手續費加總（含固定消費生成的交易）
+    const totalCardFees = DB.transactions
+      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&!t.isPayment)
+      .reduce((s,t)=>s+(t.fee||0), 0);
+
+    const totalSpend = layerTotal + feUnmappedAmt + unlayeredSpend + totalCardFees;
 
     return `<div class="account-card" id="card-${c.id}" onclick="cardClickHandler(event,'card','${c.id}')" style="cursor:pointer">
       <div class="account-card-header" style="border-top:3px solid ${c.color}">
@@ -791,6 +798,7 @@ function renderCards() {
         <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
           <div style="font-size:11px;color:var(--tx-secondary)">本月消費：<span style="color:var(--tx-red)">${fmt(-mSpend)}</span></div>
           ${(c.layers||[]).length>0?`<div style="font-size:11px;color:var(--tx-secondary)">分層：<span style="color:var(--tx-red)">−${fmt(layerTotal)}</span>　快速記帳：<span style="color:var(--tx-red)">−${fmt(unlayeredSpend)}</span>${feUnmappedAmt>0?`　固定(未對應)：<span style="color:var(--tx-red)">−${fmt(feUnmappedAmt)}</span>`:''}</div>`:''}
+          ${totalCardFees>0?`<div style="font-size:11px;color:var(--tx-secondary)">手續費：<span style="color:#e67800">+${fmt(totalCardFees)}</span></div>`:''}
           ${c.cashbackRate>0?`<div style="font-size:11px;color:var(--tx-secondary)">本月回饋：<span style="color:var(--tx-green)">+${fmt(-cashback)}</span><span style="font-size:10px;color:var(--tx-muted)">（${c.cashbackRate}%）</span></div>`:''}
         </div>
         ${c.limit>0?`<div class="prog-wrap mt-2"><div class="prog-bar" style="width:${used}%;background:${barColor}"></div></div><div style="font-size:10px;color:var(--tx-muted);margin-top:3px">已用 ${used.toFixed(0)}%</div>`:''}
@@ -1182,6 +1190,7 @@ function renderFixed() {
               <span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span>
               ${src?`<span>${escHtml(src.name)}</span>`:''}
               ${fe.notes?`<span style="color:var(--tx-muted)">${escHtml(fe.notes)}</span>`:''}
+              ${fe.fee>0?`<span class="badge" style="background:#e6780022;color:#e67800;border:1px solid #e6780055;font-size:9px">手續費 +${fmt(fe.fee)}</span>`:''}
               ${layers.length?`<span class="badge badge-violet" style="font-size:9px">${layers.length} 個分層</span>`:''}
             </div>
           </div>
@@ -1710,9 +1719,14 @@ function openModal(type,id,preCard,preAcc,extraId) {
     <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="feDesc" value="${escAttr(fe?.desc||'')}" placeholder="e.g. Netflix"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="feCat">${catOpts(fe?.category||DB.categories[0]?.id||'')}</select></div>
-      <div class="form-group"><label class="form-label">帳戶/卡片</label><select class="form-select" id="feSrc"><option value="">請選擇</option>${srcOpts('both')}</select></div>
+      <div class="form-group"><label class="form-label">帳戶/卡片</label><select class="form-select" id="feSrc" onchange="toggleFeFee(this.value)"><option value="">請選擇</option>${srcOpts('both')}</select></div>
     </div>
     <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="feNotes" value="${escAttr(fe?.notes||'')}"></div>
+    <div class="form-group" id="feFeeGroup" style="${fe?.sourceType==='card'||!fe?'':'display:none'}">
+      <label class="form-label">手續費（NT$，選填）</label>
+      <input class="form-input" id="feFee" type="number" min="0" step="any" value="${fe?.fee||''}" placeholder="0">
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 每月自動生成固定消費記錄時，手續費會一併帶入</div>
+    </div>
     <!-- 分層 -->
     <div class="m-stripe" style="margin:14px 0 10px"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -1724,7 +1738,8 @@ function openModal(type,id,preCard,preAcc,extraId) {
     <div id="feTotalHint" style="font-size:11px;color:var(--tx-secondary);margin-top:8px;text-align:right"></div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveFixed()">儲存</button>`;
     setTimeout(()=>{
-      const el=document.getElementById('feSrc');if(el&&pFS)el.value=pFS;
+      const el=document.getElementById('feSrc');
+      if(el&&pFS){ el.value=pFS; toggleFeFee(pFS); }
       renderFeLayers();
     },60);
   }
@@ -1916,6 +1931,10 @@ function doTransfer() {
 // ════════════════════════════════════════════════════════════════
 // 固定消費分層管理（Modal 內 inline）
 // ════════════════════════════════════════════════════════════════
+function toggleFeFee(srcVal) {
+  const g = document.getElementById('feFeeGroup');
+  if (g) g.style.display = srcVal.startsWith('card_') ? '' : 'none';
+}
 function getFeLayersData() {
   try { return JSON.parse(document.getElementById('feLayersData')?.value||'[]'); } catch{ return []; }
 }
@@ -1968,12 +1987,13 @@ function syncFeTotal() {
 
 function saveFixed() {
   const day=+v('feDay'),desc=document.getElementById('feDesc').value.trim(),
-        catId=v('feCat'),srcVal=v('feSrc'),notes=v('feNotes');
+        catId=v('feCat'),srcVal=v('feSrc'),notes=v('feNotes'),
+        fee=+(document.getElementById('feFee')?.value)||0;
   const layers=getFeLayersData().filter(l=>l.label.trim());
   const amt = layers.length ? layers.reduce((s,l)=>s+(+l.amount||0),0) : +v('feAmt');
   if(!day||!amt||!desc||!srcVal){toast('請填寫完整資訊（含金額或分層）','danger');return;}
   const [sType,sId]=srcVal.split('_');
-  const obj={day,amount:amt,desc,category:catId,sourceId:sId,sourceType:sType,notes,layers};
+  const obj={day,amount:amt,desc,category:catId,sourceId:sId,sourceType:sType,notes,layers,fee:fee||0};
   if(modalType==='editFixed'){Object.assign(DB.fixedExpenses.find(f=>f.id===editTarget),obj);toast('固定消費已更新','success');}
   else{DB.fixedExpenses.push({id:uid(),...obj});toast('固定消費新增成功','success');}
   saveDB();closeModal();renderFixed();
