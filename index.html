@@ -1687,7 +1687,11 @@ function openModal(type,id,preCard,preAcc,extraId) {
     </div>
     <div class="form-group"><label class="form-label">繳款金額（NT$）</label><input class="form-input" id="pyAmt" type="number" value="${Math.abs(bal)}"></div>
     <div class="form-group"><label class="form-label">從哪個帳戶扣款</label>
-      <select class="form-select" id="pyFrom"><option value="">請選擇帳戶</option>${srcOpts('account')}</select>
+      <select class="form-select" id="pyFrom" onchange="onPayAccChange(this.value)"><option value="">請選擇帳戶</option>${srcOpts('account')}</select>
+    </div>
+    <div class="form-group" id="pyLayerGroup" style="display:none">
+      <label class="form-label">從哪個分層扣款（選填）</label>
+      <select class="form-select" id="pyLayer"><option value="">不指定分層</option></select>
     </div>
     <div class="form-group"><label class="form-label">繳款日期</label><input class="form-input" id="pyDate" type="date" value="${today()}"></div>
     <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="pyNotes"></div>`;
@@ -1698,12 +1702,30 @@ function openModal(type,id,preCard,preAcc,extraId) {
   else if (type==='transfer') {
     t='帳戶轉帳';
     const accOpts=DB.bankAccounts.map(a2=>`<option value="${a2.id}"${a2.id===id?' selected':''}>${escHtml(a2.name)}</option>`).join('');
-    b=`<div class="form-group"><label class="form-label">從帳戶</label><select class="form-select" id="tfFrom">${accOpts}</select></div>
-    <div class="form-group"><label class="form-label">到帳戶</label><select class="form-select" id="tfTo">${accOpts}</select></div>
+    b=`<div class="form-group"><label class="form-label">從帳戶</label>
+      <select class="form-select" id="tfFrom" onchange="onTfAccChange('from',this.value)">${accOpts}</select>
+    </div>
+    <div class="form-group" id="tfFromLayerGroup" style="display:none">
+      <label class="form-label">從哪個分層扣款（選填）</label>
+      <select class="form-select" id="tfFromLayer"><option value="">不指定分層</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">到帳戶</label>
+      <select class="form-select" id="tfTo" onchange="onTfAccChange('to',this.value)">${accOpts}</select>
+    </div>
+    <div class="form-group" id="tfToLayerGroup" style="display:none">
+      <label class="form-label">存入哪個分層（選填）</label>
+      <select class="form-select" id="tfToLayer"><option value="">不指定分層</option></select>
+    </div>
     <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="tfAmt" type="number" placeholder="0"></div>
     <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tfDate" type="date" value="${today()}"></div>
     <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tfNotes"></div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-violet" onclick="doTransfer()">🔄 確認轉帳</button>`;
+    // 初始化預選帳戶的分層
+    setTimeout(()=>{
+      onTfAccChange('from', id||DB.bankAccounts[0]?.id||'');
+      const toId = DB.bankAccounts.find(a=>a.id!==id)?.id||'';
+      if(toId) { document.getElementById('tfTo').value=toId; onTfAccChange('to',toId); }
+    },60);
   }
 
   // ── FIXED ──
@@ -1908,24 +1930,47 @@ function saveTxn() {
   }
   saveDB();closeModal();renderTxns();
 }
+// 填充分層選單通用函數
+function fillLayerSel(selId, groupId, accId) {
+  const grp = document.getElementById(groupId);
+  const sel = document.getElementById(selId);
+  if (!grp || !sel) return;
+  const layers = getAcc(accId)?.layers || [];
+  if (!layers.length) { grp.style.display='none'; return; }
+  sel.innerHTML = '<option value="">不指定分層</option>' +
+    layers.map(l=>`<option value="${l.id}">${escHtml(l.label)}（${fmt(l.amount)}）</option>`).join('');
+  grp.style.display = '';
+}
+function onPayAccChange(srcVal) {
+  const accId = srcVal.startsWith('account_') ? srcVal.split('_')[1] : srcVal;
+  fillLayerSel('pyLayer','pyLayerGroup', accId);
+}
+function onTfAccChange(side, accId) {
+  if (side==='from') fillLayerSel('tfFromLayer','tfFromLayerGroup', accId);
+  else               fillLayerSel('tfToLayer',  'tfToLayerGroup',   accId);
+}
+
 function doPayment() {
   const cardId=v('pyCardId'),amt=+v('pyAmt'),fromVal=v('pyFrom'),date=v('pyDate'),notes=v('pyNotes');
+  const layerId = v('pyLayer')||null;
   if(!amt||!fromVal){toast('請填寫完整資訊','danger');return;}
   const [,fromId]=fromVal.split('_');
   const card=getCard(cardId);
   const lastCat=DB.categories[DB.categories.length-1]?.id||'';
-  DB.transactions.push({id:uid(),date,amount:-Math.abs(amt),desc:'信用卡繳款 — '+(card?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isPayment:true});
+  DB.transactions.push({id:uid(),date,amount:-Math.abs(amt),desc:'信用卡繳款 — '+(card?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isPayment:true,layerId});
   DB.transactions.push({id:uid(),date,amount:+Math.abs(amt),desc:'繳款入帳 — '+(card?.name||''),category:lastCat,sourceId:cardId,sourceType:'card',notes,isPayment:true});
   saveDB();closeModal();renderCards();toast('繳款成功！','success');
 }
 function doTransfer() {
   const fromId=v('tfFrom'),toId=v('tfTo'),amt=+v('tfAmt'),date=v('tfDate'),notes=v('tfNotes');
+  const fromLayerId = v('tfFromLayer')||null;
+  const toLayerId   = v('tfToLayer')||null;
   if(!fromId||!toId||!amt){toast('請填寫完整資訊','danger');return;}
   if(fromId===toId){toast('不能轉帳到相同帳戶','danger');return;}
   const from=getAcc(fromId),to=getAcc(toId);
   const lastCat=DB.categories[DB.categories.length-1]?.id||'';
-  DB.transactions.push({id:uid(),date,amount:-Math.abs(amt),desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true});
-  DB.transactions.push({id:uid(),date,amount:+Math.abs(amt),desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true});
+  DB.transactions.push({id:uid(),date,amount:-Math.abs(amt),desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true,layerId:fromLayerId});
+  DB.transactions.push({id:uid(),date,amount:+Math.abs(amt),desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true,layerId:toLayerId});
   saveDB();closeModal();renderAccounts();toast('轉帳成功！','success');
 }
 // ════════════════════════════════════════════════════════════════
