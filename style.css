@@ -845,6 +845,12 @@ body:has(.backup-banner:not([style*="display:none"])) .fab-btn{
 }
 .txn-row:hover::before { opacity: 1; }
 
+/* 批量選取高亮 */
+.txn-row-selected {
+  background: rgba(0,87,184,.13) !important;
+}
+.txn-row-selected::before { opacity: 1 !important; }
+
 /* ══════════════════════════════════════════════════════════════
    CSS 加強 6 — 輸入框 focus 光暈
    ══════════════════════════════════════════════════════════════ */
