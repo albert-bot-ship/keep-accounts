@@ -752,6 +752,14 @@ body.light-theme .stat-card{background:var(--bg-card);}
   .cat-row-actions{ order:3; align-self:center; }
 
   .cat-row-actions .btn-icon{ width:28px; height:28px; font-size:12px; }
+
+  /* ▲▼ 排序鈕在手機加大點擊區域，避免誤觸不到 */
+  .cat-row-actions .cat-move-btn {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 14px !important;
+    touch-action: manipulation;
+  }
 }
 
 /* ══ FAB 快速記帳 ════════════════════════════════════════════ */
