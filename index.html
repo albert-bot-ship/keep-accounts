@@ -727,27 +727,51 @@ function renderCards() {
       ? `<div class="billing-badge ${bilCls}">${billing<=0?'📋 今日結帳':billing<=2?'📋 '+billing+'天後結帳':'📋 '+billing+'天後結帳'}</div>`
       : '';
 
-    // 各分層的手動支出金額
+    // 各分層的手動支出金額 + 固定消費對應到此分層的金額
     const layersHtml = (c.layers||[]).map(l=>{
       const layerAmt = l.amount||0;
+      // 固定消費中對應到此分層的金額加總
+      const feLayerAmt = DB.fixedExpenses
+        .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
+        .flatMap(fe => (fe.layers||[]))
+        .filter(fl => fl.cardLayerId === l.id)
+        .reduce((s,fl) => s+(+fl.amount||0), 0);
+      const totalLayerAmt = layerAmt + feLayerAmt;
       return `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||c.color}"></div>
         <div style="flex:1;min-width:0">
           <div class="layer-name">${escHtml(l.label)}</div>
+          ${feLayerAmt>0?`<div style="font-size:10px;color:var(--tx-muted);margin-top:2px">
+            手動 −${fmt(layerAmt)}　固定消費 −${fmt(feLayerAmt)}
+          </div>`:''}
         </div>
-        <span class="layer-amt" style="color:var(--tx-red);font-weight:700">−${fmt(layerAmt)}</span>
+        <span class="layer-amt" style="color:var(--tx-red);font-weight:700">−${fmt(totalLayerAmt)}</span>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCardLayer','${c.id}',null,null,'${l.id}')">✏️</button>
         <button class="btn btn-danger btn-icon btn-sm" onclick="delCardLayer('${c.id}','${l.id}')">✕</button>
       </div>`;
     }).join('');
 
-    // 消費總額 = 各分層金額加總 + 未綁分層的快速記帳消費
-    const layerTotal = (c.layers||[]).reduce((s,l)=>s+(l.amount||0),0);
+    // 消費總額 = 各分層金額加總（含固定消費對應層）+ 未綁分層的快速記帳消費
+    const layerTotal = (c.layers||[]).reduce((s,l) => {
+      const own = l.amount||0;
+      const fe  = DB.fixedExpenses
+        .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
+        .flatMap(fe => (fe.layers||[]))
+        .filter(fl => fl.cardLayerId === l.id)
+        .reduce((ss,fl) => ss+(+fl.amount||0), 0);
+      return s + own + fe;
+    }, 0);
+    // 固定消費中「未對應任何卡層」的分層金額 → 也計入消費總額
+    const feUnmappedAmt = DB.fixedExpenses
+      .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
+      .flatMap(fe => (fe.layers||[]))
+      .filter(fl => !fl.cardLayerId)
+      .reduce((s,fl) => s+(+fl.amount||0), 0);
     const unlayeredSpend = Math.abs(
       DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.layerId&&!t.isPayment)
         .reduce((s,t)=>s+t.amount,0)
     );
-    const totalSpend = layerTotal + unlayeredSpend;
+    const totalSpend = layerTotal + feUnmappedAmt + unlayeredSpend;
 
     return `<div class="account-card" id="card-${c.id}" onclick="cardClickHandler(event,'card','${c.id}')" style="cursor:pointer">
       <div class="account-card-header" style="border-top:3px solid ${c.color}">
@@ -769,7 +793,7 @@ function renderCards() {
         <div class="account-balance negative">−${fmt(totalSpend)}</div>
         <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
           <div style="font-size:11px;color:var(--tx-secondary)">本月消費：<span style="color:var(--tx-red)">${fmt(-mSpend)}</span></div>
-          ${(c.layers||[]).length>0?`<div style="font-size:11px;color:var(--tx-secondary)">分層：<span style="color:var(--tx-red)">−${fmt(layerTotal)}</span>　快速記帳：<span style="color:var(--tx-red)">−${fmt(unlayeredSpend)}</span></div>`:''}
+          ${(c.layers||[]).length>0?`<div style="font-size:11px;color:var(--tx-secondary)">分層：<span style="color:var(--tx-red)">−${fmt(layerTotal)}</span>　快速記帳：<span style="color:var(--tx-red)">−${fmt(unlayeredSpend)}</span>${feUnmappedAmt>0?`　固定(未對應)：<span style="color:var(--tx-red)">−${fmt(feUnmappedAmt)}</span>`:''}</div>`:''}
           ${c.cashbackRate>0?`<div style="font-size:11px;color:var(--tx-secondary)">本月回饋：<span style="color:var(--tx-green)">+${fmt(-cashback)}</span><span style="font-size:10px;color:var(--tx-muted)">（${c.cashbackRate}%）</span></div>`:''}
         </div>
         ${c.limit>0?`<div class="prog-wrap mt-2"><div class="prog-bar" style="width:${used}%;background:${barColor}"></div></div><div style="font-size:10px;color:var(--tx-muted);margin-top:3px">已用 ${used.toFixed(0)}%</div>`:''}
@@ -1141,20 +1165,34 @@ function renderFixed() {
       const gen=(DB.generatedFixed[cur]||[]).includes(fe.id);
       const cat=getCat(fe.category);
       const src=fe.sourceType==='card'?getCard(fe.sourceId):getAcc(fe.sourceId);
-      return `<div class="fe-item">
-        <div class="fe-day">${fe.day}</div>
-        <div style="flex:1">
-          <div style="font-weight:600;font-size:13px">${escHtml(fe.desc)}</div>
-          <div style="font-size:11px;color:var(--tx-secondary);margin-top:3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span>
-            ${src?`<span>${escHtml(src.name)}</span>`:''}
-            ${fe.notes?`<span style="color:var(--tx-muted)">${escHtml(fe.notes)}</span>`:''}
+      const layers=fe.layers||[];
+      const layersHtml = layers.length ? `
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr-subtle);display:flex;flex-direction:column;gap:4px">
+          ${layers.map(l=>`
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px">
+              <div style="width:8px;height:8px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
+              <span style="flex:1;color:var(--tx-secondary)">${escHtml(l.label)}</span>
+              <span style="color:var(--tx-red);font-weight:600">−${fmt(+l.amount||0)}</span>
+            </div>`).join('')}
+        </div>` : '';
+      return `<div class="fe-item" style="flex-direction:column;align-items:stretch;gap:0">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="fe-day">${fe.day}</div>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:13px">${escHtml(fe.desc)}</div>
+            <div style="font-size:11px;color:var(--tx-secondary);margin-top:3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span>
+              ${src?`<span>${escHtml(src.name)}</span>`:''}
+              ${fe.notes?`<span style="color:var(--tx-muted)">${escHtml(fe.notes)}</span>`:''}
+              ${layers.length?`<span class="badge badge-violet" style="font-size:9px">${layers.length} 個分層</span>`:''}
+            </div>
           </div>
+          <span style="font-family:var(--ff-display);font-weight:700;color:var(--tx-red);margin-right:8px">−${fmt(fe.amount)}</span>
+          <span class="badge ${gen?'badge-green':'badge-gray'}">${gen?'✓ 已生成':'待生成'}</span>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editFixed','${fe.id}')">✏️</button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="deleteFixed('${fe.id}')">🗑</button>
         </div>
-        <span style="font-family:var(--ff-display);font-weight:700;color:var(--tx-red);margin-right:8px">−${fmt(fe.amount)}</span>
-        <span class="badge ${gen?'badge-green':'badge-gray'}">${gen?'✓ 已生成':'待生成'}</span>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editFixed','${fe.id}')">✏️</button>
-        <button class="btn btn-danger btn-icon btn-sm" onclick="deleteFixed('${fe.id}')">🗑</button>
+        ${layersHtml}
       </div>`;
     }).join('');
   }
@@ -1660,18 +1698,32 @@ function openModal(type,id,preCard,preAcc,extraId) {
   else if (type==='addFixed'||type==='editFixed') {
     t=fe?'編輯固定消費':'新增固定消費';
     const pFS=fe?fe.sourceType+'_'+fe.sourceId:'';
+    const initLayers = fe?.layers||[];
+    const layersJson = escAttr(JSON.stringify(initLayers));
     b=`<div class="form-row">
       <div class="form-group"><label class="form-label">每月幾號</label><input class="form-input" id="feDay" type="number" min="1" max="28" value="${fe?.day||1}"></div>
-      <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="feAmt" type="number" value="${fe?.amount||0}"></div>
+      <div class="form-group"><label class="form-label">金額（NT$，無分層時填寫）</label><input class="form-input" id="feAmt" type="number" value="${fe?.amount||0}" id="feAmt" oninput="syncFeTotal()"></div>
     </div>
     <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="feDesc" value="${escAttr(fe?.desc||'')}" placeholder="e.g. Netflix"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="feCat">${catOpts(fe?.category||DB.categories[0]?.id||'')}</select></div>
-      <div class="form-group"><label class="form-label">帳戶/卡片</label><select class="form-select" id="feSrc"><option value="">請選擇</option>${srcOpts('both')}</select></div>
+      <div class="form-group"><label class="form-label">帳戶/卡片</label><select class="form-select" id="feSrc" onchange="renderFeLayers()"><option value="">請選擇</option>${srcOpts('both')}</select></div>
     </div>
-    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="feNotes" value="${escAttr(fe?.notes||'')}"></div>`;
+    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="feNotes" value="${escAttr(fe?.notes||'')}"></div>
+    <!-- 分層 -->
+    <div class="m-stripe" style="margin:14px 0 10px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:12px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);text-transform:uppercase">消費分層（選填）</div>
+      <button type="button" class="btn btn-sm btn-violet" onclick="addFeLayer()">＋ 新增分層</button>
+    </div>
+    <div id="feLayerList" style="display:flex;flex-direction:column;gap:8px"></div>
+    <input type="hidden" id="feLayersData" value="${layersJson}">
+    <div id="feTotalHint" style="font-size:11px;color:var(--tx-secondary);margin-top:8px;text-align:right"></div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveFixed()">儲存</button>`;
-    setTimeout(()=>{const el=document.getElementById('feSrc');if(el&&pFS)el.value=pFS;},60);
+    setTimeout(()=>{
+      const el=document.getElementById('feSrc');if(el&&pFS)el.value=pFS;
+      renderFeLayers();
+    },60);
   }
 
   // ── CATEGORY ──
@@ -1857,12 +1909,85 @@ function doTransfer() {
   DB.transactions.push({id:uid(),date,amount:+Math.abs(amt),desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true});
   saveDB();closeModal();renderAccounts();toast('轉帳成功！','success');
 }
+// ════════════════════════════════════════════════════════════════
+// 固定消費分層管理（Modal 內 inline）
+// ════════════════════════════════════════════════════════════════
+function getFeLayersData() {
+  try { return JSON.parse(document.getElementById('feLayersData')?.value||'[]'); } catch{ return []; }
+}
+function setFeLayersData(arr) {
+  const el=document.getElementById('feLayersData'); if(el) el.value=JSON.stringify(arr);
+}
+function renderFeLayers() {
+  const layers = getFeLayersData();
+  const wrap = document.getElementById('feLayerList'); if (!wrap) return;
+
+  // 判斷來源是否為信用卡，並取得該卡的分層清單
+  const srcVal = v('feSrc') || '';
+  const isCard = srcVal.startsWith('card_');
+  const cardId = isCard ? srcVal.split('_')[1] : null;
+  const cardLayers = cardId ? (getCard(cardId)?.layers || []) : [];
+
+  if (!layers.length) {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--tx-muted)">尚無分層，點「＋ 新增分層」加入</div>';
+    syncFeTotal(); return;
+  }
+
+  wrap.innerHTML = layers.map((l, i) => {
+    // 對應信用卡層下拉（只在來源是信用卡且該卡有分層時顯示）
+    const cardLayerSel = (isCard && cardLayers.length) ? `
+      <select class="form-select" style="width:120px;height:32px;font-size:12px"
+        onchange="updateFeLayer(${i},'cardLayerId',this.value)">
+        <option value="">不對應</option>
+        ${cardLayers.map(cl => `<option value="${cl.id}"${l.cardLayerId===cl.id?' selected':''}>${escHtml(cl.label)}</option>`).join('')}
+      </select>` : '';
+
+    return `<div class="layer-bar" style="gap:8px;align-items:center;flex-wrap:wrap">
+      <div style="width:12px;height:12px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
+      <input class="form-input" style="flex:1;min-width:80px;height:32px;font-size:13px" value="${escAttr(l.label)}"
+        placeholder="分層名稱" oninput="updateFeLayer(${i},'label',this.value)">
+      <input class="form-input" style="width:90px;height:32px;font-size:13px;text-align:right" type="number" value="${l.amount||0}"
+        placeholder="金額" oninput="updateFeLayer(${i},'amount',+this.value)">
+      <span style="font-size:11px;color:var(--tx-muted)">NT$</span>
+      ${cardLayerSel}
+      <input type="color" value="${l.color||'#C8102E'}" style="width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;background:none"
+        oninput="updateFeLayer(${i},'color',this.value)">
+      <button class="btn btn-danger btn-icon btn-sm" onclick="removeFeLayer(${i})">✕</button>
+    </div>`;
+  }).join('');
+  syncFeTotal();
+}
+function addFeLayer() {
+  const layers=getFeLayersData();
+  layers.push({label:'',amount:0,color:SWATCHES[layers.length%SWATCHES.length]});
+  setFeLayersData(layers); renderFeLayers();
+}
+function removeFeLayer(idx) {
+  const layers=getFeLayersData(); layers.splice(idx,1);
+  setFeLayersData(layers); renderFeLayers();
+}
+function updateFeLayer(idx,key,val) {
+  const layers=getFeLayersData(); if(!layers[idx]) return;
+  layers[idx][key]=val; setFeLayersData(layers); syncFeTotal();
+}
+function syncFeTotal() {
+  const layers=getFeLayersData();
+  const hint=document.getElementById('feTotalHint'); if(!hint) return;
+  if (!layers.length) { hint.textContent=''; return; }
+  const total=layers.reduce((s,l)=>s+(+l.amount||0),0);
+  hint.innerHTML=`分層合計：<strong style="color:var(--tx-red)">−${fmt(total)}</strong>　（儲存後將以此金額生成固定消費記錄）`;
+  // 自動同步到金額欄位
+  const amtEl=document.getElementById('feAmt'); if(amtEl) amtEl.value=total;
+}
+
 function saveFixed() {
-  const day=+v('feDay'),amt=+v('feAmt'),desc=document.getElementById('feDesc').value.trim(),
+  const day=+v('feDay'),desc=document.getElementById('feDesc').value.trim(),
         catId=v('feCat'),srcVal=v('feSrc'),notes=v('feNotes');
-  if(!day||!amt||!desc||!srcVal){toast('請填寫完整資訊','danger');return;}
+  const layers=getFeLayersData().filter(l=>l.label.trim());
+  const amt = layers.length ? layers.reduce((s,l)=>s+(+l.amount||0),0) : +v('feAmt');
+  if(!day||!amt||!desc||!srcVal){toast('請填寫完整資訊（含金額或分層）','danger');return;}
   const [sType,sId]=srcVal.split('_');
-  const obj={day,amount:amt,desc,category:catId,sourceId:sId,sourceType:sType,notes};
+  const obj={day,amount:amt,desc,category:catId,sourceId:sId,sourceType:sType,notes,layers};
   if(modalType==='editFixed'){Object.assign(DB.fixedExpenses.find(f=>f.id===editTarget),obj);toast('固定消費已更新','success');}
   else{DB.fixedExpenses.push({id:uid(),...obj});toast('固定消費新增成功','success');}
   saveDB();closeModal();renderFixed();
