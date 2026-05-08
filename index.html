@@ -1142,13 +1142,13 @@ function renderSettings() {
   const wrap = document.getElementById('catList');
   if (!DB.categories.length) { wrap.innerHTML=emptyState('🏷','尚無類別'); return; }
 
-  function buildCatRow(c, i) {
+  // sectionIdx = 在本區的第幾個, sectionLen = 本區總數
+  function buildCatRow(c, i, sectionIdx, sectionLen) {
     const spent=catMonthSpend(c.id), isOver=c.budget>0&&spent>c.budget;
     const pct=c.budget>0?Math.min(100,spent/c.budget*100):0;
     const iconEl = c.icon
       ? `<img src="${c.icon}" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0">`
       : `<div style="width:32px;height:32px;border-radius:8px;background:${c.color};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${c.emoji||'🏷'}</div>`;
-    // 週期標籤
     const periodLabel = (()=>{
       if (c.budgetStartDay != null && c.budgetEndDay != null) {
         return `每月${c.budgetStartDay}日～${c.budgetEndDay <= c.budgetStartDay ? '次月' : ''}${c.budgetEndDay}日`;
@@ -1156,8 +1156,10 @@ function renderSettings() {
       const p=c.budgetPeriod||'cycle';
       return {cycle:'本期(8～5日)',month:'本月',week:'本週',custom:(c.budgetDays||30)+'天'}[p]||'本期';
     })();
-    // 進度條顏色：正常藍→橘→紅
     const barColor = pct>=100?'var(--m-red)':pct>=80?'var(--warn)':'var(--m-blue)';
+    // ▲▼ disabled 以「區內位置」判斷，避免跨區移動
+    const disUp   = sectionIdx===0 ? 'disabled' : '';
+    const disDown = sectionIdx===sectionLen-1 ? 'disabled' : '';
     return `<div class="cat-row" draggable="true" data-id="${c.id}" data-index="${i}"
       ondragstart="catDragStart(event,${i})" ondragover="catDragOver(event)" ondrop="catDrop(event,${i})" ondragend="catDragEnd(event)">
       <span class="cat-drag-handle" title="拖曳排序">⠿</span>
@@ -1171,8 +1173,8 @@ function renderSettings() {
         ${c.budget>0?`<div class="prog-wrap" style="max-width:180px;margin-top:4px"><div class="prog-bar-gradient" style="width:${pct}%;background:${barColor};transition:width .6s ease,background .4s ease"></div></div>`:''}
       </div>
       <div class="cat-row-actions">
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveCat(${i},-1)" title="上移" ${i===0?'disabled':''}>▲</button>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveCat(${i},1)"  title="下移" ${i===DB.categories.length-1?'disabled':''}>▼</button>
+        <button class="btn btn-ghost btn-icon btn-sm cat-move-btn" onclick="moveCatInSection(this,${i},-1)" title="上移" ${disUp}>▲</button>
+        <button class="btn btn-ghost btn-icon btn-sm cat-move-btn" onclick="moveCatInSection(this,${i},1)"  title="下移" ${disDown}>▼</button>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCat','${c.id}')">✏️</button>
         <button class="btn btn-danger btn-icon btn-sm" onclick="deleteCat('${c.id}')">🗑</button>
       </div>
@@ -1187,7 +1189,7 @@ function renderSettings() {
     if (!items.length) return '';
     return `<div class="cat-section-header" style="border-left:3px solid ${color}">
       <span>${label}</span><span class="cat-section-count">${items.length} 個類別</span>
-    </div>` + items.map(({c,i})=>buildCatRow(c,i)).join('');
+    </div>` + items.map(({c,i}, si)=>buildCatRow(c, i, si, items.length)).join('');
   }
 
   wrap.innerHTML =
@@ -1216,6 +1218,23 @@ function renderSettings() {
 
 // ── CATEGORY REORDER ─────────────────────────────────────────
 let catDragIdx = null;
+
+// 區內排序（▲▼ 按鈕），不跨類型移動
+function moveCatInSection(btnEl, globalIdx, dir) {
+  const c = DB.categories[globalIdx];
+  if (!c) return;
+  const sameType = DB.categories
+    .map((x,i)=>({x,i}))
+    .filter(({x})=>(x.forType||'expense')===(c.forType||'expense'));
+  const posInSection = sameType.findIndex(({i})=>i===globalIdx);
+  const targetPos = posInSection + dir;
+  if (targetPos < 0 || targetPos >= sameType.length) return;
+  const targetGlobalIdx = sameType[targetPos].i;
+  [DB.categories[globalIdx], DB.categories[targetGlobalIdx]] =
+    [DB.categories[targetGlobalIdx], DB.categories[globalIdx]];
+  saveDB(); renderSettings();
+}
+
 function moveCat(idx, dir) {
   const to = idx + dir;
   if (to < 0 || to >= DB.categories.length) return;
@@ -2155,8 +2174,8 @@ document.addEventListener('DOMContentLoaded',init);
     <div class="mbn-item active" id="mbn-dashboard" onclick="mbnNav(this,'dashboard')">
       <span class="mbn-icon">📊</span><span>儀表板</span>
     </div>
-    <div class="mbn-item" id="mbn-txns" onclick="mbnNav(this,'txns')">
-      <span class="mbn-icon">📋</span><span>記帳</span>
+    <div class="mbn-item" id="mbn-accounts" onclick="mbnNav(this,'accounts')">
+      <span class="mbn-icon">🏦</span><span>帳戶</span>
     </div>
     <div class="mbn-item" id="mbn-cards" onclick="mbnNav(this,'cards')">
       <span class="mbn-icon">💳</span><span>信用卡</span>
