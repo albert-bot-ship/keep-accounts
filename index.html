@@ -417,8 +417,9 @@ function toggleTheme() {
 // COMPUTED
 // ════════════════════════════════════════════════════════════════
 function cardBalance(id) {
-  return DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===id)
-    .reduce((s,t)=>s+t.amount,0);
+  return DB.transactions
+    .filter(t=>t.sourceType==='card'&&t.sourceId===id)
+    .reduce((s,t)=>s+t.amount-(t.fee||0),0);
 }
 // 信用卡分層：直接取分層的手動輸入金額
 function cardLayerDynamicBalance(cardId, layerId) {
@@ -727,23 +728,20 @@ function renderCards() {
       ? `<div class="billing-badge ${bilCls}">${billing<=0?'📋 今日結帳':billing<=2?'📋 '+billing+'天後結帳':'📋 '+billing+'天後結帳'}</div>`
       : '';
 
-    // 各分層的手動支出金額 + 固定消費對應到此分層的金額
+    // 各分層的手動支出金額 + 固定消費依名稱匹配到此分層的金額
     const layersHtml = (c.layers||[]).map(l=>{
       const layerAmt = l.amount||0;
-      // 固定消費中對應到此分層的金額加總
       const feLayerAmt = DB.fixedExpenses
         .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
         .flatMap(fe => (fe.layers||[]))
-        .filter(fl => fl.cardLayerId === l.id)
+        .filter(fl => fl.label.trim() === l.label.trim())
         .reduce((s,fl) => s+(+fl.amount||0), 0);
       const totalLayerAmt = layerAmt + feLayerAmt;
       return `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||c.color}"></div>
         <div style="flex:1;min-width:0">
           <div class="layer-name">${escHtml(l.label)}</div>
-          ${feLayerAmt>0?`<div style="font-size:10px;color:var(--tx-muted);margin-top:2px">
-            手動 −${fmt(layerAmt)}　固定消費 −${fmt(feLayerAmt)}
-          </div>`:''}
+          ${feLayerAmt>0?`<div style="font-size:10px;color:var(--tx-muted);margin-top:2px">手動 −${fmt(layerAmt)}　固定消費 −${fmt(feLayerAmt)}</div>`:''}
         </div>
         <span class="layer-amt" style="color:var(--tx-red);font-weight:700">−${fmt(totalLayerAmt)}</span>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCardLayer','${c.id}',null,null,'${l.id}')">✏️</button>
@@ -751,26 +749,25 @@ function renderCards() {
       </div>`;
     }).join('');
 
-    // 消費總額 = 各分層金額加總（含固定消費對應層）+ 未綁分層的快速記帳消費
+    // 消費總額 = 各分層合計（含匹配的固定消費層） + 未匹配分層的固定消費層 + 快速記帳
+    const cardLayerLabels = new Set((c.layers||[]).map(l=>l.label.trim()));
     const layerTotal = (c.layers||[]).reduce((s,l) => {
       const own = l.amount||0;
       const fe  = DB.fixedExpenses
         .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
         .flatMap(fe => (fe.layers||[]))
-        .filter(fl => fl.cardLayerId === l.id)
+        .filter(fl => fl.label.trim() === l.label.trim())
         .reduce((ss,fl) => ss+(+fl.amount||0), 0);
       return s + own + fe;
     }, 0);
-    // 固定消費中「未對應任何卡層」的分層金額 → 也計入消費總額
     const feUnmappedAmt = DB.fixedExpenses
       .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
       .flatMap(fe => (fe.layers||[]))
-      .filter(fl => !fl.cardLayerId)
+      .filter(fl => !cardLayerLabels.has(fl.label.trim()))
       .reduce((s,fl) => s+(+fl.amount||0), 0);
-    const unlayeredSpend = Math.abs(
-      DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.layerId&&!t.isPayment)
-        .reduce((s,t)=>s+t.amount,0)
-    );
+    const unlayeredSpend = DB.transactions
+      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.layerId&&!t.isPayment)
+      .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0), 0);
     const totalSpend = layerTotal + feUnmappedAmt + unlayeredSpend;
 
     return `<div class="account-card" id="card-${c.id}" onclick="cardClickHandler(event,'card','${c.id}')" style="cursor:pointer">
@@ -1022,7 +1019,8 @@ function txnTable(txns, withActions) {
       const tg=(DB.userTags||[]).find(x=>x.id===tid);
       return tg?`<span class="user-tag-badge" style="background:${tg.color}22;color:${tg.color};border:1px solid ${tg.color}66">#${escHtml(tg.name)}</span>`:'';
     }).join('');
-    const tags = sysTags + userTagBadges;
+    const feeBadge = (t.fee&&t.fee>0) ? `<span class="badge" style="margin-left:4px;background:#e6780022;color:#e67800;border:1px solid #e6780055;font-size:9px">手續費 +${fmt(t.fee)}</span>` : '';
+    const tags = sysTags + feeBadge + userTagBadges;
     const chk = (withActions && batchMode)
       ? `<td style="width:36px;padding:0 8px"><input type="checkbox" class="txn-chk" data-id="${t.id}" onchange="updateBatchUI()" style="width:16px;height:16px;cursor:pointer" onclick="event.stopPropagation()"></td>`
       : (withActions ? '<td style="width:36px"></td>' : '');
@@ -1656,7 +1654,12 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>
       <input type="hidden" id="tTagsVal" value="${JSON.stringify(txn?.tags||[])}">
     </div>
-    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tNotes" value="${escAttr(txn?.notes||'')}"></div>`;
+    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tNotes" value="${escAttr(txn?.notes||'')}"></div>
+    <div class="form-group" id="tFeeGroup" style="display:none">
+      <label class="form-label">手續費（NT$，選填）</label>
+      <input class="form-input" id="tFee" type="number" min="0" step="any" value="${txn?.fee||''}" placeholder="0">
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 手續費將另計入信用卡消費總額</div>
+    </div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveTxn()">儲存</button>`;
     setTimeout(()=>{
       const el=document.getElementById('tSrc');
@@ -1707,7 +1710,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
     <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="feDesc" value="${escAttr(fe?.desc||'')}" placeholder="e.g. Netflix"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="feCat">${catOpts(fe?.category||DB.categories[0]?.id||'')}</select></div>
-      <div class="form-group"><label class="form-label">帳戶/卡片</label><select class="form-select" id="feSrc" onchange="renderFeLayers()"><option value="">請選擇</option>${srcOpts('both')}</select></div>
+      <div class="form-group"><label class="form-label">帳戶/卡片</label><select class="form-select" id="feSrc"><option value="">請選擇</option>${srcOpts('both')}</select></div>
     </div>
     <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="feNotes" value="${escAttr(fe?.notes||'')}"></div>
     <!-- 分層 -->
@@ -1872,12 +1875,13 @@ function saveTxn() {
         desc=document.getElementById('tDesc').value.trim(),
         catId=v('tCat'),srcVal=v('tSrc'),notes=v('tNotes'),
         layerId=v('tLayer')||null,
-        tags=JSON.parse(v('tTagsVal')||'[]');
+        tags=JSON.parse(v('tTagsVal')||'[]'),
+        fee=+(document.getElementById('tFee')?.value)||0;
   if(!date||!amt||!desc||!srcVal){toast('請填寫完整資訊','danger');return;}
   const [sType,sId]=srcVal.split('_');
   const isRed = type==='redemption';
   const amount = type==='income'||isRed ? Math.abs(amt) : -Math.abs(amt);
-  const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,tags};
+  const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,tags,fee:fee||0};
   if(modalType==='editTxn'){
     Object.assign(DB.transactions.find(t=>t.id===editTarget), txnObj);
     toast('記錄已更新','success');
@@ -1921,40 +1925,22 @@ function setFeLayersData(arr) {
 function renderFeLayers() {
   const layers = getFeLayersData();
   const wrap = document.getElementById('feLayerList'); if (!wrap) return;
-
-  // 判斷來源是否為信用卡，並取得該卡的分層清單
-  const srcVal = v('feSrc') || '';
-  const isCard = srcVal.startsWith('card_');
-  const cardId = isCard ? srcVal.split('_')[1] : null;
-  const cardLayers = cardId ? (getCard(cardId)?.layers || []) : [];
-
   if (!layers.length) {
     wrap.innerHTML = '<div style="font-size:12px;color:var(--tx-muted)">尚無分層，點「＋ 新增分層」加入</div>';
     syncFeTotal(); return;
   }
-
-  wrap.innerHTML = layers.map((l, i) => {
-    // 對應信用卡層下拉（只在來源是信用卡且該卡有分層時顯示）
-    const cardLayerSel = (isCard && cardLayers.length) ? `
-      <select class="form-select" style="width:120px;height:32px;font-size:12px"
-        onchange="updateFeLayer(${i},'cardLayerId',this.value)">
-        <option value="">不對應</option>
-        ${cardLayers.map(cl => `<option value="${cl.id}"${l.cardLayerId===cl.id?' selected':''}>${escHtml(cl.label)}</option>`).join('')}
-      </select>` : '';
-
-    return `<div class="layer-bar" style="gap:8px;align-items:center;flex-wrap:wrap">
+  wrap.innerHTML = layers.map((l, i) => `
+    <div class="layer-bar" style="gap:8px;align-items:center">
       <div style="width:12px;height:12px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
       <input class="form-input" style="flex:1;min-width:80px;height:32px;font-size:13px" value="${escAttr(l.label)}"
-        placeholder="分層名稱" oninput="updateFeLayer(${i},'label',this.value)">
+        placeholder="分層名稱（需與信用卡分層同名才能自動對應）" oninput="updateFeLayer(${i},'label',this.value)">
       <input class="form-input" style="width:90px;height:32px;font-size:13px;text-align:right" type="number" value="${l.amount||0}"
         placeholder="金額" oninput="updateFeLayer(${i},'amount',+this.value)">
       <span style="font-size:11px;color:var(--tx-muted)">NT$</span>
-      ${cardLayerSel}
       <input type="color" value="${l.color||'#C8102E'}" style="width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;background:none"
         oninput="updateFeLayer(${i},'color',this.value)">
       <button class="btn btn-danger btn-icon btn-sm" onclick="removeFeLayer(${i})">✕</button>
-    </div>`;
-  }).join('');
+    </div>`).join('');
   syncFeTotal();
 }
 function addFeLayer() {
@@ -2093,7 +2079,12 @@ function toggleCustomDays(period) {
 function onTxnSrcChange(srcVal, preLayerId) {
   const group = document.getElementById('tLayerGroup');
   const sel   = document.getElementById('tLayer');
+  const feeGroup = document.getElementById('tFeeGroup');
   if (!group || !sel) return;
+
+  // 手續費欄位：只在信用卡來源時顯示
+  if (feeGroup) feeGroup.style.display = srcVal.startsWith('card_') ? '' : 'none';
+
   if (!srcVal) { group.style.display='none'; return; }
 
   let layers = [];
