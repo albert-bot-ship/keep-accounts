@@ -409,14 +409,11 @@ function cardBalance(id) {
   return DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===id)
     .reduce((s,t)=>s+t.amount,0);
 }
-// 信用卡分層動態餘額（配額 + 該分層的所有交易）
+// 信用卡分層消費加總（純交易，不加配額底數）
 function cardLayerDynamicBalance(cardId, layerId) {
-  const card = getCard(cardId); if (!card) return 0;
-  const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
-  const txSum = DB.transactions
+  return DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===layerId)
     .reduce((s,t)=>s+t.amount,0);
-  return (layer.amount||0) + txSum;
 }
 function accountBalance(id) {
   const acc = getAcc(id); if (!acc) return 0;
@@ -720,25 +717,46 @@ function renderCards() {
       : '';
 
     const layersHtml = (c.layers||[]).map(l=>{
-      const dynBal  = cardLayerDynamicBalance(c.id, l.id);
-      const lSpend  = DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0);
-      const lIncome = DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount>0).reduce((s,t)=>s+t.amount,0);
-      const dynCls  = dynBal < 0 ? 'color:var(--tx-red)' : dynBal < (l.amount||0)*0.2 ? 'color:var(--tx-warning)' : 'color:var(--tx-green)';
+      const layerSpend = Math.abs(
+        DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0)
+          .reduce((s,t)=>s+t.amount,0)
+      );
+      const layerIncome = DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount>0)
+        .reduce((s,t)=>s+t.amount,0);
+      const budget   = l.amount||0;
+      const isOver   = budget>0 && layerSpend>budget;
+      const pct      = budget>0 ? Math.min(100, layerSpend/budget*100) : 0;
+      const barColor = pct>=100?'var(--m-red)':pct>=80?'var(--warn)':'var(--m-blue)';
+      const amtCls   = isOver?'color:var(--tx-red)':'color:var(--tx-primary)';
       return `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||c.color}"></div>
         <div style="flex:1;min-width:0">
-          <div class="layer-name">${escHtml(l.label)}</div>
-          <div style="font-size:10px;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap">
-            <span style="color:var(--tx-muted)">配額：${fmt(l.amount||0)}</span>
-            ${lSpend>0?`<span style="color:var(--tx-red)">已用 −${fmt(lSpend)}</span>`:''}
-            ${lIncome>0?`<span style="color:var(--tx-green)">回沖 +${fmt(lIncome)}</span>`:''}
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="layer-name">${escHtml(l.label)}</div>
+            ${isOver?`<span class="badge badge-red" style="font-size:9px">⚠ 超支</span>`:pct>=80&&budget>0?`<span class="badge badge-warn" style="font-size:9px">⚡ 接近上限</span>`:''}
           </div>
+          <div style="font-size:10px;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap">
+            ${budget>0?`<span style="color:var(--tx-muted)">預算 ${fmt(-budget)}</span>`:'<span style="color:var(--tx-muted)">無預算上限</span>'}
+            ${layerIncome>0?`<span style="color:var(--tx-green)">回沖 +${fmt(layerIncome)}</span>`:''}
+          </div>
+          ${budget>0?`<div class="prog-wrap" style="max-width:140px;margin-top:4px"><div class="prog-bar-gradient" style="width:${pct}%;background:${barColor}"></div></div>`:''}
         </div>
-        <span class="layer-amt" style="${dynCls};font-weight:700">${fmt(dynBal)}</span>
+        <span class="layer-amt" style="${amtCls};font-weight:700">−${fmt(layerSpend)}</span>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCardLayer','${c.id}',null,null,'${l.id}')">✏️</button>
         <button class="btn btn-danger btn-icon btn-sm" onclick="delCardLayer('${c.id}','${l.id}')">✕</button>
       </div>`;
     }).join('');
+
+    // 消費總額 = 分層消費 + 未分層消費
+    const layeredSpend = Math.abs(
+      DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&t.layerId&&!t.isPayment)
+        .reduce((s,t)=>s+t.amount,0)
+    );
+    const unlayeredSpend = Math.abs(
+      DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.layerId&&!t.isPayment)
+        .reduce((s,t)=>s+t.amount,0)
+    );
+    const totalSpend = layeredSpend + unlayeredSpend; // 消費總額
 
     return `<div class="account-card" id="card-${c.id}" onclick="cardClickHandler(event,'card','${c.id}')" style="cursor:pointer">
       <div class="account-card-header" style="border-top:3px solid ${c.color}">
@@ -756,10 +774,11 @@ function renderCards() {
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${(dueHtml||bilHtml)?'4px':'0'}">
           ${dueHtml}${bilHtml}
         </div>
-        <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">當前餘額</div>
-        <div class="account-balance ${isNeg?'negative':'positive'}">${isNeg?'−':'+'}${fmt(Math.abs(bal))}</div>
+        <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">消費總額</div>
+        <div class="account-balance negative">−${fmt(totalSpend)}</div>
         <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
           <div style="font-size:11px;color:var(--tx-secondary)">本月消費：<span style="color:var(--tx-red)">${fmt(-mSpend)}</span></div>
+          ${(c.layers||[]).length>0?`<div style="font-size:11px;color:var(--tx-secondary)">分層：<span style="color:var(--tx-red)">−${fmt(layeredSpend)}</span>　未分層：<span style="color:var(--tx-red)">−${fmt(unlayeredSpend)}</span></div>`:''}
           ${c.cashbackRate>0?`<div style="font-size:11px;color:var(--tx-secondary)">本月回饋：<span style="color:var(--tx-green)">+${fmt(-cashback)}</span><span style="font-size:10px;color:var(--tx-muted)">（${c.cashbackRate}%）</span></div>`:''}
         </div>
         ${c.limit>0?`<div class="prog-wrap mt-2"><div class="prog-bar" style="width:${used}%;background:${barColor}"></div></div><div style="font-size:10px;color:var(--tx-muted);margin-top:3px">已用 ${used.toFixed(0)}%</div>`:''}
@@ -1525,9 +1544,9 @@ function openModal(type,id,preCard,preAcc,extraId) {
     <input type="hidden" id="clLayId" value="${extraId||''}">
     <div class="form-group"><label class="form-label">分層名稱</label><input class="form-input" id="clLabel" value="${escAttr(clayer?.label||'')}" placeholder="e.g. 日常、旅遊、餐飲"></div>
     <div class="form-group">
-      <label class="form-label">配額上限（NT$，0=不設限）</label>
+      <label class="form-label">預算上限（NT$，選填，0=不設限）</label>
       <input class="form-input" id="clAmt" type="number" step="any" value="${clayer?.amount||0}">
-      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 設定此分層的可用配額，消費後自動計算剩餘額度</div>
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 設定後，當該分層消費超支時自動顯示警示</div>
     </div>
     <div class="form-group"><label class="form-label">顏色</label>${colorPicker('clColor',clayer?.color||cardL?.color||'#C8102E')}</div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCardLayer()">儲存</button>`;
