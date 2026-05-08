@@ -153,11 +153,22 @@
           </select>
           <button class="btn btn-ghost btn-sm" onclick="renderTxns()">篩選</button>
           <div class="table-toolbar-right">
-            <button class="btn btn-danger btn-sm" id="batchDelBtn" style="display:none" onclick="batchDelete()">🗑 刪除已選(<span id="batchCount">0</span>)</button>
+            <button class="btn btn-ghost btn-sm" id="batchModeBtn" onclick="enterBatchMode()">☑ 批量刪除</button>
             <button class="btn btn-success btn-sm" onclick="exportExcel()">📥 匯出 Excel</button>
           </div>
         </div>
         <div id="txnTableWrap"></div>
+        <!-- 浮動批量操作列 -->
+        <div id="batchActionBar" style="display:none;position:sticky;bottom:0;z-index:200;
+          background:var(--bg-primary);border-top:2px solid var(--m-blue);
+          padding:10px 16px;display:none;align-items:center;gap:12px;
+          box-shadow:0 -4px 20px rgba(0,0,0,.3)">
+          <input type="checkbox" id="chkAll" onchange="toggleAllChk(this)" style="width:16px;height:16px;cursor:pointer">
+          <span id="batchCountLabel" style="font-size:13px;color:var(--tx-secondary)">已選 <strong id="batchCount" style="color:var(--tx-primary)">0</strong> 筆</span>
+          <span style="flex:1"></span>
+          <button class="btn btn-ghost btn-sm" onclick="exitBatchMode()">取消</button>
+          <button class="btn btn-danger btn-sm" id="batchDelBtn" disabled onclick="batchDelete()">🗑 刪除已選</button>
+        </div>
       </div>
     </section>
 
@@ -988,16 +999,17 @@ function txnTable(txns, withActions) {
       return tg?`<span class="user-tag-badge" style="background:${tg.color}22;color:${tg.color};border:1px solid ${tg.color}66">#${escHtml(tg.name)}</span>`:'';
     }).join('');
     const tags = sysTags + userTagBadges;
-    const chk = withActions
-      ? `<td><input type="checkbox" class="txn-chk" data-id="${t.id}" onchange="updateBatchUI()"></td>`
-      : '';
-    const act = withActions
+    const chk = (withActions && batchMode)
+      ? `<td style="width:36px;padding:0 8px"><input type="checkbox" class="txn-chk" data-id="${t.id}" onchange="updateBatchUI()" style="width:16px;height:16px;cursor:pointer" onclick="event.stopPropagation()"></td>`
+      : (withActions ? '<td style="width:36px"></td>' : '');
+    const act = (withActions && !batchMode)
       ? `<td style="white-space:nowrap">
           <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editTxn','${t.id}')">✏️</button>
           <button class="btn btn-danger btn-icon btn-sm" onclick="deleteTxn('${t.id}')">🗑</button>
         </td>`
-      : '';
-    return `<tr class="txn-row">
+      : (withActions ? '<td></td>' : '');
+    const rowClick = batchMode ? `onclick="toggleRowSelect(this)" style="cursor:pointer"` : '';
+    return `<tr class="txn-row" ${rowClick}>
       ${chk}
       <td style="white-space:nowrap">${t.date}</td>
       <td>${escHtml(t.desc)}${tags}</td>
@@ -1024,23 +1036,61 @@ function txnTable(txns, withActions) {
   </table>`;
 }
 
+let batchMode = false;
+
+function enterBatchMode() {
+  batchMode = true;
+  document.getElementById('batchModeBtn').style.display = 'none';
+  const bar = document.getElementById('batchActionBar');
+  bar.style.display = 'flex';
+  // 重繪表格讓 checkbox 欄位出現，並啟用整行點選
+  renderTxns();
+}
+function exitBatchMode() {
+  batchMode = false;
+  document.getElementById('batchModeBtn').style.display = '';
+  const bar = document.getElementById('batchActionBar');
+  bar.style.display = 'none';
+  renderTxns();
+}
 function updateBatchUI() {
   const chks = document.querySelectorAll('.txn-chk:checked');
-  const btn  = document.getElementById('batchDelBtn');
+  const all  = document.querySelectorAll('.txn-chk');
   const cnt  = document.getElementById('batchCount');
-  if (btn) { btn.style.display = chks.length>0?'':'none'; }
+  const btn  = document.getElementById('batchDelBtn');
+  const chkAll = document.getElementById('chkAll');
   if (cnt) cnt.textContent = chks.length;
+  if (btn) btn.disabled = chks.length === 0;
+  if (chkAll) {
+    chkAll.indeterminate = chks.length > 0 && chks.length < all.length;
+    chkAll.checked = all.length > 0 && chks.length === all.length;
+  }
+  // 選取列高亮
+  document.querySelectorAll('.txn-row').forEach(row => {
+    const cb = row.querySelector('.txn-chk');
+    if (cb) row.classList.toggle('txn-row-selected', cb.checked);
+  });
 }
 function toggleAllChk(el) {
-  document.querySelectorAll('.txn-chk').forEach(c=>{c.checked=el.checked;});
+  document.querySelectorAll('.txn-chk').forEach(c => { c.checked = el.checked; });
+  updateBatchUI();
+}
+function toggleRowSelect(row) {
+  if (!batchMode) return;
+  const cb = row.querySelector('.txn-chk');
+  if (!cb) return;
+  cb.checked = !cb.checked;
   updateBatchUI();
 }
 function batchDelete() {
-  const ids=[...document.querySelectorAll('.txn-chk:checked')].map(c=>c.dataset.id);
+  const ids = [...document.querySelectorAll('.txn-chk:checked')].map(c=>c.dataset.id);
   if (!ids.length) return;
-  if (!confirm(`確定刪除選取的 ${ids.length} 筆記錄？`)) return;
-  DB.transactions=DB.transactions.filter(t=>!ids.includes(t.id));
-  saveDB(); renderTxns(); toast(`已刪除 ${ids.length} 筆記錄`,'danger');
+  if (!confirm(`確定刪除選取的 ${ids.length} 筆記錄？此操作無法復原。`)) return;
+  DB.transactions = DB.transactions.filter(t=>!ids.includes(t.id));
+  saveDB(); renderTxns(); toast(`已刪除 ${ids.length} 筆記錄`, 'danger');
+  // 清空全選 checkbox 狀態
+  const chkAll = document.getElementById('chkAll');
+  if (chkAll) chkAll.checked = false;
 }
 function copyLastTxn() {
   const last=[...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date)).find(t=>!t.isPayment&&!t.isTransfer);
