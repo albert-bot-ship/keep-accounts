@@ -686,11 +686,9 @@ function renderDashboard() {
   const totalDebt = DB.creditCards.reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
   const totalBank = DB.bankAccounts.reduce((s,a)=>{
     if (a.accType === '證券') {
-      // 用市值代替 accountBalance
       const mktVal = (a.holdings||[]).reduce((ss,h)=>{
         const sp = stockPrices[h.symbol?.toUpperCase()];
-        const hc = h.totalCost||(h.shares||0)*(h.costBasis||0);
-        return ss + (sp ? (h.shares||0)*sp.price : hc);
+        return ss + (sp ? (h.shares||0)*sp.price : (h.totalCost||0));
       }, 0);
       return s + mktVal;
     }
@@ -966,36 +964,30 @@ function renderAccounts() {
       </div>
       <div class="account-card-body">
         ${(()=>{
-          // ── 證券帳戶：改用持股市值 ──
           if (a.accType === '證券') {
             const holdings = a.holdings || [];
-            const totalCost = holdings.reduce((s,h)=>s+(h.totalCost||(h.shares||0)*(h.costBasis||0)),0);
+            const totalCost = holdings.reduce((s,h)=>s+(h.totalCost||0),0);
             const totalMktVal = holdings.reduce((s,h)=>{
               const sp = stockPrices[h.symbol?.toUpperCase()];
-              const hCost = h.totalCost || (h.shares||0)*(h.costBasis||0);
-              return s + (sp ? (h.shares||0)*sp.price : hCost);
+              return s + (sp ? (h.shares||0)*sp.price : (h.totalCost||0));
             }, 0);
             const hasPrice = holdings.some(h=>stockPrices[h.symbol?.toUpperCase()]);
             const pl = totalMktVal - totalCost;
             const plPct = totalCost ? pl/totalCost*100 : 0;
-            const valCls = totalMktVal >= totalCost ? 'positive' : 'negative';
+            const valCls = pl >= 0 ? 'positive' : 'negative';
             const plCls  = pl >= 0 ? 'color:var(--tx-green)' : 'color:var(--tx-red)';
             const plSign = pl >= 0 ? '+' : '';
-            return `
-              <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">持股市值${hasPrice?'':' (尚未載入股價)'}</div>
-              <div class="account-balance ${valCls}">${fmt(Math.round(totalMktVal))}</div>
-              <div style="font-size:12px;color:var(--tx-secondary);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap">
-                <span>投入成本：<span style="color:var(--tx-muted)">${fmt(totalCost)}</span></span>
-                ${totalCost>0?`<span style="${plCls};font-weight:600">${plSign}${fmt(Math.round(pl))} (${plSign}${plPct.toFixed(1)}%)</span>`:''}
-              </div>`;
+            return '<div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">持股市值'+(hasPrice?'':' (尚未載入)')+'</div>'
+              + '<div class="account-balance '+valCls+'">' + fmt(Math.round(totalMktVal)) + '</div>'
+              + '<div style="font-size:12px;color:var(--tx-secondary);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap">'
+              + '<span>投入成本：<span style="color:var(--tx-muted)">' + fmt(totalCost) + '</span></span>'
+              + (totalCost>0 ? '<span style="'+plCls+';font-weight:600">'+plSign+fmt(Math.round(pl))+' ('+plSign+plPct.toFixed(1)+'%)</span>' : '')
+              + '</div>';
           }
-          // ── 一般帳戶 ──
-          return `
-            <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">帳戶餘額${a.accType==='外幣'&&a.currency?` (${a.currency})`:''}
-            </div>
-            <div class="account-balance ${bal<0?'negative':isLow?'warning':'positive'}">
-              ${a.accType==='外幣'&&a.currency ? fmtFX(bal,a.currency) : fmt(bal)}
-            </div>`;
+          return '<div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">帳戶餘額'+(a.accType==='外幣'&&a.currency?' ('+a.currency+')':'')+'</div>'
+            + '<div class="account-balance '+(bal<0?'negative':isLow?'warning':'positive')+'">'
+            + (a.accType==='外幣'&&a.currency ? fmtFX(bal,a.currency) : fmt(bal))
+            + '</div>';
         })()}
         ${(()=>{
           if(a.accType!=='外幣'||!a.currency) return '';
@@ -1018,7 +1010,8 @@ function renderAccounts() {
           <div style="font-size:11px;color:var(--tx-secondary)">本月流出：<span style="color:var(--tx-red)">${fmt(-mthOut)}</span></div>
           <div style="font-size:11px;color:var(--tx-secondary)">本月流入：<span style="color:var(--tx-green)">+${fmt(mthIn)}</span></div>
         </div>
-        ${a.notes?`<div style="font-size:11px;color:var(--tx-muted);margin-top:4px;font-style:italic">${escHtml(a.notes)}</div>`:''}${renderStockHoldings(a)}
+        ${a.notes?`<div style="font-size:11px;color:var(--tx-muted);margin-top:4px;font-style:italic">${escHtml(a.notes)}</div>`:''}
+        ${renderStockHoldings(a)}
         <div class="m-stripe mt-3"></div>
         <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);text-transform:uppercase;font-family:var(--ff-display);margin-bottom:6px">資金分層</div>
         ${layersHtml||'<div style="font-size:12px;color:var(--tx-muted)">尚無分層</div>'}
@@ -1089,12 +1082,11 @@ function renderTxns() {
   if (tagVal)   txns=txns.filter(t=>(t.tags||[]).includes(tagVal));
   if (keyword)  txns=txns.filter(t=>(t.desc||'').toLowerCase().includes(keyword)||(t.notes||'').toLowerCase().includes(keyword));
 
-  // Pagination
   _lastTxnTotal = txns.length;
-  const totalPages = Math.ceil(txns.length / TXN_PAGE_SIZE);
-  if (txnCurrentPage > totalPages) txnCurrentPage = Math.max(1, totalPages);
-  const start = (txnCurrentPage - 1) * TXN_PAGE_SIZE;
-  const pagedTxns = txns.slice(start, start + TXN_PAGE_SIZE);
+  const totalPages2 = Math.ceil(txns.length / TXN_PAGE_SIZE);
+  if (txnCurrentPage > totalPages2) txnCurrentPage = Math.max(1, totalPages2);
+  const start2 = (txnCurrentPage - 1) * TXN_PAGE_SIZE;
+  const pagedTxns = txns.slice(start2, start2 + TXN_PAGE_SIZE);
   document.getElementById('txnTableWrap').innerHTML =
     txnTable(pagedTxns, true) + renderTxnPager(txns.length);
   updateBatchUI();
@@ -1640,7 +1632,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
     b=`<div style="display:flex;gap:14px;align-items:flex-start">
       ${iconUpload('cIcon',c?.icon||'')}
       <div style="flex:1">
-        ${(a?.accType||'活存')==='證券'?'':`<div class="form-group"><label class="form-label">卡片名稱</label><input class="form-input" id="cName" value="${escAttr(c?.name||'')}" placeholder="e.g. 玉山現金回饋卡"></div>
+        <div class="form-group"><label class="form-label">卡片名稱</label><input class="form-input" id="cName" value="${escAttr(c?.name||'')}" placeholder="e.g. 玉山現金回饋卡"></div>
         <div class="form-group"><label class="form-label">信用額度（0=不設限）</label><input class="form-input" id="cLimit" type="number" value="${c?.limit||0}"></div>
       </div>
     </div>
@@ -1684,16 +1676,15 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">
         ${a?'💡 修改後將更新「初始餘額」分層金額':'💡 將自動建立「初始餘額」分層'}
       </div>
-    </div>`}
+    </div>
     <div class="form-group"><label class="form-label">帳戶備註（選填）</label><input class="form-input" id="aNotes" value="${escAttr(a?.notes||'')}" placeholder="e.g. 日常開銷用帳戶"></div>
-    <!-- 證券持股群組 -->
-    <div id="securitiesGroup" style="display:${(a?.accType||'活存')==='證券'?'':'none'}">
+    <div id="securitiesGroup" style="display:none">
       <div class="m-stripe" style="margin:14px 0 10px"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div style="font-size:12px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);text-transform:uppercase">持股記錄</div>
         <button type="button" class="btn btn-sm btn-violet" onclick="addHolding()">＋ 新增持股</button>
       </div>
-      <div style="font-size:11px;color:var(--tx-secondary);margin-bottom:8px">台股格式：<strong>2330.TW</strong>　美股：<strong>AAPL</strong>　ETF：<strong>0050.TW</strong></div>
+      <div style="font-size:11px;color:var(--tx-secondary);margin-bottom:8px">台股：<strong>2330.TW</strong>　美股：<strong>AAPL</strong>　ETF：<strong>0050.TW</strong></div>
       <div id="holdingsList" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
     <div class="form-group"><label class="form-label">代表顏色</label>${colorPicker('aColor',a?.color||'#0057B8')}</div>`;
@@ -1828,36 +1819,10 @@ function openModal(type,id,preCard,preAcc,extraId) {
     },60);
   }
 
-
   // ── INSTALL ──
-  else if (type === 'addInstall' || type === 'editInstall') {
-    ensureInstallments();
-    const inst = id && type === 'editInstall' ? DB.installments.find(i => i.id === id) : null;
-    t = inst ? '編輯分期' : '新增分期追蹤';
-    b = `<div class="form-group"><label class="form-label">分期名稱</label>
-      <input class="form-input" id="instDesc" value="${inst ? escAttr(inst.desc) : ''}" placeholder="e.g. MacBook Pro 24期"></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">總金額（NT$）<button type="button" class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px;margin-left:4px" onclick="openCalc('instTotal')">🔢</button></label>
-        <input class="form-input" id="instTotal" type="number" value="${inst ? inst.totalAmt : ''}" placeholder="0"></div>
-      <div class="form-group"><label class="form-label">分期期數（月）</label>
-        <input class="form-input" id="instMonths" type="number" min="1" value="${inst ? inst.months : ''}" placeholder="12"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">每月幾號扣款</label>
-        <input class="form-input" id="instDay" type="number" min="1" max="28" value="${inst ? inst.day || 1 : 1}"></div>
-      <div class="form-group"><label class="form-label">類別</label>
-        <select class="form-select" id="instCat">${catOpts(inst?.category || DB.categories[0]?.id || '')}</select></div>
-    </div>
-    <div class="form-group"><label class="form-label">扣款帳戶/卡片</label>
-      <select class="form-select" id="instSrc"><option value="">請選擇</option>${srcOpts('both')}</select></div>
-    <div class="form-group"><label class="form-label">備註（選填）</label>
-      <input class="form-input" id="instNotes" value="${inst ? escAttr(inst.notes || '') : ''}"></div>`;
-    f = `<button class="btn btn-ghost" onclick="closeModal()">取消</button>
-      <button class="btn btn-primary" onclick="saveInstall()">儲存</button>`;
-    setTimeout(() => {
-      const el = document.getElementById('instSrc');
-      if (el && inst) el.value = inst.sourceType + '_' + inst.sourceId;
-    }, 60);
+  else if (type==='addInstall'||type==='editInstall') {
+    modalType=type; editTarget=id||null;
+    _openInstallModal(type,id); return;
   }
 
   // ── FIXED ──
@@ -1991,7 +1956,7 @@ function saveAccount() {
     accType:v('aType')||'活存',minBalance:+v('aMinBal')||0,
     currency:(document.getElementById('aCurrency')?.value||'').trim().toUpperCase(),
     notes:(document.getElementById('aNotes')?.value||'').trim(),
-    holdings: v('aType')==='證券' ? _editingHoldings.filter(h=>h.symbol) : undefined};
+    holdings:v('aType')==='證券'?_editingHoldings.filter(h=>h.symbol):undefined};
   const initBal = +(document.getElementById('aInitBal')?.value) || 0;
   if(modalType==='editAccount'){
     const acc = getAcc(editTarget);
@@ -2357,7 +2322,7 @@ function openQuickAdd() {
   document.getElementById('modalBody').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="form-group" style="margin:0">
-        <label class="form-label">金額（NT$）<button type="button" class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px;margin-left:4px" onclick="openCalc('qaAmt')">🔢</button></label>
+        <label class="form-label">金額（NT$）</label>
         <input class="form-input" id="qaAmt" type="number" placeholder="0" autofocus
           style="font-size:22px;font-weight:700;font-family:var(--ff-display)">
       </div>
@@ -2549,14 +2514,14 @@ function exportData() {
 // ════════════════════════════════════════════════════════════════
 let calcTargetId = null;
 let calcState = { expr: '', prev: '', op: '', justEq: false };
-
 function openCalc(inputId) {
   calcTargetId = inputId;
   const el = document.getElementById(inputId);
-  const cur = el ? parseFloat(el.value) || 0 : 0;
+  const cur = el ? parseFloat(el.value)||0 : 0;
   calcState = { expr: cur ? String(cur) : '', prev: '', op: '', justEq: false };
   renderCalcDisplay();
-  document.getElementById('calcPanel').style.display = 'flex';
+  const p = document.getElementById('calcPanel');
+  p.style.display = 'flex';
 }
 function closeCalc() {
   document.getElementById('calcPanel').style.display = 'none';
@@ -2565,434 +2530,342 @@ function closeCalc() {
 function renderCalcDisplay() {
   document.getElementById('calcDisplay').textContent = calcState.expr || '0';
   document.getElementById('calcExpr').textContent =
-    calcState.prev && calcState.op ? `${calcState.prev} ${calcState.op}` : '';
+    calcState.prev && calcState.op ? calcState.prev + ' ' + calcState.op : '';
 }
 function calcInput(key) {
   const s = calcState;
-  if (key === 'C') {
-    s.expr = ''; s.prev = ''; s.op = ''; s.justEq = false;
-  } else if (key === '±') {
-    s.expr = s.expr.startsWith('-') ? s.expr.slice(1) : (s.expr ? '-' + s.expr : '');
-  } else if (key === '%') {
-    s.expr = String(parseFloat(s.expr || 0) / 100);
-  } else if (['+', '−', '×', '÷'].includes(key)) {
-    if (s.expr && s.op && s.prev) { calcDoOp(); }
-    s.prev = s.expr || s.prev || '0';
-    s.op = key; s.expr = ''; s.justEq = false;
+  if (key === 'C') { s.expr=''; s.prev=''; s.op=''; s.justEq=false; }
+  else if (key === '±') { s.expr = s.expr.startsWith('-') ? s.expr.slice(1) : (s.expr?'-'+s.expr:''); }
+  else if (key === '%') { s.expr = String(parseFloat(s.expr||0)/100); }
+  else if (['+','−','×','÷'].includes(key)) {
+    if (s.expr && s.op && s.prev) calcDoOp();
+    s.prev = s.expr||s.prev||'0'; s.op=key; s.expr=''; s.justEq=false;
   } else if (key === '.') {
-    if (!s.expr.includes('.')) s.expr += (s.expr ? '' : '0') + '.';
+    if (!s.expr.includes('.')) s.expr += (s.expr?'':'0')+'.';
   } else {
-    if (s.justEq) { s.prev = ''; s.op = ''; s.justEq = false; }
-    s.expr = (s.expr === '0' ? '' : s.expr) + key;
+    if (s.justEq) { s.prev=''; s.op=''; s.justEq=false; }
+    s.expr = (s.expr==='0'?'':s.expr) + key;
   }
   renderCalcDisplay();
 }
 function calcDoOp() {
-  const a = parseFloat(calcState.prev || 0), b = parseFloat(calcState.expr || 0);
-  let r = a;
-  if (calcState.op === '+')  r = a + b;
-  if (calcState.op === '−')  r = a - b;
-  if (calcState.op === '×')  r = a * b;
-  if (calcState.op === '÷')  r = b !== 0 ? a / b : 0;
-  calcState.expr = String(parseFloat(r.toFixed(6)));
-  calcState.prev = ''; calcState.op = ''; calcState.justEq = true;
+  const a=parseFloat(calcState.prev||0), b=parseFloat(calcState.expr||0);
+  let r=a;
+  if(calcState.op==='+') r=a+b;
+  if(calcState.op==='−') r=a-b;
+  if(calcState.op==='×') r=a*b;
+  if(calcState.op==='÷') r=b!==0?a/b:0;
+  calcState.expr=String(parseFloat(r.toFixed(6)));
+  calcState.prev=''; calcState.op=''; calcState.justEq=true;
   renderCalcDisplay();
 }
 function calcApply() {
   if (calcState.op && calcState.prev && calcState.expr) calcDoOp();
-  const val = parseFloat(calcState.expr || calcState.prev || 0);
+  const val = parseFloat(calcState.expr||calcState.prev||0);
   if (calcTargetId) {
     const el = document.getElementById(calcTargetId);
-    if (el) { el.value = val; el.dispatchEvent(new Event('input')); }
+    if (el) { el.value=val; el.dispatchEvent(new Event('input')); }
   }
   closeCalc();
-  toast('計算結果已套用：' + val.toLocaleString('zh-TW'), 'success');
+  toast('計算結果已套用：'+val.toLocaleString('zh-TW'),'success');
 }
 
 // ════════════════════════════════════════════════════════════════
-// INSTALLMENTS (分期付款追蹤)
+// INSTALLMENTS
 // ════════════════════════════════════════════════════════════════
-function ensureInstallments() { if (!DB.installments) DB.installments = []; }
-
+function ensureInstallments() { if (!DB.installments) DB.installments=[]; }
 function renderInstall() {
   ensureInstallments();
-  const wrap = document.getElementById('installList');
-  if (!wrap) return;
-  if (!DB.installments.length) {
-    wrap.innerHTML = emptyState('📅','尚無分期記錄','新增信用卡分期、貸款等分期追蹤項目');
-    return;
-  }
-  wrap.innerHTML = DB.installments.map(inst => {
-    const monthlyAmt = Math.round(inst.totalAmt / inst.months);
-    const paid = (inst.paidMonths || []).length;
-    const remain = inst.months - paid;
-    const pct = Math.min(100, Math.round(paid / inst.months * 100));
-    const cat = getCat(inst.category);
-    const src = inst.sourceType === 'card' ? getCard(inst.sourceId) : getAcc(inst.sourceId);
-    const curYM = nowYM();
-    const alreadyPaidThisMonth = (inst.paidMonths || []).includes(curYM);
-    const isComplete = paid >= inst.months;
-    const barColor = isComplete ? 'var(--tx-green)' : pct >= 80 ? 'var(--m-violet)' : 'var(--m-blue)';
-    return `<div class="install-item${isComplete ? ' install-done' : ''}">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <div class="install-badge">${inst.day || 1}</div>
-        <div style="flex:1">
-          <div style="font-weight:600;font-size:14px">${escHtml(inst.desc)}${isComplete ? ' <span class="badge badge-green">已完成</span>' : ''}</div>
-          <div style="font-size:11px;color:var(--tx-secondary);margin-top:3px">
-            <span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span>
-            ${src ? `<span style="margin-left:6px">${escHtml(src.name)}</span>` : ''}
-            ${inst.notes ? `<span style="color:var(--tx-muted);margin-left:6px">${escHtml(inst.notes)}</span>` : ''}
-          </div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:var(--tx-red)">−${fmt(monthlyAmt)}<span style="font-size:11px;color:var(--tx-muted)">/月</span></div>
-          <div style="font-size:11px;color:var(--tx-secondary)">共 ${fmt(inst.totalAmt)}</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <div class="prog-wrap" style="flex:1"><div class="prog-bar-gradient" style="width:${pct}%;background:${barColor}"></div></div>
-        <span style="font-size:12px;color:var(--tx-secondary);flex-shrink:0">${paid}/${inst.months} 期（剩 ${remain} 期）</span>
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        ${!isComplete && !alreadyPaidThisMonth ? `<button class="btn btn-sm btn-success" onclick="payInstallMonth('${inst.id}')">✅ 本月已付 (${curYM})</button>` : ''}
-        ${!isComplete && alreadyPaidThisMonth ? `<span class="badge badge-green">✓ 本月已記帳</span>` : ''}
-        <button class="btn btn-ghost btn-sm" onclick="openModal('editInstall','${inst.id}')">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteInstall('${inst.id}')">🗑</button>
-        <span style="margin-left:auto;font-size:11px;color:var(--tx-muted)">剩餘金額 ${fmt(remain * monthlyAmt)}</span>
-      </div>
-    </div>`;
+  const wrap=document.getElementById('installList'); if(!wrap) return;
+  if (!DB.installments.length) { wrap.innerHTML=emptyState('📅','尚無分期記錄','新增信用卡分期、貸款等分期追蹤項目'); return; }
+  wrap.innerHTML = DB.installments.map(inst=>{
+    const monthlyAmt=Math.round(inst.totalAmt/inst.months);
+    const paid=(inst.paidMonths||[]).length, remain=inst.months-paid;
+    const pct=Math.min(100,Math.round(paid/inst.months*100));
+    const cat=getCat(inst.category);
+    const src=inst.sourceType==='card'?getCard(inst.sourceId):getAcc(inst.sourceId);
+    const curYM=nowYM(), alreadyPaid=(inst.paidMonths||[]).includes(curYM);
+    const isComplete=paid>=inst.months;
+    const barColor=isComplete?'var(--tx-green)':pct>=80?'var(--m-violet)':'var(--m-blue)';
+    return '<div class="install-item'+(isComplete?' install-done':'')+'"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div class="install-badge">'+(inst.day||1)+'</div><div style="flex:1"><div style="font-weight:600;font-size:14px">'+escHtml(inst.desc)+(isComplete?' <span class="badge badge-green">已完成</span>':'')+'</div><div style="font-size:11px;color:var(--tx-secondary);margin-top:3px"><span class="badge" style="background:'+cat.color+'22;color:'+cat.color+';border:1px solid '+cat.color+'55">'+cat.name+'</span>'+(src?'<span style="margin-left:6px">'+escHtml(src.name)+'</span>':'')+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:var(--tx-red)">−'+fmt(monthlyAmt)+'<span style="font-size:11px;color:var(--tx-muted)">/月</span></div><div style="font-size:11px;color:var(--tx-secondary)">共 '+fmt(inst.totalAmt)+'</div></div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="prog-wrap" style="flex:1"><div class="prog-bar-gradient" style="width:'+pct+'%;background:'+barColor+'"></div></div><span style="font-size:12px;color:var(--tx-secondary);flex-shrink:0">'+paid+'/'+inst.months+' 期（剩 '+remain+' 期）</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+(!isComplete&&!alreadyPaid?'<button class="btn btn-sm btn-success" onclick="payInstallMonth(\''+inst.id+'\')">✅ 本月已付 ('+curYM+')</button>':'')+(alreadyPaid&&!isComplete?'<span class="badge badge-green">✓ 本月已記帳</span>':'')+'<button class="btn btn-ghost btn-sm" onclick="openModal(\'editInstall\',\''+inst.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteInstall(\''+inst.id+'\')">🗑</button><span style="margin-left:auto;font-size:11px;color:var(--tx-muted)">剩餘 '+fmt(remain*monthlyAmt)+'</span></div></div>';
   }).join('');
 }
-
 function payInstallMonth(id) {
   ensureInstallments();
-  const inst = DB.installments.find(i => i.id === id); if (!inst) return;
-  const curYM = nowYM();
-  if ((inst.paidMonths || []).includes(curYM)) { toast('本月已記帳', 'info'); return; }
-  const monthlyAmt = Math.round(inst.totalAmt / inst.months);
-  const d = String(Math.min(inst.day || 1, 28)).padStart(2, '0');
-  DB.transactions.push({
-    id: uid(), date: curYM + '-' + d, amount: -Math.abs(monthlyAmt),
-    desc: inst.desc + '（分期 ' + ((inst.paidMonths || []).length + 1) + '/' + inst.months + '）',
-    category: inst.category, sourceId: inst.sourceId, sourceType: inst.sourceType,
-    notes: inst.notes || '', isFixed: false, tags: [], installId: inst.id
-  });
-  if (!inst.paidMonths) inst.paidMonths = [];
+  const inst=DB.installments.find(i=>i.id===id); if(!inst) return;
+  const curYM=nowYM();
+  if((inst.paidMonths||[]).includes(curYM)){toast('本月已記帳','info');return;}
+  const monthlyAmt=Math.round(inst.totalAmt/inst.months);
+  const d=String(Math.min(inst.day||1,28)).padStart(2,'0');
+  DB.transactions.push({id:uid(),date:curYM+'-'+d,amount:-Math.abs(monthlyAmt),
+    desc:inst.desc+'（分期 '+((inst.paidMonths||[]).length+1)+'/'+inst.months+'）',
+    category:inst.category,sourceId:inst.sourceId,sourceType:inst.sourceType,
+    notes:'',isFixed:false,tags:[],installId:inst.id});
+  if(!inst.paidMonths) inst.paidMonths=[];
   inst.paidMonths.push(curYM);
-  saveDB(); renderInstall();
-  toast('已記帳本月分期 ' + fmt(monthlyAmt), 'success');
+  saveDB(); renderInstall(); toast('已記帳本月分期 '+fmt(monthlyAmt),'success');
 }
-
 function deleteInstall(id) {
   ensureInstallments();
-  if (!confirm('確定刪除此分期追蹤？相關消費記錄不受影響。')) return;
-  DB.installments = DB.installments.filter(i => i.id !== id);
-  saveDB(); renderInstall(); toast('分期追蹤已刪除', 'danger');
+  if(!confirm('確定刪除此分期追蹤？')) return;
+  DB.installments=DB.installments.filter(i=>i.id!==id);
+  saveDB(); renderInstall(); toast('分期追蹤已刪除','danger');
 }
-
 function saveInstall() {
   ensureInstallments();
-  const desc = document.getElementById('instDesc')?.value.trim();
-  const totalAmt = +(document.getElementById('instTotal')?.value) || 0;
-  const months = +(document.getElementById('instMonths')?.value) || 0;
-  const day = +(document.getElementById('instDay')?.value) || 1;
-  const catId = v('instCat');
-  const srcVal = v('instSrc');
-  const notes = (document.getElementById('instNotes')?.value || '').trim();
-  if (!desc || !totalAmt || !months || !srcVal) {
-    toast('請填寫完整資訊', 'danger'); return;
-  }
-  const [sType, sId] = srcVal.split('_');
-  const obj = { desc, totalAmt, months, day, category: catId, sourceId: sId, sourceType: sType, notes, paidMonths: [] };
-  if (modalType === 'editInstall') {
-    const existing = DB.installments.find(i => i.id === editTarget);
-    if (existing) { Object.assign(existing, obj); toast('分期已更新', 'success'); }
+  const desc=(document.getElementById('instDesc')?.value||'').trim();
+  const totalAmt=+(document.getElementById('instTotal')?.value)||0;
+  const months=+(document.getElementById('instMonths')?.value)||0;
+  const day=+(document.getElementById('instDay')?.value)||1;
+  const catId=v('instCat'), srcVal=v('instSrc');
+  const notes=(document.getElementById('instNotes')?.value||'').trim();
+  if(!desc||!totalAmt||!months||!srcVal){toast('請填寫完整資訊','danger');return;}
+  const [sType,sId]=srcVal.split('_');
+  const obj={desc,totalAmt,months,day,category:catId,sourceId:sId,sourceType:sType,notes,paidMonths:[]};
+  if(modalType==='editInstall'){
+    const ex=DB.installments.find(i=>i.id===editTarget);
+    if(ex){Object.assign(ex,obj);toast('分期已更新','success');}
   } else {
-    DB.installments.push({ id: uid(), ...obj });
-    toast('分期新增成功', 'success');
+    DB.installments.push({id:uid(),...obj});toast('分期新增成功','success');
   }
   saveDB(); closeModal(); renderInstall();
 }
 
 // ════════════════════════════════════════════════════════════════
-// PAGINATION for transactions
+// PAGINATION
 // ════════════════════════════════════════════════════════════════
-let txnCurrentPage = 1;
-const TXN_PAGE_SIZE = 30;
-
-function renderTxnPager(totalCount) {
-  const totalPages = Math.ceil(totalCount / TXN_PAGE_SIZE);
-  if (totalPages <= 1) return '';
-  const pages = [];
-  for (let p = 1; p <= totalPages; p++) {
-    if (p === 1 || p === totalPages || Math.abs(p - txnCurrentPage) <= 2) {
-      pages.push(`<button class="pager-btn${p === txnCurrentPage ? ' active' : ''}" onclick="setTxnPage(${p})">${p}</button>`);
-    } else if (pages[pages.length-1] !== '…') {
-      pages.push('…');
-    }
+let txnCurrentPage=1, _lastTxnTotal=0;
+const TXN_PAGE_SIZE=30;
+function renderTxnPager(total) {
+  const totalPages=Math.ceil(total/TXN_PAGE_SIZE);
+  if(totalPages<=1) return '';
+  let btns=[];
+  for(let p=1;p<=totalPages;p++){
+    if(p===1||p===totalPages||Math.abs(p-txnCurrentPage)<=1)
+      btns.push('<button class="pager-btn'+(p===txnCurrentPage?' active':'')+'" onclick="setTxnPage('+p+')">'+p+'</button>');
+    else if(btns[btns.length-1]!=='…') btns.push('…');
   }
-  return `<div class="pager-bar">
-    <button class="pager-btn" onclick="setTxnPage(${txnCurrentPage - 1})" ${txnCurrentPage === 1 ? 'disabled' : ''}>‹</button>
-    ${pages.join('')}
-    <button class="pager-btn" onclick="setTxnPage(${txnCurrentPage + 1})" ${txnCurrentPage === totalPages ? 'disabled' : ''}>›</button>
-    <span style="font-size:11px;color:var(--tx-muted);margin-left:8px">共 ${totalCount} 筆 / 每頁 ${TXN_PAGE_SIZE}</span>
-  </div>`;
+  return '<div class="pager-bar"><button class="pager-btn" onclick="setTxnPage('+(txnCurrentPage-1)+')" '+(txnCurrentPage===1?'disabled':'')+'>‹</button>'+btns.join('')+'<button class="pager-btn" onclick="setTxnPage('+(txnCurrentPage+1)+')" '+(txnCurrentPage===totalPages?'disabled':'')+'>›</button><span style="font-size:11px;color:var(--tx-muted);margin-left:8px">共 '+total+' 筆</span></div>';
 }
 function setTxnPage(p) {
-  const totalPages = Math.ceil(_lastTxnTotal / TXN_PAGE_SIZE);
-  if (p < 1 || p > totalPages) return;
-  txnCurrentPage = p;
-  renderTxns();
+  const t=Math.ceil(_lastTxnTotal/TXN_PAGE_SIZE);
+  if(p<1||p>t) return;
+  txnCurrentPage=p; renderTxns();
 }
-let _lastTxnTotal = 0;
 
 // ════════════════════════════════════════════════════════════════
-// THEME SETTINGS UI
+// THEME SETTINGS
 // ════════════════════════════════════════════════════════════════
 function setThemeMode(mode) {
-  manualTheme = mode;
-  localStorage.setItem('mwallet_theme', mode);
-  autoTheme();
+  manualTheme=mode; localStorage.setItem('mwallet_theme',mode); autoTheme();
   updateThemeCards();
-  const labels = { auto: '🌗 已設定為自動模式（依台中日照時間）', light: '☀️ 已設定為固定淺色模式', dark: '🌙 已設定為固定深色模式' };
-  toast(labels[mode] || '主題已更新', 'success');
+  const labels={auto:'🌗 已設定為自動模式',light:'☀️ 已設定為固定淺色',dark:'🌙 已設定為固定深色'};
+  toast(labels[mode]||'主題已更新','success');
 }
 function updateThemeCards() {
-  ['auto', 'light', 'dark'].forEach(m => {
-    const el = document.getElementById('tcard-' + m);
-    if (el) el.classList.toggle('active', manualTheme === m);
+  ['auto','light','dark'].forEach(m=>{
+    const el=document.getElementById('tcard-'+m);
+    if(el) el.classList.toggle('active', manualTheme===m);
   });
-  const status = document.getElementById('themeModeStatus');
-  if (!status) return;
-  const now = new Date();
-  const { sunrise, sunset } = getSunTimes(now);
-  const h = now.getHours() + now.getMinutes() / 60;
-  const isDayNow = h >= sunrise && h < sunset;
-  const toHM = v => { const hh = Math.floor(v); const mm = Math.round((v - hh) * 60); return `${hh}:${String(mm).padStart(2,'0')}`; };
-  const sunriseStr = toHM(sunrise), sunsetStr = toHM(sunset);
-  status.innerHTML = `台中今日日出 <strong>${sunriseStr}</strong>，日落 <strong>${sunsetStr}</strong>。<br>目前是<strong>${isDayNow ? '白天 ☀️' : '夜間 🌙'}</strong>，自動模式會顯示<strong>${isDayNow ? '淺色' : '深色'}</strong>主題。`;
+  const status=document.getElementById('themeModeStatus'); if(!status) return;
+  const now=new Date(), {sunrise,sunset}=getSunTimes(now);
+  const h2=now.getHours()+now.getMinutes()/60;
+  const isDay=h2>=sunrise&&h2<sunset;
+  const toHM=v=>{const hh=Math.floor(v),mm=Math.round((v-hh)*60);return hh+':'+String(mm).padStart(2,'0');};
+  status.innerHTML='台中今日日出 <strong>'+toHM(sunrise)+'</strong>，日落 <strong>'+toHM(sunset)+'</strong>。<br>目前<strong>'+(isDay?'白天 ☀️':'夜間 🌙')+'</strong>，自動模式顯示<strong>'+(isDay?'淺色':'深色')+'</strong>主題。';
+}
+function switchSettingsTab(tab) {
+  document.querySelectorAll('.settings-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.settings-tab-panel').forEach(p=>p.classList.remove('active'));
+  const btn=document.getElementById('stab-'+tab), panel=document.getElementById('spanel-'+tab);
+  if(btn) btn.classList.add('active');
+  if(panel) panel.classList.add('active');
+  const hdr=document.getElementById('settingsAddBtn');
+  if(hdr) hdr.style.display=tab==='cat'?'':'none';
+  if(tab==='theme') updateThemeCards();
+  if(tab==='data'||tab==='theme') checkStorageCapacity();
 }
 
 // ════════════════════════════════════════════════════════════════
-// localStorage CAPACITY WARNING
+// localStorage CAPACITY
 // ════════════════════════════════════════════════════════════════
 function checkStorageCapacity() {
   try {
-    const used = Object.keys(localStorage).reduce((s, k) => {
-      return s + (localStorage.getItem(k) || '').length * 2;
-    }, 0);
-    const limit = 5 * 1024 * 1024; // 5MB conservative estimate
-    const pct = Math.min(100, Math.round(used / limit * 100));
-    const bar = document.getElementById('storageBarFill');
-    const label = document.getElementById('storageLabel');
-    if (bar) {
-      bar.style.width = pct + '%';
-      bar.style.background = pct > 80 ? 'var(--m-red)' : pct > 60 ? 'var(--warn)' : 'var(--m-blue)';
-    }
-    if (label) {
-      const kb = Math.round(used / 1024);
-      label.textContent = `已使用約 ${kb} KB（估計上限 5 MB，${pct}%）`;
-    }
-    if (pct > 85) toast('⚠️ 本機儲存空間已超過 85%，強烈建議立即備份！', 'danger');
+    const used=Object.keys(localStorage).reduce((s,k)=>s+(localStorage.getItem(k)||'').length*2,0);
+    const limit=5*1024*1024;
+    const pct=Math.min(100,Math.round(used/limit*100));
+    const bar=document.getElementById('storageBarFill');
+    const label=document.getElementById('storageLabel');
+    if(bar){bar.style.width=pct+'%';bar.style.background=pct>80?'var(--m-red)':pct>60?'var(--warn)':'var(--m-blue)';}
+    if(label){const kb=Math.round(used/1024);label.textContent='已使用約 '+kb+' KB（估計上限 5 MB，'+pct+'%）';}
+    if(pct>85) toast('⚠️ 儲存空間超過 85%，建議立即備份！','danger');
   } catch {}
 }
 
 // ════════════════════════════════════════════════════════════════
-// MOBILE KEYBOARD FIX (visualViewport)
+// MOBILE KEYBOARD FIX
 // ════════════════════════════════════════════════════════════════
 function setupViewportFix() {
-  if (!window.visualViewport) return;
-  window.visualViewport.addEventListener('resize', () => {
-    const overlay = document.getElementById('modalOverlay');
-    if (!overlay?.classList.contains('active')) return;
-    const vvh = window.visualViewport.height;
-    const box = document.getElementById('modalBox');
-    if (box) {
-      const keyboardOpen = vvh < window.innerHeight * 0.75;
-      box.style.maxHeight = keyboardOpen ? (vvh - 60) + 'px' : '';
-      if (keyboardOpen) {
-        const focused = box.querySelector(':focus');
-        if (focused) focused.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }
-    }
+  if(!window.visualViewport) return;
+  window.visualViewport.addEventListener('resize',()=>{
+    const overlay=document.getElementById('modalOverlay');
+    if(!overlay?.classList.contains('active')) return;
+    const vvh=window.visualViewport.height;
+    const box=document.getElementById('modalBox');
+    if(box){ const kbOpen=vvh<window.innerHeight*0.75; box.style.maxHeight=kbOpen?(vvh-60)+'px':''; }
   });
 }
 
 // ════════════════════════════════════════════════════════════════
-// SECURITIES ACCOUNT — Yahoo Finance stock tracking
+// SECURITIES — Yahoo Finance
 // ════════════════════════════════════════════════════════════════
-let stockPrices = {};
-const STOCK_CACHE_KEY = 'mwallet_stocks';
-const STOCK_CACHE_TTL = 5 * 60 * 1000; // 5 min
-
+let stockPrices={};
+const STOCK_CACHE_KEY='mwallet_stocks', STOCK_CACHE_TTL=5*60*1000;
 async function fetchStockPrices() {
-  const allHoldings = DB.bankAccounts
-    .filter(a => a.accType === '證券')
-    .flatMap(a => (a.holdings || []).map(h => h.symbol));
-  const symbols = [...new Set(allHoldings)].filter(Boolean);
-  if (!symbols.length) return;
-
-  // Try cache first
+  const symbols=[...new Set(DB.bankAccounts.filter(a=>a.accType==='證券').flatMap(a=>(a.holdings||[]).map(h=>h.symbol)).filter(Boolean))];
+  if(!symbols.length) return;
   try {
-    const cached = JSON.parse(localStorage.getItem(STOCK_CACHE_KEY) || '{}');
-    if (cached.ts && Date.now() - cached.ts < STOCK_CACHE_TTL) {
-      stockPrices = {...stockPrices, ...cached.prices};
-      renderAccounts(); return;
-    }
+    const c=JSON.parse(localStorage.getItem(STOCK_CACHE_KEY)||'{}');
+    if(c.ts&&Date.now()-c.ts<STOCK_CACHE_TTL){ stockPrices={...stockPrices,...c.prices}; renderAccounts(); return; }
   } catch {}
-
-  // Fetch prices
-  for (const sym of symbols) {
-    await fetchSingleStock(sym);
-  }
-  localStorage.setItem(STOCK_CACHE_KEY, JSON.stringify({ ts: Date.now(), prices: stockPrices }));
+  for(const sym of symbols) await fetchSingleStock(sym);
+  localStorage.setItem(STOCK_CACHE_KEY,JSON.stringify({ts:Date.now(),prices:stockPrices}));
   renderAccounts();
 }
-
 async function fetchSingleStock(symbol) {
-  const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(baseUrl)}`;
-  for (const url of [baseUrl, proxyUrl]) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
-      if (!res.ok) continue;
-      const data = await res.json();
-      const result = data?.chart?.result?.[0];
-      if (!result) continue;
-      const meta = result.meta;
-      const price = meta.regularMarketPrice || 0;
-      const prev  = meta.previousClose || meta.chartPreviousClose || price;
-      const change = price - prev;
-      const changePct = prev ? (change / prev * 100) : 0;
-      stockPrices[symbol.toUpperCase()] = {
-        price, change, changePct,
-        currency: meta.currency || 'TWD',
-        name: meta.shortName || symbol,
-        updatedAt: Date.now()
-      };
+  const base='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol)+'?interval=1d&range=1d';
+  const proxy='https://corsproxy.io/?'+encodeURIComponent(base);
+  for(const url of [base,proxy]){
+    try{
+      const res=await fetch(url,{signal:AbortSignal.timeout(6000)});
+      if(!res.ok) continue;
+      const data=await res.json();
+      const result=data?.chart?.result?.[0]; if(!result) continue;
+      const meta=result.meta, price=meta.regularMarketPrice||0;
+      const prev=meta.previousClose||meta.chartPreviousClose||price;
+      const change=price-prev, changePct=prev?(change/prev*100):0;
+      stockPrices[symbol.toUpperCase()]={price,change,changePct,currency:meta.currency||'TWD',name:meta.shortName||symbol,updatedAt:Date.now()};
       return;
     } catch {}
   }
 }
-
 function renderStockHoldings(acc) {
-  if (acc.accType !== '證券') return '';
-  const holdings = acc.holdings || [];
-  if (!holdings.length) return '<div style="font-size:12px;color:var(--tx-muted);margin-top:8px">尚無持股記錄</div>';
-  const rows = holdings.map(h => {
-    const sp = stockPrices[h.symbol?.toUpperCase()];
-    const costTotal = h.totalCost || (h.shares || 0) * (h.costBasis || 0); // 相容舊格式
-    const costPerShare = h.shares > 0 ? costTotal / h.shares : 0;
-    let priceCell = '<span style="color:var(--tx-muted)">載入中...</span>';
-    let plCell = '';
-    if (sp) {
-      const curTotal = (h.shares || 0) * sp.price;
-      const pl = curTotal - costTotal;
-      const plPct = costTotal ? pl / costTotal * 100 : 0;
-      const plCls = pl >= 0 ? 'color:var(--tx-green)' : 'color:var(--tx-red)';
-      const chgCls = sp.changePct >= 0 ? 'color:var(--tx-green)' : 'color:var(--tx-red)';
-      const sym = h.symbol.toUpperCase();
-      const isTW2 = sym.endsWith('.TW') || sym.endsWith('.TWO');
-      const fmtPrice = isTW2
-        ? sp.price.toFixed(2)
-        : sp.price.toLocaleString('en-US', {minimumFractionDigits:2,maximumFractionDigits:2});
-      const currency2 = isTW2 ? 'NT$' : '$';
-      priceCell = `<span>${currency2}${fmtPrice}</span> <span style="${chgCls};font-size:10px">${sp.changePct >= 0 ? '+' : ''}${sp.changePct.toFixed(2)}%</span>`;
-      plCell = `<span style="${plCls};font-weight:600">${pl >= 0 ? '+' : ''}${fmt(Math.round(pl))}</span><span style="font-size:10px;${plCls}"> (${plPct.toFixed(1)}%)</span>`;
+  if(acc.accType!=='證券') return '';
+  const holdings=acc.holdings||[];
+  if(!holdings.length) return '<div style="font-size:12px;color:var(--tx-muted);margin-top:8px">尚無持股記錄，點✏️編輯新增持股</div>';
+  const rows=holdings.map(h=>{
+    const sp=stockPrices[h.symbol?.toUpperCase()];
+    const costTotal=h.totalCost||0;
+    const costPerShare=h.shares>0?costTotal/h.shares:0;
+    const isTW=h.symbol?.toUpperCase().endsWith('.TW')||h.symbol?.toUpperCase().endsWith('.TWO');
+    const cur=isTW?'NT$':'$';
+    let priceCell='<span style="color:var(--tx-muted)">載入中...</span>';
+    let plCell='';
+    if(sp){
+      const curTotal=(h.shares||0)*sp.price, pl=curTotal-costTotal;
+      const plPct=costTotal?pl/costTotal*100:0;
+      const plCls=pl>=0?'color:var(--tx-green)':'color:var(--tx-red)';
+      const chgCls=sp.changePct>=0?'color:var(--tx-green)':'color:var(--tx-red)';
+      const fmtP=isTW?sp.price.toFixed(2):sp.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+      priceCell='<span>'+cur+fmtP+'</span> <span style="'+chgCls+';font-size:10px">'+(sp.changePct>=0?'+':'')+sp.changePct.toFixed(2)+'%</span>';
+      plCell='<span style="'+plCls+';font-weight:600">'+(pl>=0?'+':'')+fmt(Math.round(pl))+'</span><span style="font-size:10px;'+plCls+'"> ('+plPct.toFixed(1)+'%)</span>';
     }
-    const isTW = h.symbol?.toUpperCase().endsWith('.TW') || h.symbol?.toUpperCase().endsWith('.TWO');
-    return `<div class="stock-row">
-      <div class="stock-symbol">${escHtml(h.symbol)}</div>
-      <div class="stock-name">${escHtml(h.name || '')}</div>
-      <div style="font-size:11px;color:var(--tx-secondary)">${h.shares} 股　成本/股 ${isTW?'NT$':'$'}${costPerShare>0?costPerShare.toFixed(1):'—'}</div>
-      <div class="stock-price">${priceCell}</div>
-      <div class="stock-pl">${plCell}</div>
-    </div>`;
+    return '<div class="stock-row">'
+      +'<div class="stock-symbol">'+escHtml(h.symbol)+'</div>'
+      +'<div class="stock-name">'+escHtml(h.name||'')+'</div>'
+      +'<div style="font-size:11px;color:var(--tx-secondary)">'+h.shares+' 股　成本/股 '+cur+(costPerShare>0?costPerShare.toFixed(1):'—')+'</div>'
+      +'<div class="stock-price">'+priceCell+'</div>'
+      +'<div class="stock-pl">'+plCell+'</div>'
+      +'</div>';
   }).join('');
-  const totalCost = holdings.reduce((s,h) => s+(h.shares||0)*(h.costBasis||0), 0);
-  const totalCur  = holdings.reduce((s,h) => {
-    const sp = stockPrices[h.symbol?.toUpperCase()];
-    return s + (sp ? h.shares * sp.price : (h.shares||0)*(h.costBasis||0));
-  }, 0);
-  const totalPl = totalCur - totalCost;
-  const totalPlCls = totalPl >= 0 ? 'var(--tx-green)' : 'var(--tx-red)';
-  return `<div class="m-stripe" style="margin:10px 0 8px"></div>
-    <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);text-transform:uppercase;font-family:var(--ff-display);margin-bottom:8px">📈 持股明細</div>
-    ${rows}
-    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr-subtle);display:flex;justify-content:space-between;font-size:12px">
-      <span style="color:var(--tx-secondary)">投入成本：${fmt(totalCost)}</span>
-      <span style="color:${totalPlCls};font-weight:700">損益：${totalPl >= 0 ? '+' : ''}${fmt(Math.round(totalPl))}</span>
-    </div>
-    <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%" onclick="fetchStockPrices()">🔄 更新股價</button>`;
+  const totalCost=holdings.reduce((s,h)=>s+(h.totalCost||0),0);
+  const totalMkt=holdings.reduce((s,h)=>{const sp=stockPrices[h.symbol?.toUpperCase()];return s+(sp?(h.shares||0)*sp.price:(h.totalCost||0));},0);
+  const totalPl=totalMkt-totalCost, totalPlCls=totalPl>=0?'var(--tx-green)':'var(--tx-red)';
+  return '<div class="m-stripe" style="margin:10px 0 8px"></div>'
+    +'<div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);text-transform:uppercase;font-family:var(--ff-display);margin-bottom:8px">📈 持股明細</div>'
+    +rows
+    +'<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr-subtle);display:flex;justify-content:space-between;font-size:12px">'
+    +'<span style="color:var(--tx-secondary)">投入成本：'+fmt(totalCost)+'</span>'
+    +'<span style="color:'+totalPlCls+';font-weight:700">損益：'+(totalPl>=0?'+':'')+fmt(Math.round(totalPl))+'</span>'
+    +'</div>'
+    +'<button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%" onclick="fetchStockPrices()">🔄 更新股價</button>';
 }
-
 function toggleSecuritiesField(accType) {
-  const g = document.getElementById('securitiesGroup');
-  if (g) g.style.display = accType === '證券' ? '' : 'none';
+  const g=document.getElementById('securitiesGroup');
+  const ib=document.getElementById('initBalGroup');
+  if(g) g.style.display=accType==='證券'?'':'none';
+  if(ib) ib.style.display=accType==='證券'?'none':'';
 }
-
-// Holdings editor state
-let _editingHoldings = [];
+let _editingHoldings=[];
 function initHoldingsEditor(existing) {
-  _editingHoldings = JSON.parse(JSON.stringify(existing || []));
+  _editingHoldings=JSON.parse(JSON.stringify(existing||[]));
   renderHoldingsEditor();
 }
 function renderHoldingsEditor() {
-  const wrap = document.getElementById('holdingsList'); if (!wrap) return;
-  if (!_editingHoldings.length) {
-    wrap.innerHTML = '<div style="font-size:12px;color:var(--tx-muted)">尚無持股，點「＋ 新增持股」加入</div>';
+  const wrap=document.getElementById('holdingsList'); if(!wrap) return;
+  if(!_editingHoldings.length){
+    wrap.innerHTML='<div style="font-size:12px;color:var(--tx-muted)">尚無持股，點「＋ 新增持股」加入</div>';
     return;
   }
-  wrap.innerHTML = _editingHoldings.map((h, i) => {
-    const perShare = h.shares>0&&h.totalCost>0 ? (h.totalCost/h.shares).toFixed(2) : '';
-    return `
-    <div style="background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:8px">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input class="form-input" style="width:120px;height:34px;font-size:13px;font-family:var(--ff-display);font-weight:700" 
-          placeholder="股票代號" value="${escAttr(h.symbol||'')}" oninput="_editingHoldings[${i}].symbol=this.value">
-        <input class="form-input" style="width:100px;height:34px;font-size:12px" 
-          placeholder="名稱（選填）" value="${escAttr(h.name||'')}" oninput="_editingHoldings[${i}].name=this.value">
-        <button class="btn btn-danger btn-icon btn-sm" style="margin-left:auto" onclick="_editingHoldings.splice(${i},1);renderHoldingsEditor()">✕</button>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:80px">
-          <label style="font-size:10px;color:var(--tx-muted);letter-spacing:.5px">股數</label>
-          <input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" 
-            type="number" placeholder="0" value="${h.shares||''}"
-            oninput="_editingHoldings[${i}].shares=+this.value;renderHoldingsEditor()">
-        </div>
-        <div style="display:flex;flex-direction:column;gap:2px;flex:2;min-width:120px">
-          <label style="font-size:10px;color:var(--tx-muted);letter-spacing:.5px">投入成本金額（NT$）</label>
-          <input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" 
-            type="number" placeholder="0" value="${h.totalCost||''}"
-            oninput="_editingHoldings[${i}].totalCost=+this.value;renderHoldingsEditor()">
-        </div>
-        ${perShare?`<div style="font-size:11px;color:var(--tx-muted);align-self:flex-end;padding-bottom:8px;white-space:nowrap">≈ NT$${Number(perShare).toLocaleString()}/股</div>`:''}
-      </div>
-    </div>`;
+  wrap.innerHTML=_editingHoldings.map((h,i)=>{
+    const perShare=h.shares>0&&h.totalCost>0?(h.totalCost/h.shares).toFixed(1):'';
+    return '<div style="background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:8px">'
+      +'<div style="display:flex;gap:8px;align-items:center">'
+      +'<input class="form-input" style="width:130px;height:34px;font-size:13px;font-family:var(--ff-display);font-weight:700" placeholder="股票代號" value="'+escAttr(h.symbol||'')+'" oninput="_editingHoldings['+i+'].symbol=this.value">'
+      +'<input class="form-input" style="flex:1;height:34px;font-size:12px" placeholder="名稱（選填）" value="'+escAttr(h.name||'')+'" oninput="_editingHoldings['+i+'].name=this.value">'
+      +'<button class="btn btn-danger btn-icon btn-sm" onclick="_editingHoldings.splice('+i+',1);renderHoldingsEditor()">✕</button>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
+      +'<div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:80px">'
+      +'<label style="font-size:10px;color:var(--tx-muted)">股數</label>'
+      +'<input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" type="number" placeholder="0" value="'+(h.shares||'')+'" oninput="_editingHoldings['+i+'].shares=+this.value;renderHoldingsEditor()">'
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:2px;flex:2;min-width:130px">'
+      +'<label style="font-size:10px;color:var(--tx-muted)">投入成本金額（NT$）</label>'
+      +'<input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" type="number" placeholder="0" value="'+(h.totalCost||'')+'" oninput="_editingHoldings['+i+'].totalCost=+this.value;renderHoldingsEditor()">'
+      +'</div>'
+      +(perShare?'<div style="font-size:11px;color:var(--tx-muted);padding-bottom:8px;white-space:nowrap">≈ NT$'+Number(perShare).toLocaleString()+'/股</div>':'')
+      +'</div>'
+      +'</div>';
   }).join('');
 }
 function addHolding() {
-  _editingHoldings.push({ id: uid(), symbol: '', name: '', shares: 0, totalCost: 0 });
+  _editingHoldings.push({id:uid(),symbol:'',name:'',shares:0,totalCost:0});
   renderHoldingsEditor();
 }
 
-// ════════════════════════════════════════════════════════════════
-// switchSettingsTab — extended for theme tab
-// ════════════════════════════════════════════════════════════════
-const _origSwitchTab = typeof switchSettingsTab === 'function' ? switchSettingsTab : null;
-function switchSettingsTab(tab) {
-  document.querySelectorAll('.settings-tab').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.settings-tab-panel').forEach(p => p.classList.remove('active'));
-  const btn = document.getElementById('stab-' + tab);
-  const panel = document.getElementById('spanel-' + tab);
-  if (btn) btn.classList.add('active');
-  if (panel) panel.classList.add('active');
-  // Update header add-button
-  const hdr = document.getElementById('settingsAddBtn');
-  if (hdr) hdr.style.display = tab === 'cat' ? '' : 'none';
-  if (tab === 'theme') { updateThemeCards(); checkStorageCapacity(); }
-  if (tab === 'data') checkStorageCapacity();
+// installment modal type handler (injected via openModal)
+function _openInstallModal(type, id) {
+  ensureInstallments();
+  const inst=id&&type==='editInstall'?DB.installments.find(i=>i.id===id):null;
+  document.getElementById('modalTitle').textContent=inst?'編輯分期':'新增分期追蹤';
+  document.getElementById('modalBody').innerHTML=
+    '<div class="form-group"><label class="form-label">分期名稱</label>'
+    +'<input class="form-input" id="instDesc" value="'+(inst?escAttr(inst.desc):'')+'" placeholder="e.g. MacBook Pro 24期"></div>'
+    +'<div class="form-row">'
+    +'<div class="form-group"><label class="form-label">總金額（NT$）<button type="button" class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px;margin-left:4px" onclick="openCalc(\'instTotal\')">🔢</button></label>'
+    +'<input class="form-input" id="instTotal" type="number" value="'+(inst?inst.totalAmt:'')+'" placeholder="0"></div>'
+    +'<div class="form-group"><label class="form-label">分期期數（月）</label>'
+    +'<input class="form-input" id="instMonths" type="number" min="1" value="'+(inst?inst.months:'')+'" placeholder="12"></div>'
+    +'</div>'
+    +'<div class="form-row">'
+    +'<div class="form-group"><label class="form-label">每月幾號扣款</label>'
+    +'<input class="form-input" id="instDay" type="number" min="1" max="28" value="'+(inst?inst.day||1:1)+'"></div>'
+    +'<div class="form-group"><label class="form-label">類別</label>'
+    +'<select class="form-select" id="instCat">'+catOpts(inst?.category||DB.categories[0]?.id||'')+'</select></div>'
+    +'</div>'
+    +'<div class="form-group"><label class="form-label">扣款帳戶/卡片</label>'
+    +'<select class="form-select" id="instSrc"><option value="">請選擇</option>'+srcOpts('both')+'</select></div>'
+    +'<div class="form-group"><label class="form-label">備註（選填）</label>'
+    +'<input class="form-input" id="instNotes" value="'+(inst?escAttr(inst.notes||''):'')+'" ></div>';
+  document.getElementById('modalFooter').innerHTML=
+    '<button class="btn btn-ghost" onclick="closeModal()">取消</button>'
+    +'<button class="btn btn-primary" onclick="saveInstall()">儲存</button>';
+  document.getElementById('modalOverlay').classList.add('active');
+  setTimeout(()=>{
+    const el=document.getElementById('instSrc');
+    if(el&&inst) el.value=inst.sourceType+'_'+inst.sourceId;
+  },60);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -3056,11 +2929,11 @@ function init() {
 
   // 4. 備份提醒
   checkBackupReminder();
-  // 5. 行動端鍵盤修正
+  // 5. 鍵盤修正
   setupViewportFix();
-  // 6. localStorage 容量檢查
+  // 6. 儲存容量
   checkStorageCapacity();
-  // 7. 股票價格
+  // 7. 股票
   fetchStockPrices();
 }
 document.addEventListener('DOMContentLoaded',init);
@@ -3075,7 +2948,6 @@ document.addEventListener('DOMContentLoaded',init);
     <div class="mbn-item" id="mbn-cards" onclick="mbnNav(this,'cards')">
       <span class="mbn-icon">💳</span><span>信用卡</span>
     </div>
-    <!-- Center FAB Button -->
     <div class="mbn-fab-center" onclick="openQuickAdd()" title="快速記帳">
       <span class="mbn-fab-icon">＋</span>
     </div>
@@ -3103,8 +2975,8 @@ document.addEventListener('DOMContentLoaded',init);
 </div>
 
 <!-- ══ CALCULATOR PANEL ════════════════════════════════════════ -->
-<div id="calcPanel" style="display:none">
-  <div class="calc-overlay" onclick="closeCalc()"></div>
+<div id="calcPanel" style="display:none;position:fixed;inset:0;z-index:9999;display:none;align-items:flex-end;justify-content:center">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.55)" onclick="closeCalc()"></div>
   <div class="calc-box">
     <div class="calc-header">
       <span style="font-family:var(--ff-display);font-size:13px;letter-spacing:1px;color:var(--tx-secondary)">CALCULATOR</span>
