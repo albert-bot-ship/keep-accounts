@@ -1,0 +1,3012 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M WALLET — BMW M POWER 財務管理</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body id="appBody">
+
+<!-- ══ TOP NAV ══════════════════════════════════════════════ -->
+<header class="topnav">
+  <button class="menu-toggle" id="menuToggle">☰</button>
+  <a class="nav-logo" href="#">
+    <div class="nav-logo-badge">M</div>
+    <div>
+      <div class="nav-logo-text">WALLET</div>
+      <span class="nav-logo-sub">BMW M POWER FINANCE</span>
+    </div>
+  </a>
+  <div class="nav-spacer"></div>
+  <div class="nav-month" id="navMonth"></div>
+  <button class="btn-theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切換主題">🌙</button>
+  <button class="nav-add-btn" onclick="openModal('addTxn')">＋ 新增消費</button>
+</header>
+
+<!-- ══ SIDEBAR ═══════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-label">主選單</div>
+  <div class="nav-item active" data-page="dashboard" onclick="nav(this,'dashboard')">
+    <span class="nav-icon">📊</span><span>儀表板</span>
+  </div>
+  <div class="nav-item" data-page="cards" onclick="nav(this,'cards')">
+    <span class="nav-icon">💳</span><span>信用卡</span>
+  </div>
+  <div class="nav-item" data-page="accounts" onclick="nav(this,'accounts')">
+    <span class="nav-icon">🏦</span><span>銀行帳戶</span>
+  </div>
+  <div class="sidebar-label">記帳</div>
+  <div class="nav-item" data-page="txns" onclick="nav(this,'txns')">
+    <span class="nav-icon">📋</span><span>消費記錄</span>
+  </div>
+  <div class="nav-item" data-page="fixed" onclick="nav(this,'fixed')">
+    <span class="nav-icon">🔁</span><span>固定消費</span>
+  </div>
+  <div class="nav-item" data-page="install" onclick="nav(this,'install')">
+    <span class="nav-icon">📅</span><span>分期追蹤</span>
+  </div>
+  <div class="sidebar-label">分析</div>
+  <div class="nav-item" data-page="analytics" onclick="nav(this,'analytics')">
+    <span class="nav-icon">📈</span><span>趨勢分析</span>
+  </div>
+  <div class="sidebar-label">系統</div>
+  <div class="nav-item" data-page="settings" onclick="nav(this,'settings')">
+    <span class="nav-icon">⚙️</span><span>設定 / 類別</span>
+  </div>
+</aside>
+
+<!-- ══ SIDEBAR OVERLAY ══════════════════════════════════════ -->
+<div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+<!-- ══ MAIN ══════════════════════════════════════════════════ -->
+<div class="app-wrapper">
+  <main class="main-content">
+
+    <!-- ─── DASHBOARD ──────────────────────────── -->
+    <section class="page-section active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title">儀表板</div>
+        <div class="dash-filter-bar">
+          <button class="dash-filter-btn active" data-range="month" onclick="setDashRange(this,'month')">本月</button>
+          <button class="dash-filter-btn" data-range="salary" onclick="setDashRange(this,'salary')">本期(8日~隔月5日)</button>
+          <button class="dash-filter-btn" data-range="30" onclick="setDashRange(this,'30')">近30天</button>
+          <button class="dash-filter-btn" data-range="7" onclick="setDashRange(this,'7')">近7天</button>
+          <button class="dash-filter-btn" data-range="today" onclick="setDashRange(this,'today')">今天</button>
+          <button class="dash-filter-btn" data-range="all" onclick="setDashRange(this,'all')">全部</button>
+        </div>
+      </div>
+      <div class="stats-grid" id="dashStats"></div>
+      <div class="grid-2 mt-4">
+        <div>
+          <div class="section-div">
+            <div class="section-div-line"></div>
+            <div class="section-div-label">信用卡總覽</div>
+            <div class="section-div-line"></div>
+          </div>
+          <div id="dashCards"></div>
+        </div>
+        <div>
+          <div class="section-div">
+            <div class="section-div-line"></div>
+            <div class="section-div-label">銀行帳戶總覽</div>
+            <div class="section-div-line"></div>
+          </div>
+          <div id="dashAccounts"></div>
+        </div>
+      </div>
+      <div class="section-div mt-4">
+        <div class="section-div-line"></div>
+        <div class="section-div-label" id="dashRecentLabel">最近消費</div>
+        <div class="section-div-line"></div>
+      </div>
+      <div id="dashRecent"></div>
+    </section>
+
+    <!-- ─── CREDIT CARDS ───────────────────────── -->
+    <section class="page-section" id="page-cards">
+      <div class="page-header">
+        <div class="page-title">信用卡</div>
+        <button class="btn btn-primary" onclick="openModal('addCard')">＋ 新增信用卡</button>
+      </div>
+      <div class="stats-grid" id="ccStats"></div>
+      <div class="cards-grid" id="cardsGrid"></div>
+    </section>
+
+    <!-- ─── BANK ACCOUNTS ──────────────────────── -->
+    <section class="page-section" id="page-accounts">
+      <div class="page-header">
+        <div class="page-title">銀行帳戶</div>
+        <button class="btn btn-primary" onclick="openModal('addAccount')">＋ 新增帳戶</button>
+      </div>
+      <div class="cards-grid" id="accountsGrid"></div>
+    </section>
+
+    <!-- ─── TRANSACTIONS ───────────────────────── -->
+    <section class="page-section" id="page-txns">
+      <div class="page-header">
+        <div class="page-title">消費記錄</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="copyLastTxn()" title="複製最後一筆消費">📋 複製上筆</button>
+          <button class="btn btn-primary" onclick="openModal('addTxn')">＋ 新增記錄</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <div class="table-toolbar" style="flex-wrap:wrap;gap:6px">
+          <input type="text" class="form-input" id="txnSearch" placeholder="🔍 搜尋內容/備註..." style="width:180px" oninput="renderTxns()">
+          <input type="date" class="form-input" id="filterFrom" style="width:135px">
+          <span style="color:var(--tx-muted)">—</span>
+          <input type="date" class="form-input" id="filterTo" style="width:135px">
+          <select class="form-select" id="filterSource" style="width:145px" onchange="renderTxns()">
+            <option value="">全部帳戶/卡片</option>
+          </select>
+          <select class="form-select" id="filterCat" style="width:110px" onchange="renderTxns()">
+            <option value="">全部類別</option>
+          </select>
+          <select class="form-select" id="filterType" style="width:95px" onchange="renderTxns()">
+            <option value="">全部</option>
+            <option value="expense">支出</option>
+            <option value="income">收入</option>
+          </select>
+          <select class="form-select" id="filterTag" style="width:100px" onchange="renderTxns()">
+            <option value="">全部標籤</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="renderTxns()">篩選</button>
+          <div class="table-toolbar-right">
+            <button class="btn btn-ghost btn-sm" id="batchModeBtn" onclick="enterBatchMode()">☑ 批量刪除</button>
+            <button class="btn btn-success btn-sm" onclick="exportExcel()">📥 匯出 Excel</button>
+          </div>
+        </div>
+        <div id="txnTableWrap"></div>
+        <!-- 浮動批量操作列 -->
+        <div id="batchActionBar" style="display:none;position:sticky;bottom:0;z-index:200;
+          background:var(--bg-primary);border-top:2px solid var(--m-blue);
+          padding:10px 16px;display:none;align-items:center;gap:12px;
+          box-shadow:0 -4px 20px rgba(0,0,0,.3)">
+          <input type="checkbox" id="chkAll" onchange="toggleAllChk(this)" style="width:16px;height:16px;cursor:pointer">
+          <span id="batchCountLabel" style="font-size:13px;color:var(--tx-secondary)">已選 <strong id="batchCount" style="color:var(--tx-primary)">0</strong> 筆</span>
+          <span style="flex:1"></span>
+          <button class="btn btn-ghost btn-sm" onclick="exitBatchMode()">取消</button>
+          <button class="btn btn-danger btn-sm" id="batchDelBtn" disabled onclick="batchDelete()">🗑 刪除已選</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── FIXED EXPENSES ─────────────────────── -->
+    <section class="page-section" id="page-fixed">
+      <div class="page-header">
+        <div class="page-title">固定消費</div>
+        <button class="btn btn-primary" onclick="openModal('addFixed')">＋ 新增固定消費</button>
+      </div>
+      <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">每月依照設定日期自動加入消費記錄（當日或已過當日才生成）。</p>
+      <div id="fixedList"></div>
+    </section>
+
+
+    <!-- ─── INSTALLMENTS ─────────────────────── -->
+    <section class="page-section" id="page-install">
+      <div class="page-header">
+        <div class="page-title">分期追蹤</div>
+        <button class="btn btn-primary" onclick="openModal('addInstall')">＋ 新增分期</button>
+      </div>
+      <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">追蹤信用卡分期付款，每月自動生成消費記錄，並顯示剩餘期數與金額。</p>
+      <div id="installList"></div>
+    </section>
+
+    <!-- ─── ANALYTICS ──────────────────────────── -->
+    <section class="page-section" id="page-analytics">
+      <div class="page-header">
+        <div class="page-title">趨勢分析</div>
+        <select class="form-select" id="analyticsYear" style="width:110px" onchange="renderAnalytics()"></select>
+      </div>
+      <div class="stats-grid" id="analyticsStats"></div>
+      <div class="charts-grid-2">
+        <div class="chart-box">
+          <div class="chart-title">月度消費趨勢</div>
+          <canvas id="trendChart" height="200"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">本月類別分布</div>
+          <canvas id="catChart" height="200"></canvas>
+        </div>
+      </div>
+      <div class="chart-box mt-4">
+        <div class="chart-title">各類別年度累計</div>
+        <canvas id="catBarChart" height="120"></canvas>
+      </div>
+    </section>
+
+    <!-- ─── SETTINGS ───────────────────────────── -->
+    <section class="page-section" id="page-settings">
+      <div class="page-header">
+        <div class="page-title">設定</div>
+        <div id="settingsAddBtn">
+          <button class="btn btn-primary" onclick="openModal('addCat')">＋ 新增類別</button>
+        </div>
+      </div>
+
+      <!-- ── Tab 切換列 ── -->
+      <div class="settings-tab-bar">
+        <button class="settings-tab active" id="stab-cat"  onclick="switchSettingsTab('cat')">
+          <span class="stab-icon">🏷</span> 消費類別
+        </button>
+        <button class="settings-tab" id="stab-tag" onclick="switchSettingsTab('tag')">
+          <span class="stab-icon">#</span> 標籤
+        </button>
+        <button class="settings-tab" id="stab-data" onclick="switchSettingsTab('data')">
+          <span class="stab-icon">💾</span> 資料管理
+        </button>
+        <button class="settings-tab" id="stab-theme" onclick="switchSettingsTab('theme')">
+          <span class="stab-icon">🎨</span> 外觀主題
+        </button>
+      </div>
+
+      <!-- ── 類別 Tab ── -->
+      <div class="settings-tab-panel active" id="spanel-cat">
+        <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:14px">設定消費類別與月度預算額度，超過額度時記錄會以紅色警示閃爍顯示。</p>
+        <div id="catList"></div>
+      </div>
+
+      <!-- ── 標籤 Tab ── -->
+      <div class="settings-tab-panel" id="spanel-tag">
+        <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:14px">自訂標籤可在新增消費時多選，方便跨類別篩選（如 #出差、#家用）。</p>
+        <div id="tagList"></div>
+      </div>
+
+      <!-- ── 資料管理 Tab ── -->
+      <div class="settings-tab-panel" id="spanel-data">
+        <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:14px">匯出備份可保存所有帳戶、交易記錄，匯入後完整還原。</p>
+        <div class="flex gap-3" style="flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="exportData()">📤 匯出備份 (.json)</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">📥 匯入備份</button>
+          <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+          <button class="btn btn-danger" onclick="confirmClearAll()">🗑 清除所有資料</button>
+        </div>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--bdr-subtle)">
+          <div style="font-size:12px;color:var(--tx-secondary);margin-bottom:8px">📦 本機儲存空間使用量</div>
+          <div id="storageBar" style="height:8px;background:var(--bg-secondary);border-radius:8px;overflow:hidden;margin-bottom:6px">
+            <div id="storageBarFill" style="height:100%;border-radius:8px;transition:width .6s ease;background:var(--m-blue);width:0%"></div>
+          </div>
+          <div id="storageLabel" style="font-size:11px;color:var(--tx-muted)">計算中...</div>
+        </div>
+      </div>
+
+      <!-- ── 外觀主題 Tab ── -->
+      <div class="settings-tab-panel" id="spanel-theme">
+        <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:14px">選擇外觀主題模式。自動模式依台中（24.15°N）日出/日落時間切換。</p>
+        <div class="theme-mode-grid">
+          <div class="theme-mode-card" id="tcard-auto" onclick="setThemeMode('auto')">
+            <div class="theme-mode-icon">🌗</div>
+            <div class="theme-mode-label">自動</div>
+            <div class="theme-mode-sub">依台中日照自動切換</div>
+          </div>
+          <div class="theme-mode-card" id="tcard-light" onclick="setThemeMode('light')">
+            <div class="theme-mode-icon">☀️</div>
+            <div class="theme-mode-label">淺色</div>
+            <div class="theme-mode-sub">固定使用白天模式</div>
+          </div>
+          <div class="theme-mode-card" id="tcard-dark" onclick="setThemeMode('dark')">
+            <div class="theme-mode-icon">🌙</div>
+            <div class="theme-mode-label">深色</div>
+            <div class="theme-mode-sub">固定使用夜間模式</div>
+          </div>
+        </div>
+        <div id="themeModeStatus" style="margin-top:14px;font-size:12px;color:var(--tx-secondary)"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ══ MODAL ═════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOverlay(event)">
+  <div class="modal" id="modalBox" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle"></div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══════════════════════════════════════════════════ -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════════════════════
+const SK = 'mwallet_v2';
+let DB = loadDB();
+let charts = {};
+let modalType = null, editTarget = null;
+let dashRange = 'month';
+let selectedTxns = new Set();
+
+function defaultDB() {
+  return {
+    creditCards: [], bankAccounts: [], transactions: [],
+    fixedExpenses: [], generatedFixed: {}, installments: [],
+    categories: [
+      { id: uid(), name: '餐飲',   color: '#e31836', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '交通',   color: '#1c69d4', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '購物',   color: '#9b59b6', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '娛樂',   color: '#f39c12', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '醫療',   color: '#27ae60', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '訂閱',   color: '#00bcd4', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '其他',   color: '#7f8c8d', budget: 0, forType:'both',    budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '薪水',   color: '#00C853', budget: 0, forType:'income',  budgetPeriod:'cycle', budgetDays:30 },
+      { id: uid(), name: '獎金',   color: '#f39c12', budget: 0, forType:'income',  budgetPeriod:'cycle', budgetDays:30 },
+    ],
+    userTags: [
+      { id: uid(), name: '出差',   color: '#e67e22' },
+      { id: uid(), name: '家用',   color: '#27ae60' },
+      { id: uid(), name: '個人',   color: '#9b59b6' },
+    ]
+  };
+}
+function loadDB() {
+  try { const r = localStorage.getItem(SK); if (r) return JSON.parse(r); } catch {}
+  return defaultDB();
+}
+function saveDB() { localStorage.setItem(SK, JSON.stringify(DB)); }
+function ensureTags() { if (!DB.userTags) DB.userTags = []; }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function fmt(n) { return 'NT$' + Math.abs(Math.round(n)).toLocaleString('zh-TW'); }
+function fmtDecimal(n, dec=2) { return Math.abs(n).toLocaleString('zh-TW',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function today() { return new Date().toISOString().slice(0,10); }
+function nowYM() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+// 薪水發放日：每月25日，若為六(6)提前2天，若為日(0)提前1天
+function getSalaryDate(year, month) {
+  // month: 0-indexed
+  // 規則：25日若為六或日，提前到當週五；平日（含一）維持25日
+  const d = new Date(year, month, 25);
+  const dow = d.getDay();
+  if (dow === 6) d.setDate(24);      // 六 → 前一天（週五）
+  else if (dow === 0) d.setDate(23); // 日 → 前兩天（週五）
+  // 一～五 → 維持25日不變
+  return d;
+}
+
+// 取得消費週期：每月8日 → 隔月5日
+// 判斷今天屬於哪個週期：
+//   今天 >= 8號 → 本月8日 ～ 下月5日
+//   今天 <= 7號 → 上月8日 ～ 本月5日
+function getSalaryCycle() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
+  const fmt2 = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const todayStr = fmt2(now);
+
+  let fromDate, toDate;
+  if (day >= 8) {
+    // 本月8日 → 下月5日
+    fromDate = new Date(y, m, 8);
+    toDate   = new Date(m === 11 ? y+1 : y, m === 11 ? 0 : m+1, 5);
+  } else {
+    // 上月8日 → 本月5日
+    fromDate = new Date(m === 0 ? y-1 : y, m === 0 ? 11 : m-1, 8);
+    toDate   = new Date(y, m, 5);
+  }
+  // to 取「週期結束日」與「今天」的較小值，避免顯示未來消費
+  const toStr = fmt2(toDate) < todayStr ? fmt2(toDate) : todayStr;
+  return { from: fmt2(fromDate), to: toStr };
+}
+function ym(d) { return (d||'').slice(0,7); }
+function getCat(id) { return DB.categories.find(c=>c.id===id)||{name:'—',color:'#7f8c8d',budget:0}; }
+function getCard(id) { return DB.creditCards.find(c=>c.id===id); }
+function getAcc(id)  { return DB.bankAccounts.find(a=>a.id===id); }
+function v(id) { const el=document.getElementById(id); return el?el.value:''; }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function emptyState(icon,title,desc) {
+  return `<div class="empty-state"><div class="empty-icon">${icon}</div><div class="empty-title">${title||''}</div>${desc?`<div class="empty-desc">${desc}</div>`:''}</div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// THEME — auto sunrise/sunset for Taichung (24.15N, 120.67E)
+// ════════════════════════════════════════════════════════════════
+let manualTheme = localStorage.getItem('mwallet_theme') || 'auto';
+
+function getSunTimes(date) {
+  const lat = 24.15, lng = 120.67;
+  const rad = Math.PI / 180;
+  const N   = Math.floor((date - new Date(date.getFullYear(),0,0)) / 86400000);
+  const B   = (360/365) * (N-81) * rad;
+  const ET  = 9.87*Math.sin(2*B) - 7.53*Math.cos(B) - 1.5*Math.sin(B);
+  const dec = 23.45 * Math.sin(B) * rad;
+  const ha  = Math.acos(-Math.tan(lat*rad)*Math.tan(dec)) / rad;
+  const tz  = 8;
+  const noon = 12 - ET/60 - (lng - tz*15)/15;
+  return { sunrise: noon - ha/15, sunset: noon + ha/15 };
+}
+
+function applyTheme(theme) {
+  const body = document.getElementById('appBody');
+  const btn  = document.getElementById('themeToggle');
+  if (theme === 'light') {
+    body.classList.add('light-theme');
+    if (btn) btn.textContent = '☀️';
+  } else {
+    body.classList.remove('light-theme');
+    if (btn) btn.textContent = '🌙';
+  }
+}
+
+function autoTheme() {
+  if (manualTheme !== 'auto') { applyTheme(manualTheme); return; }
+  const now = new Date();
+  const { sunrise, sunset } = getSunTimes(now);
+  const h = now.getHours() + now.getMinutes()/60;
+  applyTheme((h >= sunrise && h < sunset) ? 'light' : 'dark');
+}
+
+function toggleTheme() {
+  const body = document.getElementById('appBody');
+  const isLight = body.classList.contains('light-theme');
+  if (manualTheme === 'auto') {
+    manualTheme = isLight ? 'dark' : 'light';
+  } else if (manualTheme === 'light') {
+    manualTheme = 'dark';
+  } else {
+    manualTheme = 'auto';
+    toast('已切換為日出/日落自動模式','info');
+  }
+  localStorage.setItem('mwallet_theme', manualTheme);
+  autoTheme();
+}
+
+// ════════════════════════════════════════════════════════════════
+// COMPUTED
+// ════════════════════════════════════════════════════════════════
+function cardBalance(id) {
+  return DB.transactions
+    .filter(t=>t.sourceType==='card'&&t.sourceId===id)
+    .reduce((s,t)=>s+t.amount-(t.fee||0), 0);
+}
+// 信用卡分層：直接取分層的手動輸入金額
+function cardLayerDynamicBalance(cardId, layerId) {
+  const card = getCard(cardId); if (!card) return 0;
+  const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
+  return layer.amount||0;
+}
+function accountBalance(id) {
+  const acc = getAcc(id); if (!acc) return 0;
+  const lay = (acc.layers||[]).reduce((s,l)=>s+(l.amount||0),0);
+  const tx  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===id&&!t.layerId)
+    .reduce((s,t)=>s+t.amount,0);
+  // 有指定分層的交易，其金額已算在 layerDynamicBalance，不要重複加
+  const layerTx = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===id&&t.layerId)
+    .reduce((s,t)=>s+t.amount,0);
+  return lay + tx + layerTx;
+}
+
+// 分層動態餘額 = 初始金額 + 所有標記此分層的交易加減
+function layerDynamicBalance(accId, layerId) {
+  const acc   = getAcc(accId); if (!acc) return 0;
+  const layer = (acc.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
+  const txSum = DB.transactions
+    .filter(t=>t.layerId===layerId)
+    .reduce((s,t)=>s+t.amount, 0);
+  return (layer.amount||0) + txSum;
+}
+function rangedTxns() {
+  const now = new Date();
+  const t0 = today();
+  if (dashRange === 'today')
+    return DB.transactions.filter(t=>t.date===t0);
+  if (dashRange === '7') {
+    const d = new Date(now); d.setDate(d.getDate()-6);
+    const from = d.toISOString().slice(0,10);
+    return DB.transactions.filter(t=>t.date>=from&&t.date<=t0);
+  }
+  if (dashRange === '30') {
+    const d = new Date(now); d.setDate(d.getDate()-29);
+    const from = d.toISOString().slice(0,10);
+    return DB.transactions.filter(t=>t.date>=from&&t.date<=t0);
+  }
+  if (dashRange === 'month')
+    return DB.transactions.filter(t=>ym(t.date)===nowYM());
+  if (dashRange === 'salary') {
+    const { from, to } = getSalaryCycle();
+    return DB.transactions.filter(t=>t.date>=from && t.date<=to);
+  }
+  return DB.transactions;
+}
+function thisMonthCCSpend() {
+  return DB.transactions.filter(t=>t.sourceType==='card'&&t.amount<0&&ym(t.date)===nowYM())
+    .reduce((s,t)=>s+t.amount,0);
+}
+// 依類別設定的週期計算花費
+function catPeriodRange(cat) {
+  const todayStr = today();
+  // 新版：自訂起訖日（startDay/endDay 為每月幾號）
+  if (cat?.budgetStartDay != null && cat?.budgetEndDay != null) {
+    const sd = cat.budgetStartDay, ed = cat.budgetEndDay;
+    const now = new Date(), y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+    const pad2 = n => String(n).padStart(2,'0');
+    let fromDate, toDate;
+    if (sd <= ed) {
+      // 同月區間 e.g. 1→25
+      fromDate = new Date(y, m, sd);
+      toDate   = new Date(y, m, ed);
+      if (d < sd) { fromDate.setMonth(m-1); toDate.setMonth(m-1); }
+    } else {
+      // 跨月區間 e.g. 8→5（下個月）
+      if (d >= sd) {
+        fromDate = new Date(y, m, sd);
+        toDate   = new Date(y, m+1, ed);
+      } else {
+        fromDate = new Date(y, m-1, sd);
+        toDate   = new Date(y, m, ed);
+      }
+    }
+    const toStr = toDate.toISOString().slice(0,10) < todayStr ? toDate.toISOString().slice(0,10) : todayStr;
+    return { from: fromDate.toISOString().slice(0,10), to: toStr };
+  }
+  // 舊版相容
+  const period = cat?.budgetPeriod || 'cycle';
+  if (period === 'cycle') {
+    return getSalaryCycle();
+  } else if (period === 'month') {
+    const now = new Date();
+    return { from: now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-01', to: todayStr };
+  } else if (period === 'week') {
+    const now = new Date();
+    const dow = now.getDay();
+    const mon = new Date(now); mon.setDate(now.getDate() - (dow===0?6:dow-1));
+    return { from: mon.toISOString().slice(0,10), to: todayStr };
+  } else if (period === 'custom') {
+    const days = (cat?.budgetDays||30) - 1;
+    const from = new Date(); from.setDate(from.getDate() - days);
+    return { from: from.toISOString().slice(0,10), to: todayStr };
+  }
+  return getSalaryCycle();
+}
+function catMonthSpend(id) {
+  const cat = getCat(id);
+  const { from, to } = catPeriodRange(cat);
+  return DB.transactions
+    .filter(t=>t.category===id && t.amount<0 && t.date>=from && t.date<=to)
+    .reduce((s,t)=>s+Math.abs(t.amount),0);
+}
+function sourceName(t) {
+  if (t.sourceType==='card') {
+    const c=getCard(t.sourceId); return c?c.name:'已刪除';
+  }
+  if (t.sourceType==='account') {
+    const a=getAcc(t.sourceId); if(!a) return '已刪除';
+    if (t.layerId) {
+      const l=(a.layers||[]).find(l=>l.id===t.layerId);
+      return l ? `${a.name} ／ ${l.label}` : a.name;
+    }
+    return a.name;
+  }
+  return '—';
+}
+// Days until credit card due date
+function daysUntilDue(card) {
+  if (!card.dueDay) return null;
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), card.dueDay);
+  if (d < now) d.setMonth(d.getMonth()+1);
+  return Math.ceil((d - now) / 86400000);
+}
+function daysUntilBilling(card) {
+  if (!card.billingDay) return null;
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), card.billingDay);
+  if (d < now) d.setMonth(d.getMonth()+1);
+  return Math.ceil((d - now) / 86400000);
+}
+// Card monthly cashback
+function cardMonthlyCashback(card) {
+  if (!card.cashbackRate || card.cashbackRate <= 0) return 0;
+  const mSpend = DB.transactions
+    .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.amount<0&&ym(t.date)===nowYM()&&!t.isPayment)
+    .reduce((s,t)=>s+Math.abs(t.amount),0);
+  return Math.floor(mSpend * card.cashbackRate / 100);
+}
+
+// ════════════════════════════════════════════════════════════════
+// FIXED AUTO-GENERATE
+// ════════════════════════════════════════════════════════════════
+function generateFixed() {
+  const now = new Date(), curYM = nowYM(), curDay = now.getDate();
+  if (!DB.generatedFixed[curYM]) DB.generatedFixed[curYM] = [];
+  let added = 0;
+  DB.fixedExpenses.forEach(fe => {
+    if (DB.generatedFixed[curYM].includes(fe.id)) return;
+    if (curDay < fe.day) return;
+    const d = String(Math.min(fe.day,28)).padStart(2,'0');
+    DB.transactions.push({ id:uid(), date:curYM+'-'+d, amount:-Math.abs(fe.amount),
+      desc:fe.desc+'（固定）', category:fe.category, sourceId:fe.sourceId,
+      sourceType:fe.sourceType, notes:fe.notes||'', isFixed:true, fixedId:fe.id,
+      fee:fe.fee||0 });
+    DB.generatedFixed[curYM].push(fe.id);
+    added++;
+  });
+  if (added) { saveDB(); toast('已自動新增 '+added+' 筆固定消費','info'); }
+}
+
+// ════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════════════
+function nav(el, page) {
+  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('sidebar').classList.remove('open');
+  renderPage(page);
+}
+function renderPage(page) {
+  const fn={dashboard:renderDashboard,cards:renderCards,accounts:renderAccounts,
+    txns:renderTxns,fixed:renderFixed,install:renderInstall,analytics:renderAnalytics,settings:renderSettings};
+  if (fn[page]) fn[page]();
+}
+
+// ════════════════════════════════════════════════════════════════
+// NAVIGATE TO SPECIFIC ITEM
+// ════════════════════════════════════════════════════════════════
+function navToItem(page, elementId) {
+  const navEl = document.querySelector(`[data-page="${page}"]`);
+  if (!navEl) return;
+  nav(navEl, page);
+  // scroll to target element after render
+  setTimeout(() => {
+    const el = document.getElementById(elementId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // flash highlight
+      el.classList.add('highlight-pulse');
+      setTimeout(() => el.classList.remove('highlight-pulse'), 1800);
+    }
+  }, 120);
+}
+
+// ════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════════════════════════════
+function setDashRange(el, range) {
+  dashRange = range;
+  document.querySelectorAll('.dash-filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const rtx = rangedTxns();
+  const spend  = Math.abs(rtx.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
+  const income = rtx.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const totalDebt = DB.creditCards.reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
+  const totalBank = DB.bankAccounts.reduce((s,a)=>{
+    if (a.accType === '證券') {
+      const mktVal = (a.holdings||[]).reduce((ss,h)=>{
+        const sp = stockPrices[h.symbol?.toUpperCase()];
+        return ss + (sp ? (h.shares||0)*sp.price : (h.totalCost||0));
+      }, 0);
+      return s + mktVal;
+    }
+    return s + accountBalance(a.id);
+  }, 0);
+  const ccSpend   = Math.abs(thisMonthCCSpend());
+  const salarySum = DB.bankAccounts.reduce((s,a)=>{
+    const l=(a.layers||[]).find(l=>l.label.includes('薪')); return s+(l?l.amount:0);
+  },0);
+  const labels = {month:'本月',salary:'本期(8日~隔月5日)',30:'近30天',7:'近7天',today:'今天',all:'全部'};
+  const lbl = labels[dashRange]||'';
+
+  document.getElementById('dashStats').innerHTML =
+    statCard(lbl+'消費', fmt(-spend), spend>0?'danger':'', '', '💸') +
+    statCard(lbl+'收入', fmt(income), income>0?'success':'', '', '📥') +
+    statCard('信用卡未償還', fmt(-totalDebt), totalDebt>0?'danger':'success', '所有卡片累積', '💳') +
+    statCard('銀行總資產', fmt(totalBank), 'blue', '所有帳戶餘額', '🏦') +
+    statCard('本月剩餘生活費', fmt(salarySum-ccSpend), (salarySum-ccSpend)<0?'danger':(salarySum-ccSpend)<salarySum*0.2?'warning':'success','薪水 − 本月CC消費','💰');
+
+  // CountUp 動畫
+  setTimeout(() => {
+    document.querySelectorAll('#dashStats .stat-val').forEach(el => {
+      const txt = el.textContent;
+      countUp(el, txt, 700);
+    });
+  }, 30);
+
+  document.getElementById('dashCards').innerHTML =
+    DB.creditCards.map(c=>{
+      const bal=cardBalance(c.id);
+      const due=daysUntilDue(c);
+      const dueCls=due!==null?(due<=2?'a-over':due<=5?'a-neg':''):'';
+      return `<div class="layer-bar dash-link" style="border-left:3px solid ${c.color}" onclick="navToItem('cards','card-${c.id}')" title="前往信用卡詳情">
+        <div style="width:8px;height:8px;border-radius:50%;background:${c.color};flex-shrink:0"></div>
+        <span style="flex:1;font-size:13px">${c.name}</span>
+        ${due!==null?`<span class="${dueCls}" style="font-size:11px;margin-right:8px">${due<=0?'今日截止':due+'天後繳款'}</span>`:''}
+        <span class="layer-amt ${bal<0?'a-neg':'a-pos'}">${bal<0?'−':'+'}${fmt(Math.abs(bal))}</span>
+        <span class="dash-link-arrow">›</span>
+      </div>`;
+    }).join('')||emptyState('💳','尚無信用卡');
+
+  document.getElementById('dashAccounts').innerHTML =
+    DB.bankAccounts.map(a=>{
+      const bal=accountBalance(a.id);
+      return `<div class="layer-bar dash-link" style="border-left:3px solid ${a.color}" onclick="navToItem('accounts','account-${a.id}')" title="前往帳戶詳情">
+        <div style="width:8px;height:8px;border-radius:50%;background:${a.color};flex-shrink:0"></div>
+        <span style="flex:1;font-size:13px">${a.name}</span>
+        <span class="layer-amt ${bal<0?'a-neg':'a-pos'}">${fmt(bal)}</span>
+        <span class="dash-link-arrow">›</span>
+      </div>`;
+    }).join('')||emptyState('🏦','尚無銀行帳戶');
+
+  const rangeLabel = {month:'最近消費',salary:'本期(8日~隔月5日)消費',30:'近30天消費',7:'近7天消費',today:'今天消費',all:'全部消費'};
+  document.getElementById('dashRecentLabel').textContent = rangeLabel[dashRange]||'最近消費';
+  const recent = [...rtx].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+  document.getElementById('dashRecent').innerHTML = txnTable(recent, false);
+}
+function statCard(label,val,cls,sub,icon) {
+  return `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value ${cls}">${val}</div>${sub?`<div class="stat-sub">${sub}</div>`:''}<div class="stat-icon">${icon}</div></div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// CREDIT CARDS
+// ════════════════════════════════════════════════════════════════
+function renderCards() {
+  const monthSpend = Math.abs(thisMonthCCSpend());
+  const totalDebt  = DB.creditCards.reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
+  const totalCashback = DB.creditCards.reduce((s,c)=>s+cardMonthlyCashback(c),0);
+
+  document.getElementById('ccStats').innerHTML =
+    statCard('本月信用卡總消費',fmt(-monthSpend),monthSpend>0?'danger':'','本月所有卡片','📊') +
+    statCard('未償還總額',fmt(-totalDebt),totalDebt>0?'danger':'success','全卡片累積負債','💳') +
+    statCard('本月現金回饋',fmt(-totalCashback),'success','所有卡片回饋合計','🎁') +
+    statCard('持卡數量',DB.creditCards.length,'blue','','🃏');
+
+  let html = DB.creditCards.map(c => {
+    const bal     = cardBalance(c.id);
+    const isNeg   = bal < 0;
+    const used    = c.limit>0?Math.min(100,Math.abs(bal)/c.limit*100):0;
+    const icon    = c.icon?`<img src="${c.icon}" alt="">`:'💳';
+    const mSpend  = DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&ym(t.date)===nowYM()&&!t.isPayment).reduce((s,t)=>s+Math.abs(t.amount),0);
+    const cashback= cardMonthlyCashback(c);
+    const due     = daysUntilDue(c);
+    const billing = daysUntilBilling(c);
+    const barColor= used>80?'var(--m-red)':used>50?'var(--warn)':'var(--m-blue)';
+    // 繳款日 badge（紅/橘/綠）
+    const dueCls  = due!==null?(due<=2?'glow-red-txt':due<=5?'orange-txt':'green-txt'):'';
+    const dueHtml = due!==null
+      ? `<div class="due-badge ${dueCls}">${due<=0?'⚠ 今日繳款截止':due<=2?'⚠ '+due+'天後到期':due+'天後繳款'}</div>`
+      : '';
+    // 結帳日 badge（天藍，靠近時慢閃）
+    const bilCls  = billing!==null?(billing<=2?'billing-blink-fast':billing<=5?'billing-blink':''):'';
+    const bilHtml = billing!==null
+      ? `<div class="billing-badge ${bilCls}">${billing<=0?'📋 今日結帳':billing<=2?'📋 '+billing+'天後結帳':'📋 '+billing+'天後結帳'}</div>`
+      : '';
+
+    // 各分層的手動支出金額 + 固定消費依名稱匹配到此分層的金額
+    const layersHtml = (c.layers||[]).map(l=>{
+      const layerAmt = l.amount||0;
+      const feLayerAmt = DB.fixedExpenses
+        .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
+        .flatMap(fe => (fe.layers||[]))
+        .filter(fl => fl.label.trim() === l.label.trim())
+        .reduce((s,fl) => s+(+fl.amount||0), 0);
+      const totalLayerAmt = layerAmt + feLayerAmt;
+      return `<div class="layer-bar">
+        <div class="layer-dot" style="background:${l.color||c.color}"></div>
+        <div style="flex:1;min-width:0">
+          <div class="layer-name">${escHtml(l.label)}</div>
+          ${feLayerAmt>0?`<div style="font-size:10px;color:var(--tx-muted);margin-top:2px">手動 −${fmt(layerAmt)}　固定消費 −${fmt(feLayerAmt)}</div>`:''}
+        </div>
+        <span class="layer-amt" style="color:var(--tx-red);font-weight:700">−${fmt(totalLayerAmt)}</span>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCardLayer','${c.id}',null,null,'${l.id}')">✏️</button>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="delCardLayer('${c.id}','${l.id}')">✕</button>
+      </div>`;
+    }).join('');
+
+    // 消費總額 = 各分層合計（含匹配的固定消費層） + 未匹配分層的固定消費層 + 快速記帳
+    const cardLayerLabels = new Set((c.layers||[]).map(l=>l.label.trim()));
+    const layerTotal = (c.layers||[]).reduce((s,l) => {
+      const own = l.amount||0;
+      const fe  = DB.fixedExpenses
+        .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
+        .flatMap(fe => (fe.layers||[]))
+        .filter(fl => fl.label.trim() === l.label.trim())
+        .reduce((ss,fl) => ss+(+fl.amount||0), 0);
+      return s + own + fe;
+    }, 0);
+    const feUnmappedAmt = DB.fixedExpenses
+      .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
+      .flatMap(fe => (fe.layers||[]))
+      .filter(fl => !cardLayerLabels.has(fl.label.trim()))
+      .reduce((s,fl) => s+(+fl.amount||0), 0);
+    const unlayeredSpend = DB.transactions
+      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.layerId&&!t.isPayment)
+      .reduce((s,t)=>s+Math.abs(t.amount), 0);
+
+    // 所有交易手續費加總（含固定消費生成的交易）
+    const totalCardFees = DB.transactions
+      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&!t.isPayment)
+      .reduce((s,t)=>s+(t.fee||0), 0);
+
+    const totalSpend = layerTotal + feUnmappedAmt + unlayeredSpend + totalCardFees;
+
+    return `<div class="account-card" id="card-${c.id}" onclick="cardClickHandler(event,'card','${c.id}')" style="cursor:pointer">
+      <div class="account-card-header" style="border-top:3px solid ${c.color}">
+        <div class="account-card-icon" style="background:${c.color}22">${icon}</div>
+        <div style="flex:1">
+          <div class="account-card-name">${escHtml(c.name)}</div>
+          <div class="account-card-type">CREDIT CARD${c.limit?'　額度 '+fmt(c.limit):''}${c.billingDay?'　結帳日 '+c.billingDay+'號':''}</div>
+        </div>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCard','${c.id}')">✏️</button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="deleteCard('${c.id}')">🗑</button>
+        </div>
+      </div>
+      <div class="account-card-body">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${(dueHtml||bilHtml)?'4px':'0'}">
+          ${dueHtml}${bilHtml}
+        </div>
+        <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">消費總額</div>
+        <div class="account-balance negative">−${fmt(totalSpend)}</div>
+        <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
+          <div style="font-size:11px;color:var(--tx-secondary)">本月消費：<span style="color:var(--tx-red)">${fmt(-mSpend)}</span></div>
+          ${(c.layers||[]).length>0?`<div style="font-size:11px;color:var(--tx-secondary)">分層：<span style="color:var(--tx-red)">−${fmt(layerTotal)}</span>　快速記帳：<span style="color:var(--tx-red)">−${fmt(unlayeredSpend)}</span>${feUnmappedAmt>0?`　固定(未對應)：<span style="color:var(--tx-red)">−${fmt(feUnmappedAmt)}</span>`:''}</div>`:''}
+          ${totalCardFees>0?`<div style="font-size:11px;color:var(--tx-secondary)">手續費：<span style="color:#e67800">+${fmt(totalCardFees)}</span></div>`:''}
+          ${c.cashbackRate>0?`<div style="font-size:11px;color:var(--tx-secondary)">本月回饋：<span style="color:var(--tx-green)">+${fmt(-cashback)}</span><span style="font-size:10px;color:var(--tx-muted)">（${c.cashbackRate}%）</span></div>`:''}
+        </div>
+        ${c.limit>0?`<div class="prog-wrap mt-2"><div class="prog-bar" style="width:${used}%;background:${barColor}"></div></div><div style="font-size:10px;color:var(--tx-muted);margin-top:3px">已用 ${used.toFixed(0)}%</div>`:''}
+        <div class="m-stripe mt-3"></div>
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);text-transform:uppercase;font-family:var(--ff-display);margin-bottom:6px">消費分層</div>
+        ${layersHtml||'<div style="font-size:12px;color:var(--tx-muted)">尚無分層</div>'}
+      </div>
+      <div class="account-card-footer">
+        <button class="btn btn-sm btn-primary" onclick="openModal('payment','${c.id}')">💸 繳款</button>
+        <button class="btn btn-sm btn-ghost"   onclick="openModal('addTxn',null,'${c.id}')">＋ 消費</button>
+        <button class="btn btn-sm btn-ghost"   onclick="filterByCard('${c.id}')">📋 明細</button>
+        <button class="btn btn-sm btn-violet"  onclick="openModal('addCardLayer','${c.id}')">＋ 分層</button>
+      </div>
+      <div class="card-tap-hint">點擊卡片查看消費明細 ›</div>
+    </div>`;
+  }).join('');
+  html += `<div class="add-card-btn" onclick="openModal('addCard')"><div class="add-card-icon">＋</div><div class="add-card-label">新增信用卡</div></div>`;
+  document.getElementById('cardsGrid').innerHTML = html;
+}
+
+function deleteCard(id) {
+  if (!confirm('確定刪除此信用卡？相關消費記錄也會一併刪除。')) return;
+  DB.creditCards  = DB.creditCards.filter(c=>c.id!==id);
+  DB.transactions = DB.transactions.filter(t=>!(t.sourceType==='card'&&t.sourceId===id));
+  saveDB(); renderCards(); toast('信用卡已刪除','danger');
+}
+// 點擊卡片主體 → 跳轉消費紀錄（避免按鈕被誤觸）
+function cardClickHandler(e, type, id) {
+  // 如果點到 button 或 input，不觸發
+  if (e.target.closest('button,input,select,a,label')) return;
+  if (type === 'card') {
+    const el = document.querySelector('[data-page="txns"]');
+    nav(el, 'txns');
+    setTimeout(() => {
+      document.getElementById('filterSource').value = 'card_' + id;
+      renderTxns();
+    }, 60);
+  } else {
+    const el = document.querySelector('[data-page="txns"]');
+    nav(el, 'txns');
+    setTimeout(() => {
+      document.getElementById('filterSource').value = 'account_' + id;
+      renderTxns();
+    }, 60);
+  }
+}
+
+function filterByCard(cardId) {
+  const el = document.querySelector('[data-page="txns"]');
+  nav(el,'txns');
+  setTimeout(()=>{ document.getElementById('filterSource').value='card_'+cardId; renderTxns(); },60);
+}
+
+// ════════════════════════════════════════════════════════════════
+// BANK ACCOUNTS
+// ════════════════════════════════════════════════════════════════
+function renderAccounts() {
+  const ccSpend = Math.abs(thisMonthCCSpend());
+  let html = DB.bankAccounts.map(a => {
+    const bal  = accountBalance(a.id);
+    const icon = a.icon?`<img src="${a.icon}" alt="">`:'🏦';
+    const salaryLayer = (a.layers||[]).find(l=>l.label.includes('薪'));
+    // 薪水剩餘生活費用動態餘額（初始金額 + 此分層的所有交易增減）
+    const salaryDynamic = salaryLayer ? layerDynamicBalance(a.id, salaryLayer.id) : null;
+    const isLow = a.minBalance>0 && bal<a.minBalance;
+    const mthOut = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount<0&&ym(t.date)===nowYM()).reduce((s,t)=>s+Math.abs(t.amount),0);
+    const mthIn  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount>0&&ym(t.date)===nowYM()).reduce((s,t)=>s+t.amount,0);
+    const typeBadge = a.accType?`<span class="badge badge-blue" style="font-size:9px">${a.accType}</span>`:'';
+    const last4show = a.last4?`<span style="color:var(--tx-muted);font-size:11px;letter-spacing:2px">•••• ${a.last4}</span>`:'';
+    const layersHtml = (a.layers||[]).map(l=>{
+      const dynBal  = layerDynamicBalance(a.id, l.id);
+      const lChange = dynBal - (l.amount||0); // 累積增減
+      const lSpend  = DB.transactions.filter(t=>t.layerId===l.id&&t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0);
+      const lIncome = DB.transactions.filter(t=>t.layerId===l.id&&t.amount>0).reduce((s,t)=>s+t.amount,0);
+      const dynCls  = dynBal < 0 ? 'color:var(--tx-red)' : dynBal < (l.amount||0)*0.2 ? 'color:var(--tx-warning)' : 'color:var(--tx-green)';
+      return `<div class="layer-bar">
+        <div class="layer-dot" style="background:${l.color||a.color}"></div>
+        <div style="flex:1;min-width:0">
+          <div class="layer-name">${escHtml(l.label)}</div>
+          <div style="font-size:10px;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap">
+            <span style="color:var(--tx-muted)">初始：${a.accType==='外幣'&&a.currency?fmtFX(l.amount,a.currency):fmt(l.amount)}</span>
+            ${lSpend>0?`<span style="color:var(--tx-red)">支出 −${fmt(-lSpend)}</span>`:''}
+            ${lIncome>0?`<span style="color:var(--tx-green)">收入 +${fmt(lIncome)}</span>`:''}
+          </div>
+        </div>
+        <span class="layer-amt" style="${dynCls};font-weight:700">${a.accType==='外幣'&&a.currency?fmtFX(dynBal,a.currency):fmt(dynBal)}</span>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editLayer','${a.id}',null,null,'${l.id}')">✏️</button>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="delLayer('${a.id}','${l.id}')">✕</button>
+      </div>`;
+    }).join('');
+
+    return `<div class="account-card${isLow?' low-balance':''}" id="account-${a.id}" onclick="cardClickHandler(event,'account','${a.id}')" style="cursor:pointer">
+      <div class="account-card-header" style="border-top:3px solid ${a.color}">
+        <div class="account-card-icon" style="background:${a.color}22">${icon}</div>
+        <div style="flex:1;min-width:0;overflow:hidden">
+          <div class="account-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(a.name)}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
+            ${typeBadge}
+            <div class="account-card-type">BANK ACCOUNT</div>
+            ${last4show}
+          </div>
+        </div>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editAccount','${a.id}')">✏️</button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="deleteAccount('${a.id}')">🗑</button>
+        </div>
+      </div>
+      <div class="account-card-body">
+        ${(()=>{
+          if (a.accType === '證券') {
+            const holdings = a.holdings || [];
+            const totalCost = holdings.reduce((s,h)=>s+(h.totalCost||0),0);
+            const totalMktVal = holdings.reduce((s,h)=>{
+              const sp = stockPrices[h.symbol?.toUpperCase()];
+              return s + (sp ? (h.shares||0)*sp.price : (h.totalCost||0));
+            }, 0);
+            const hasPrice = holdings.some(h=>stockPrices[h.symbol?.toUpperCase()]);
+            const pl = totalMktVal - totalCost;
+            const plPct = totalCost ? pl/totalCost*100 : 0;
+            const valCls = pl >= 0 ? 'positive' : 'negative';
+            const plCls  = pl >= 0 ? 'color:var(--tx-green)' : 'color:var(--tx-red)';
+            const plSign = pl >= 0 ? '+' : '';
+            return '<div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">持股市值'+(hasPrice?'':' (尚未載入)')+'</div>'
+              + '<div class="account-balance '+valCls+'">' + fmt(Math.round(totalMktVal)) + '</div>'
+              + '<div style="font-size:12px;color:var(--tx-secondary);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap">'
+              + '<span>投入成本：<span style="color:var(--tx-muted)">' + fmt(totalCost) + '</span></span>'
+              + (totalCost>0 ? '<span style="'+plCls+';font-weight:600">'+plSign+fmt(Math.round(pl))+' ('+plSign+plPct.toFixed(1)+'%)</span>' : '')
+              + '</div>';
+          }
+          return '<div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">帳戶餘額'+(a.accType==='外幣'&&a.currency?' ('+a.currency+')':'')+'</div>'
+            + '<div class="account-balance '+(bal<0?'negative':isLow?'warning':'positive')+'">'
+            + (a.accType==='外幣'&&a.currency ? fmtFX(bal,a.currency) : fmt(bal))
+            + '</div>';
+        })()}
+        ${(()=>{
+          if(a.accType!=='外幣'||!a.currency) return '';
+          const rate=getRateTWD(a.currency);
+          if(!rate) return `<div class="fx-rate-badge"><span class="fx-cur">載入匯率中...</span></div>`;
+          const twd=bal*rate;
+          const rateDisplay=['JPY','KRW'].includes(a.currency.toUpperCase())
+            ? `1 ${a.currency} ≈ NT$${rate.toFixed(4)}`
+            : `1 ${a.currency} ≈ NT$${rate.toFixed(2)}`;
+          return `<div class="fx-rate-badge">
+            <span class="fx-cur">${a.currency}</span>
+            <span class="fx-arrow">→</span>
+            <span class="fx-val">${rateDisplay}</span>
+            <span class="fx-twd">≈ NT$${Math.round(twd).toLocaleString()}</span>
+          </div>`;
+        })()}
+        ${isLow?`<div style="font-size:11px;color:var(--warn);margin-top:4px">⚠ 低於最低餘額警示 ${fmt(a.minBalance)}</div>`:''}
+        ${salaryDynamic!==null?`<div style="font-size:11px;color:var(--tx-secondary);margin-top:6px">薪水剩餘生活費：<span style="color:${salaryDynamic<0?'var(--tx-red)':'var(--tx-green)'};font-weight:700">${fmt(salaryDynamic)}</span></div>`:''}
+        <div style="display:flex;gap:16px;margin-top:8px">
+          <div style="font-size:11px;color:var(--tx-secondary)">本月流出：<span style="color:var(--tx-red)">${fmt(-mthOut)}</span></div>
+          <div style="font-size:11px;color:var(--tx-secondary)">本月流入：<span style="color:var(--tx-green)">+${fmt(mthIn)}</span></div>
+        </div>
+        ${a.notes?`<div style="font-size:11px;color:var(--tx-muted);margin-top:4px;font-style:italic">${escHtml(a.notes)}</div>`:''}
+        ${renderStockHoldings(a)}
+        <div class="m-stripe mt-3"></div>
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);text-transform:uppercase;font-family:var(--ff-display);margin-bottom:6px">資金分層</div>
+        ${layersHtml||'<div style="font-size:12px;color:var(--tx-muted)">尚無分層</div>'}
+      </div>
+      <div class="account-card-footer">
+        <button class="btn btn-sm btn-primary" onclick="openModal('addLayer','${a.id}')">＋ 分層</button>
+        <button class="btn btn-sm btn-ghost"   onclick="openModal('addTxn',null,null,'${a.id}')">＋ 記帳</button>
+        <button class="btn btn-sm btn-violet"  onclick="openModal('transfer','${a.id}')">🔄 轉帳</button>
+      </div>
+      <div class="card-tap-hint">點擊卡片查看消費明細 ›</div>
+    </div>`;
+  }).join('');
+  html += `<div class="add-card-btn" onclick="openModal('addAccount')"><div class="add-card-icon">＋</div><div class="add-card-label">新增銀行帳戶</div></div>`;
+  document.getElementById('accountsGrid').innerHTML = html;
+}
+function delCardLayer(cardId, layerId) {
+  if (!confirm('確定刪除此分層？')) return;
+  const c = getCard(cardId); if (!c) return;
+  c.layers = (c.layers||[]).filter(l=>l.id!==layerId);
+  saveDB(); renderCards(); toast('分層已刪除','info');
+}
+function delLayer(accId,layerId) {
+  if (!confirm('確定刪除此分層？')) return;
+  const a=getAcc(accId); if (!a) return;
+  a.layers=a.layers.filter(l=>l.id!==layerId);
+  saveDB(); renderAccounts(); toast('分層已刪除','info');
+}
+function deleteAccount(id) {
+  if (!confirm('確定刪除此帳戶？')) return;
+  DB.bankAccounts = DB.bankAccounts.filter(a=>a.id!==id);
+  DB.transactions = DB.transactions.filter(t=>!(t.sourceType==='account'&&t.sourceId===id));
+  saveDB(); renderAccounts(); toast('帳戶已刪除','danger');
+}
+
+// ════════════════════════════════════════════════════════════════
+// TRANSACTIONS
+// ════════════════════════════════════════════════════════════════
+function renderTxns() {
+  // Populate source filter
+  const srcSel=document.getElementById('filterSource'), oldSrc=srcSel.value;
+  srcSel.innerHTML='<option value="">全部帳戶/卡片</option>';
+  DB.creditCards.forEach(c=>{srcSel.innerHTML+=`<option value="card_${c.id}">[卡] ${escHtml(c.name)}</option>`;});
+  DB.bankAccounts.forEach(a=>{srcSel.innerHTML+=`<option value="account_${a.id}">[帳] ${escHtml(a.name)}</option>`;});
+  srcSel.value=oldSrc;
+  const catSel=document.getElementById('filterCat'), oldCat=catSel.value;
+  catSel.innerHTML='<option value="">全部類別</option>';
+  DB.categories.forEach(c=>{catSel.innerHTML+=`<option value="${c.id}">${escHtml(c.name)}</option>`;});
+  catSel.value=oldCat;
+
+  // Tag filter
+  const tagSel=document.getElementById('filterTag'), oldTag=tagSel?.value||'';
+  if(tagSel){ tagSel.innerHTML='<option value="">全部標籤</option>';
+    (DB.userTags||[]).forEach(tg=>{tagSel.innerHTML+=`<option value="${tg.id}">#${escHtml(tg.name)}</option>`;});
+    tagSel.value=oldTag; }
+
+  const from=v('filterFrom'), to=v('filterTo'), srcVal=srcSel.value,
+        catVal=catSel.value, typeVal=v('filterType'),
+        tagVal=tagSel?.value||'',
+        keyword=(v('txnSearch')||'').toLowerCase().trim();
+
+  let txns=[...DB.transactions].sort((a,b)=>a.date.localeCompare(b.date));
+  if (from)     txns=txns.filter(t=>t.date>=from);
+  if (to)       txns=txns.filter(t=>t.date<=to);
+  if (srcVal)   { const [tp,sid]=srcVal.split('_'); txns=txns.filter(t=>t.sourceType===tp&&t.sourceId===sid); }
+  if (catVal)   txns=txns.filter(t=>t.category===catVal);
+  if (typeVal==='expense') txns=txns.filter(t=>t.amount<0);
+  if (typeVal==='income')  txns=txns.filter(t=>t.amount>0);
+  if (tagVal)   txns=txns.filter(t=>(t.tags||[]).includes(tagVal));
+  if (keyword)  txns=txns.filter(t=>(t.desc||'').toLowerCase().includes(keyword)||(t.notes||'').toLowerCase().includes(keyword));
+
+  _lastTxnTotal = txns.length;
+  const totalPages2 = Math.ceil(txns.length / TXN_PAGE_SIZE);
+  if (txnCurrentPage > totalPages2) txnCurrentPage = Math.max(1, totalPages2);
+  const start2 = (txnCurrentPage - 1) * TXN_PAGE_SIZE;
+  const pagedTxns = txns.slice(start2, start2 + TXN_PAGE_SIZE);
+  document.getElementById('txnTableWrap').innerHTML =
+    txnTable(pagedTxns, true) + renderTxnPager(txns.length);
+  updateBatchUI();
+}
+
+function txnTable(txns, withActions) {
+  if (!txns.length) return emptyState('📋','無消費記錄','點擊「新增記錄」開始記帳');
+  const rows = txns.map(t => {
+    const cat    = getCat(t.category);
+    const spent  = cat.budget>0?catMonthSpend(t.category):0;
+    const isOver = cat.budget>0&&spent>cat.budget&&t.amount<0;
+    const amtCls = t.amount>0?'a-pos':isOver?'a-over':'a-neg';
+    const sign   = t.amount>0?'+':'−';
+    const sysTags = (t.isFixed?'<span class="badge badge-violet" style="margin-left:4px">固定</span>':'')
+                 + (t.isPayment?'<span class="badge badge-green" style="margin-left:4px">繳款</span>':'')
+                 + (t.isTransfer?'<span class="badge badge-blue" style="margin-left:4px">轉帳</span>':'')
+                 + (t.isRedemption?'<span class="badge" style="margin-left:4px;background:#f39c1222;color:#f39c12;border:1px solid #f39c1244">折抵</span>':'');
+    const userTagBadges = (t.tags||[]).map(tid=>{
+      const tg=(DB.userTags||[]).find(x=>x.id===tid);
+      return tg?`<span class="user-tag-badge" style="background:${tg.color}22;color:${tg.color};border:1px solid ${tg.color}66">#${escHtml(tg.name)}</span>`:'';
+    }).join('');
+    const feeBadge = (t.fee&&t.fee>0) ? `<span class="badge" style="margin-left:4px;background:#e6780022;color:#e67800;border:1px solid #e6780055;font-size:9px">手續費 +${fmt(t.fee)}</span>` : '';
+    const tags = sysTags + feeBadge + userTagBadges;
+    const chk = (withActions && batchMode)
+      ? `<td style="width:36px;padding:0 8px"><input type="checkbox" class="txn-chk" data-id="${t.id}" onchange="updateBatchUI()" style="width:16px;height:16px;cursor:pointer" onclick="event.stopPropagation()"></td>`
+      : (withActions ? '<td style="width:36px"></td>' : '');
+    const act = (withActions && !batchMode)
+      ? `<td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editTxn','${t.id}')">✏️</button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="deleteTxn('${t.id}')">🗑</button>
+        </td>`
+      : (withActions ? '<td></td>' : '');
+    const rowClick = batchMode ? `onclick="toggleRowSelect(this)" style="cursor:pointer"` : '';
+    return `<tr class="txn-row" ${rowClick}>
+      ${chk}
+      <td style="white-space:nowrap">${t.date}</td>
+      <td>${escHtml(t.desc)}${tags}</td>
+      <td><span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span></td>
+      <td style="white-space:nowrap">${sourceName(t)}</td>
+      <td class="${amtCls}" style="white-space:nowrap">${sign}${fmt(Math.abs(t.amount))}</td>
+      <td style="color:var(--tx-secondary);font-size:12px">${escHtml(t.notes||'—')}</td>
+      ${act}
+    </tr>`;
+  }).join('');
+  const total = txns.reduce((s,t)=>s+t.amount,0);
+  const cols  = withActions ? 7 : 5;
+  const chkTh = withActions ? '<th style="width:32px"><input type="checkbox" id="chkAll" onchange="toggleAllChk(this)"></th>' : '';
+  const actTh = withActions ? '<th>操作</th>' : '';
+  return `<table>
+    <thead><tr>${chkTh}<th>日期</th><th>內容</th><th>類別</th><th>帳戶/卡片</th><th>金額</th><th>備註</th>${actTh}</tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr style="background:var(--bg-secondary)">
+      ${withActions?'<td></td>':''}
+      <td colspan="4" style="padding:10px 14px;font-size:11px;color:var(--tx-muted)">共 ${txns.length} 筆</td>
+      <td style="padding:10px 14px;font-weight:700;font-family:var(--ff-display);font-size:15px;color:${total<0?'var(--tx-red)':'var(--tx-green)'}">${total>=0?'+':'−'}${fmt(Math.abs(total))}</td>
+      <td colspan="${withActions?2:0}"></td>
+    </tr></tfoot>
+  </table>`;
+}
+
+let batchMode = false;
+
+function enterBatchMode() {
+  batchMode = true;
+  document.getElementById('batchModeBtn').style.display = 'none';
+  const bar = document.getElementById('batchActionBar');
+  bar.style.display = 'flex';
+  // 重繪表格讓 checkbox 欄位出現，並啟用整行點選
+  renderTxns();
+}
+function exitBatchMode() {
+  batchMode = false;
+  document.getElementById('batchModeBtn').style.display = '';
+  const bar = document.getElementById('batchActionBar');
+  bar.style.display = 'none';
+  renderTxns();
+}
+function updateBatchUI() {
+  const chks = document.querySelectorAll('.txn-chk:checked');
+  const all  = document.querySelectorAll('.txn-chk');
+  const cnt  = document.getElementById('batchCount');
+  const btn  = document.getElementById('batchDelBtn');
+  const chkAll = document.getElementById('chkAll');
+  if (cnt) cnt.textContent = chks.length;
+  if (btn) btn.disabled = chks.length === 0;
+  if (chkAll) {
+    chkAll.indeterminate = chks.length > 0 && chks.length < all.length;
+    chkAll.checked = all.length > 0 && chks.length === all.length;
+  }
+  // 選取列高亮
+  document.querySelectorAll('.txn-row').forEach(row => {
+    const cb = row.querySelector('.txn-chk');
+    if (cb) row.classList.toggle('txn-row-selected', cb.checked);
+  });
+}
+function toggleAllChk(el) {
+  document.querySelectorAll('.txn-chk').forEach(c => { c.checked = el.checked; });
+  updateBatchUI();
+}
+function toggleRowSelect(row) {
+  if (!batchMode) return;
+  const cb = row.querySelector('.txn-chk');
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  updateBatchUI();
+}
+function batchDelete() {
+  const ids = [...document.querySelectorAll('.txn-chk:checked')].map(c=>c.dataset.id);
+  if (!ids.length) return;
+  if (!confirm(`確定刪除選取的 ${ids.length} 筆記錄？此操作無法復原。`)) return;
+  DB.transactions = DB.transactions.filter(t=>!ids.includes(t.id));
+  saveDB(); renderTxns(); toast(`已刪除 ${ids.length} 筆記錄`, 'danger');
+  // 清空全選 checkbox 狀態
+  const chkAll = document.getElementById('chkAll');
+  if (chkAll) chkAll.checked = false;
+}
+function copyLastTxn() {
+  const last=[...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date)).find(t=>!t.isPayment&&!t.isTransfer);
+  if (!last) { toast('尚無消費記錄可複製','info'); return; }
+  openModal('addTxn');
+  setTimeout(()=>{
+    const el=document.getElementById('tDate'); if(el) el.value=today();
+    const am=document.getElementById('tAmt'); if(am) am.value=Math.abs(last.amount);
+    const ds=document.getElementById('tDesc'); if(ds) ds.value=last.desc.replace('（固定）','');
+    const ct=document.getElementById('tCat'); if(ct) ct.value=last.category;
+    const sr=document.getElementById('tSrc'); if(sr) sr.value=last.sourceType+'_'+last.sourceId;
+    const tp=document.getElementById('tType'); if(tp) tp.value=last.amount<0?'expense':'income';
+    const nt=document.getElementById('tNotes'); if(nt) nt.value=last.notes||'';
+    toast('已複製上筆消費資訊','info');
+  },80);
+}
+function deleteTxn(id) {
+  if (!confirm('確定刪除？')) return;
+  DB.transactions=DB.transactions.filter(t=>t.id!==id);
+  saveDB(); renderTxns(); toast('記錄已刪除','danger');
+}
+function exportExcel() {
+  const from=v('filterFrom'), to=v('filterTo');
+  let txns=[...DB.transactions].sort((a,b)=>a.date.localeCompare(b.date));
+  if (from) txns=txns.filter(t=>t.date>=from);
+  if (to)   txns=txns.filter(t=>t.date<=to);
+  const data=txns.map(t=>({'日期':t.date,'內容':t.desc,'類別':getCat(t.category).name,'帳戶/卡片':sourceName(t),'金額':t.amount,'備註':t.notes||''}));
+  const ws=XLSX.utils.json_to_sheet(data);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'消費明細');
+  XLSX.writeFile(wb,'MWallet_'+(from||'all')+'_'+(to||'all')+'.xlsx');
+  toast('Excel 匯出成功！','success');
+}
+
+// ════════════════════════════════════════════════════════════════
+// FIXED
+// ════════════════════════════════════════════════════════════════
+function renderFixed() {
+  const cur=nowYM();
+  const total=DB.fixedExpenses.reduce((s,f)=>s+f.amount,0);
+  let html='';
+  if (!DB.fixedExpenses.length) { html=emptyState('🔁','尚無固定消費','新增定期帳單、訂閱等固定支出'); }
+  else {
+    html=`<div class="layer-bar" style="margin-bottom:12px;border-left:3px solid var(--m-blue)">
+      <span style="flex:1;font-family:var(--ff-display);letter-spacing:1px;font-size:12px;color:var(--tx-secondary)">每月固定支出合計</span>
+      <span class="layer-amt a-neg">−${fmt(total)}</span>
+    </div>`;
+    html+=DB.fixedExpenses.map(fe=>{
+      const gen=(DB.generatedFixed[cur]||[]).includes(fe.id);
+      const cat=getCat(fe.category);
+      const src=fe.sourceType==='card'?getCard(fe.sourceId):getAcc(fe.sourceId);
+      const layers=fe.layers||[];
+      const layersHtml = layers.length ? `
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr-subtle);display:flex;flex-direction:column;gap:4px">
+          ${layers.map(l=>`
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px">
+              <div style="width:8px;height:8px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
+              <span style="flex:1;color:var(--tx-secondary)">${escHtml(l.label)}</span>
+              <span style="color:var(--tx-red);font-weight:600">−${fmt(+l.amount||0)}</span>
+            </div>`).join('')}
+        </div>` : '';
+      return `<div class="fe-item" style="flex-direction:column;align-items:stretch;gap:0">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="fe-day">${fe.day}</div>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:13px">${escHtml(fe.desc)}</div>
+            <div style="font-size:11px;color:var(--tx-secondary);margin-top:3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span>
+              ${src?`<span>${escHtml(src.name)}</span>`:''}
+              ${fe.notes?`<span style="color:var(--tx-muted)">${escHtml(fe.notes)}</span>`:''}
+              ${fe.fee>0?`<span class="badge" style="background:#e6780022;color:#e67800;border:1px solid #e6780055;font-size:9px">手續費 +${fmt(fe.fee)}</span>`:''}
+              ${layers.length?`<span class="badge badge-violet" style="font-size:9px">${layers.length} 個分層</span>`:''}
+            </div>
+          </div>
+          <span style="font-family:var(--ff-display);font-weight:700;color:var(--tx-red);margin-right:8px">−${fmt(fe.amount)}</span>
+          <span class="badge ${gen?'badge-green':'badge-gray'}">${gen?'✓ 已生成':'待生成'}</span>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editFixed','${fe.id}')">✏️</button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="deleteFixed('${fe.id}')">🗑</button>
+        </div>
+        ${layersHtml}
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('fixedList').innerHTML=html;
+}
+function deleteFixed(id) {
+  if (!confirm('確定刪除？')) return;
+  DB.fixedExpenses=DB.fixedExpenses.filter(f=>f.id!==id);
+  saveDB(); renderFixed(); toast('固定消費已刪除','danger');
+}
+
+// ════════════════════════════════════════════════════════════════
+// ANALYTICS
+// ════════════════════════════════════════════════════════════════
+function renderAnalytics() {
+  const yearSel=document.getElementById('analyticsYear');
+  if (!yearSel.options.length) {
+    const cur=new Date().getFullYear();
+    const years=new Set(DB.transactions.map(t=>t.date.slice(0,4)));
+    [String(cur-1),String(cur),String(cur+1)].forEach(y=>years.add(y));
+    [...years].sort().forEach(y=>{
+      const o=document.createElement('option');
+      o.value=y; o.textContent=y+' 年'; if(y===String(cur))o.selected=true;
+      yearSel.appendChild(o);
+    });
+  }
+  const year=yearSel.value||String(new Date().getFullYear());
+  const ytx=DB.transactions.filter(t=>t.date.startsWith(year));
+  const ysp=Math.abs(ytx.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
+  const yin=ytx.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const maxCat=DB.categories.reduce((best,c)=>{
+    const v2=Math.abs(ytx.filter(t=>t.category===c.id&&t.amount<0).reduce((s,t)=>s+t.amount,0));
+    return v2>(best.v||0)?{name:c.name,v:v2}:best;
+  },{});
+  document.getElementById('analyticsStats').innerHTML=
+    statCard(year+' 年度總支出',fmt(-ysp),ysp>0?'danger':'','','📉')+
+    statCard(year+' 年度總收入',fmt(yin),yin>0?'success':'','','📈')+
+    statCard('月均消費',fmt(-ysp/12),'warning','','📊')+
+    statCard('最大消費類別',maxCat.name||'—','blue',maxCat.v?fmt(-maxCat.v):'','🏷');
+
+  const months=['01','02','03','04','05','06','07','08','09','10','11','12'];
+  const mLabels=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const mSp=months.map(m=>Math.abs(DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0).reduce((s,t)=>s+t.amount,0)));
+  const mIn=months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount>0).reduce((s,t)=>s+t.amount,0));
+
+  if (charts.trend) charts.trend.destroy();
+  charts.trend=new Chart(document.getElementById('trendChart').getContext('2d'),{
+    type:'line',data:{labels:mLabels,datasets:[
+      {label:'支出',data:mSp,borderColor:'#C8102E',backgroundColor:'rgba(200,16,46,0.1)',tension:.4,fill:true,pointBackgroundColor:'#C8102E',pointRadius:4},
+      {label:'收入',data:mIn,borderColor:'#00C853',backgroundColor:'rgba(0,200,83,0.1)',tension:.4,fill:true,pointBackgroundColor:'#00C853',pointRadius:4}
+    ]},
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8080A8'}}},scales:{x:{ticks:{color:'#8080A8'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#8080A8',callback:v2=>'NT$'+v2.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+
+  const catSp=DB.categories.map(c=>catMonthSpend(c.id));
+  if (charts.cat) charts.cat.destroy();
+  charts.cat=new Chart(document.getElementById('catChart').getContext('2d'),{
+    type:'doughnut',data:{labels:DB.categories.map(c=>c.name),datasets:[{data:catSp,backgroundColor:DB.categories.map(c=>c.color),borderWidth:2,borderColor:'#1A1A2E'}]},
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8080A8',font:{size:11}},position:'bottom'}}}
+  });
+
+  const catYr=DB.categories.map(c=>Math.abs(DB.transactions.filter(t=>t.category===c.id&&t.date.startsWith(year)&&t.amount<0).reduce((s,t)=>s+t.amount,0)));
+  if (charts.catBar) charts.catBar.destroy();
+  charts.catBar=new Chart(document.getElementById('catBarChart').getContext('2d'),{
+    type:'bar',data:{labels:DB.categories.map(c=>c.name),datasets:[{label:'年度支出',data:catYr,backgroundColor:DB.categories.map(c=>c.color+'cc'),borderRadius:5}]},
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8080A8'}}},scales:{x:{ticks:{color:'#8080A8'},grid:{display:false}},y:{ticks:{color:'#8080A8',callback:v2=>'NT$'+v2.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════════════════════════════
+function renderSettings() {
+  const wrap = document.getElementById('catList');
+  if (!DB.categories.length) { wrap.innerHTML=emptyState('🏷','尚無類別'); return; }
+
+  // sectionIdx = 在本區的第幾個, sectionLen = 本區總數
+  function buildCatRow(c, i, sectionIdx, sectionLen) {
+    const spent=catMonthSpend(c.id), isOver=c.budget>0&&spent>c.budget;
+    const pct=c.budget>0?Math.min(100,spent/c.budget*100):0;
+    const iconEl = c.icon
+      ? `<img src="${c.icon}" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0">`
+      : `<div style="width:32px;height:32px;border-radius:8px;background:${c.color};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${c.emoji||'🏷'}</div>`;
+    const periodLabel = (()=>{
+      if (c.budgetStartDay != null && c.budgetEndDay != null) {
+        return `每月${c.budgetStartDay}日～${c.budgetEndDay <= c.budgetStartDay ? '次月' : ''}${c.budgetEndDay}日`;
+      }
+      const p=c.budgetPeriod||'cycle';
+      return {cycle:'本期(8～5日)',month:'本月',week:'本週',custom:(c.budgetDays||30)+'天'}[p]||'本期';
+    })();
+    const barColor = pct>=100?'var(--m-red)':pct>=80?'var(--warn)':'var(--m-blue)';
+    // ▲▼ disabled 以「區內位置」判斷，避免跨區移動
+    const disUp   = sectionIdx===0 ? 'disabled' : '';
+    const disDown = sectionIdx===sectionLen-1 ? 'disabled' : '';
+    return `<div class="cat-row" draggable="true" data-id="${c.id}" data-index="${i}"
+      ondragstart="catDragStart(event,${i})" ondragover="catDragOver(event)" ondrop="catDrop(event,${i})" ondragend="catDragEnd(event)">
+      <span class="cat-drag-handle" title="拖曳排序">⠿</span>
+      ${iconEl}
+      <div class="cat-row-info">
+        <div class="cat-row-name">${escHtml(c.name)}</div>
+        <div class="cat-row-meta">
+          <span class="cat-month-spend">${periodLabel}：${fmt(-spent)}</span>
+          ${c.budget>0?`<span class="badge ${isOver?'badge-red':pct>=80?'badge-warn':'badge-green'}" style="font-size:10px">${isOver?'⚠ 超支':pct>=80?'⚡ 接近上限':'正常'} 上限 ${fmt(-c.budget)}</span>`:'<span class="badge badge-gray" style="font-size:10px">無額度</span>'}
+        </div>
+        ${c.budget>0?`<div class="prog-wrap" style="max-width:180px;margin-top:4px"><div class="prog-bar-gradient" style="width:${pct}%;background:${barColor};transition:width .6s ease,background .4s ease"></div></div>`:''}
+      </div>
+      <div class="cat-row-actions">
+        <button class="btn btn-ghost btn-icon btn-sm cat-move-btn" onclick="moveCatInSection(this,${i},-1)" title="上移" ${disUp}>▲</button>
+        <button class="btn btn-ghost btn-icon btn-sm cat-move-btn" onclick="moveCatInSection(this,${i},1)"  title="下移" ${disDown}>▼</button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCat','${c.id}')">✏️</button>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="deleteCat('${c.id}')">🗑</button>
+      </div>
+    </div>`;
+  }
+
+  const expCats  = DB.categories.map((c,i)=>({c,i})).filter(({c})=>(c.forType||'expense')==='expense');
+  const incCats  = DB.categories.map((c,i)=>({c,i})).filter(({c})=>c.forType==='income');
+  const bothCats = DB.categories.map((c,i)=>({c,i})).filter(({c})=>c.forType==='both');
+
+  function section(label, color, items) {
+    if (!items.length) return '';
+    return `<div class="cat-section-header" style="border-left:3px solid ${color}">
+      <span>${label}</span><span class="cat-section-count">${items.length} 個類別</span>
+    </div>` + items.map(({c,i}, si)=>buildCatRow(c, i, si, items.length)).join('');
+  }
+
+  wrap.innerHTML =
+    section('💸 支出類別', 'var(--m-red)',    expCats) +
+    section('📥 收入類別', 'var(--tx-green)',  incCats) +
+    section('⇄ 兩者通用', 'var(--m-blue)',    bothCats);
+
+  // ── Tag list ──
+  const tagListEl = document.getElementById('tagList');
+  if (tagListEl) {
+    const tgs = DB.userTags||[];
+    tagListEl.innerHTML = tgs.length ? tgs.map(tg=>{
+      const usedCount = DB.transactions.filter(t=>(t.tags||[]).includes(tg.id)).length;
+      return `<div class="cat-row" style="padding:8px 14px">
+        <div style="width:28px;height:28px;border-radius:8px;background:${tg.color};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0">#</div>
+        <div class="cat-row-info">
+          <div class="cat-row-name">#${escHtml(tg.name)}</div>
+          <div class="cat-row-meta"><span class="cat-month-spend">已使用 ${usedCount} 筆</span></div>
+        </div>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editTag','${tg.id}')">✏️</button>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="deleteTag('${tg.id}')">🗑</button>
+      </div>`;
+    }).join('') : '<div style="font-size:12px;color:var(--tx-muted);padding:10px 0">尚無自訂標籤</div>';
+  }
+}
+
+// ── CATEGORY REORDER ─────────────────────────────────────────
+let catDragIdx = null;
+
+// 區內排序（▲▼ 按鈕），不跨類型移動
+function moveCatInSection(btnEl, globalIdx, dir) {
+  const c = DB.categories[globalIdx];
+  if (!c) return;
+  const sameType = DB.categories
+    .map((x,i)=>({x,i}))
+    .filter(({x})=>(x.forType||'expense')===(c.forType||'expense'));
+  const posInSection = sameType.findIndex(({i})=>i===globalIdx);
+  const targetPos = posInSection + dir;
+  if (targetPos < 0 || targetPos >= sameType.length) return;
+  const targetGlobalIdx = sameType[targetPos].i;
+  [DB.categories[globalIdx], DB.categories[targetGlobalIdx]] =
+    [DB.categories[targetGlobalIdx], DB.categories[globalIdx]];
+  saveDB(); renderSettings();
+}
+
+function moveCat(idx, dir) {
+  const to = idx + dir;
+  if (to < 0 || to >= DB.categories.length) return;
+  [DB.categories[idx], DB.categories[to]] = [DB.categories[to], DB.categories[idx]];
+  saveDB(); renderSettings();
+}
+function catDragStart(e, idx) {
+  catDragIdx = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('cat-dragging');
+}
+function catDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect='move'; }
+function catDrop(e, toIdx) {
+  e.preventDefault();
+  if (catDragIdx === null || catDragIdx === toIdx) return;
+  const arr = [...DB.categories];
+  const [item] = arr.splice(catDragIdx, 1);
+  arr.splice(toIdx, 0, item);
+  DB.categories = arr;
+  catDragIdx = null;
+  saveDB(); renderSettings();
+}
+function catDragEnd(e) { e.currentTarget.classList.remove('cat-dragging'); catDragIdx=null; }
+// ── TAG MODAL & CRUD ─────────────────────────────────────────
+function deleteTag(id) {
+  if (!confirm('確定刪除此標籤？')) return;
+  DB.userTags = (DB.userTags||[]).filter(t=>t.id!==id);
+  DB.transactions.forEach(t=>{ if(t.tags) t.tags=t.tags.filter(x=>x!==id); });
+  saveDB(); renderSettings(); toast('標籤已刪除','danger');
+}
+function saveTag() {
+  const name = document.getElementById('tagN').value.trim();
+  const color = v('tagC');
+  if (!name) { toast('請填入標籤名稱','danger'); return; }
+  if (!DB.userTags) DB.userTags=[];
+  if (modalType==='editTag') {
+    Object.assign(DB.userTags.find(t=>t.id===editTarget), {name,color});
+    toast('標籤已更新','success');
+  } else {
+    DB.userTags.push({id:uid(),name,color});
+    toast('標籤新增成功','success');
+  }
+  saveDB(); closeModal(); renderSettings();
+}
+function toggleTxnTag(el, tagId) {
+  const inp = document.getElementById('tTagsVal');
+  if (!inp) return;
+  let arr = JSON.parse(inp.value||'[]');
+  if (arr.includes(tagId)) { arr=arr.filter(x=>x!==tagId); el.classList.remove('active'); }
+  else { arr.push(tagId); el.classList.add('active'); }
+  inp.value = JSON.stringify(arr);
+}
+
+// ════════════════════════════════════════════════════════════════
+// SETTINGS TABS
+// ════════════════════════════════════════════════════════════════
+function switchSettingsTab(tab) {
+  // Toggle tab buttons
+  document.querySelectorAll('.settings-tab').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById('stab-' + tab);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  // Toggle panels
+  document.querySelectorAll('.settings-tab-panel').forEach(p => p.classList.remove('active'));
+  const activePanel = document.getElementById('spanel-' + tab);
+  if (activePanel) activePanel.classList.add('active');
+
+  // Swap the add button
+  const addBtn = document.getElementById('settingsAddBtn');
+  if (!addBtn) return;
+  if (tab === 'cat') {
+    addBtn.innerHTML = `<button class="btn btn-primary" onclick="openModal('addCat')">＋ 新增類別</button>`;
+  } else if (tab === 'tag') {
+    addBtn.innerHTML = `<button class="btn btn-primary" onclick="openModal('addTag')">🏷 新增標籤</button>`;
+  } else {
+    addBtn.innerHTML = '';
+  }
+}
+
+function deleteCat(id) {
+  if (!confirm('確定刪除？')) return;
+  DB.categories=DB.categories.filter(c=>c.id!==id);
+  saveDB(); renderSettings(); toast('類別已刪除','danger');
+}
+function exportData() {
+  const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+  a.download='mwallet_backup_'+today()+'.json'; a.click(); toast('備份匯出成功！','success');
+}
+function importData(e) {
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{try{DB=JSON.parse(ev.target.result);saveDB();toast('匯入成功！','success');renderPage('settings');}catch{toast('匯入失敗','danger');}};
+  r.readAsText(f); e.target.value='';
+}
+function confirmClearAll() {
+  if (!confirm('⚠ 確定清除所有資料？此動作無法復原！')) return;
+  DB=defaultDB(); saveDB(); toast('資料已清除','danger'); renderDashboard();
+}
+
+// ════════════════════════════════════════════════════════════════
+// MODALS
+// ════════════════════════════════════════════════════════════════
+const SWATCHES=['#C8102E','#0057B8','#6F2CA7','#00C853','#FF8F00','#00BCD4','#FF4081','#e67e22','#1abc9c','#795548','#607D8B','#E91E63','#ff6b35','#2ecc71'];
+
+function colorPicker(fid,cur) {
+  cur=cur||'#0057B8';
+  const sw=SWATCHES.map(c=>`<div class="c-swatch${cur===c?' sel':''}" style="background:${c}" onclick="selectColor('${fid}','${c}',this)"></div>`).join('');
+  return `<div class="color-picker-row" id="cpRow_${fid}">
+    ${sw}
+    <div class="c-custom" title="自訂">＋<input type="color" value="${cur}" oninput="selectColor('${fid}',this.value,null)"></div>
+    <input type="hidden" id="${fid}" value="${cur}">
+    <div class="color-preview" id="cpPrev_${fid}" style="background:${cur}"></div>
+  </div>`;
+}
+function selectColor(fid,color,swEl) {
+  const inp=document.getElementById(fid); if(inp) inp.value=color;
+  const prev=document.getElementById('cpPrev_'+fid); if(prev) prev.style.background=color;
+  const row=document.getElementById('cpRow_'+fid);
+  if(row) row.querySelectorAll('.c-swatch').forEach(s=>s.classList.remove('sel'));
+  if(swEl) swEl.classList.add('sel');
+}
+function iconUpload(fid,cur) {
+  cur=cur||'';
+  return `<div>
+    <div class="icon-upload" onclick="document.getElementById('${fid}_inp').click()">
+      ${cur?`<img src="${cur}" id="${fid}_img" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`:`<span id="${fid}_img" style="font-size:22px">🖼</span>`}
+      <input type="file" id="${fid}_inp" accept="image/*" style="display:none" onchange="loadIcon('${fid}',this)">
+    </div>
+    <div style="text-align:center;font-size:9px;color:var(--tx-muted);margin-top:4px">點擊上傳</div>
+    <input type="hidden" id="${fid}" value="${cur}">
+  </div>`;
+}
+function loadIcon(fid,input) {
+  const f=input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    document.getElementById(fid).value=e.target.result;
+    const el=document.getElementById(fid+'_img');
+    if(el&&el.tagName==='SPAN'){const img=document.createElement('img');img.id=fid+'_img';img.src=e.target.result;img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:inherit';el.replaceWith(img);}
+    else if(el) el.src=e.target.result;
+  };
+  r.readAsDataURL(f);
+}
+function srcOpts(type) {
+  let o='';
+  if(type!=='account') DB.creditCards.forEach(c=>{o+=`<option value="card_${c.id}">[卡] ${escHtml(c.name)}</option>`;});
+  if(type!=='card')    DB.bankAccounts.forEach(a=>{o+=`<option value="account_${a.id}">[帳] ${escHtml(a.name)}</option>`;});
+  return o;
+}
+function catOpts(selId, forType) {
+  // forType: 'expense' | 'income' | undefined（顯示全部）
+  const cats = DB.categories.filter(c=>{
+    if (!forType) return true;
+    const ct = c.forType || 'expense'; // 預設為支出類別
+    return ct === forType || ct === 'both';
+  });
+  return cats.map(c=>`<option value="${c.id}"${c.id===selId?' selected':''}>${escHtml(c.name)}</option>`).join('');
+}
+
+function openModal(type,id,preCard,preAcc,extraId) {
+  modalType=type; editTarget=id||null;
+  const overlay=document.getElementById('modalOverlay');
+  document.getElementById('modalBox').className='modal';
+  let t='',b='',f='';
+
+  const c    = id&&type==='editCard'    ?getCard(id):null;
+  const a    = id&&type==='editAccount' ?getAcc(id):null;
+  const txn  = id&&type==='editTxn'    ?DB.transactions.find(x=>x.id===id):null;
+  const fe   = id&&type==='editFixed'  ?DB.fixedExpenses.find(x=>x.id===id):null;
+  const cat  = id&&type==='editCat'    ?DB.categories.find(x=>x.id===id):null;
+  const accL  = (type==='addLayer'    ||type==='editLayer')    ?getAcc(id):null;
+  const layer  = type==='editLayer'   &&accL  ?accL.layers.find(l=>l.id===extraId):null;
+  const cardL  = (type==='addCardLayer'||type==='editCardLayer')?getCard(id):null;
+  const clayer = type==='editCardLayer'&&cardL?(cardL.layers||[]).find(l=>l.id===extraId):null;
+
+  // ── CARD ──
+  if (type==='addCard'||type==='editCard') {
+    t=c?'編輯信用卡':'新增信用卡';
+    b=`<div style="display:flex;gap:14px;align-items:flex-start">
+      ${iconUpload('cIcon',c?.icon||'')}
+      <div style="flex:1">
+        <div class="form-group"><label class="form-label">卡片名稱</label><input class="form-input" id="cName" value="${escAttr(c?.name||'')}" placeholder="e.g. 玉山現金回饋卡"></div>
+        <div class="form-group"><label class="form-label">信用額度（0=不設限）</label><input class="form-input" id="cLimit" type="number" value="${c?.limit||0}"></div>
+      </div>
+    </div>
+    <div class="form-row mt-2">
+      <div class="form-group"><label class="form-label">結帳日（幾號）</label><input class="form-input" id="cBillingDay" type="number" min="1" max="31" value="${c?.billingDay||''}" placeholder="e.g. 25"></div>
+      <div class="form-group"><label class="form-label">繳款截止日（幾號）</label><input class="form-input" id="cDueDay" type="number" min="1" max="31" value="${c?.dueDay||''}" placeholder="e.g. 15"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">現金回饋率（%，0=不追蹤）</label><input class="form-input" id="cCashback" type="number" step="0.1" min="0" value="${c?.cashbackRate||0}" placeholder="e.g. 1.5"></div>
+      <div class="form-group"><label class="form-label">點數換算（1點=NT$）</label><input class="form-input" id="cPtRate" type="number" step="0.01" value="${c?.pointRate||0}" placeholder="e.g. 0.5"></div>
+    </div>
+    <div class="form-group"><label class="form-label">代表顏色</label>${colorPicker('cColor',c?.color||'#C8102E')}</div>`;
+    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCard()">儲存</button>`;
+  }
+
+  // ── ACCOUNT ──
+  else if (type==='addAccount'||type==='editAccount') {
+    t=a?'編輯銀行帳戶':'新增銀行帳戶';
+    b=`<div style="display:flex;gap:14px;align-items:flex-start">
+      ${iconUpload('aIcon',a?.icon||'')}
+      <div style="flex:1">
+        <div class="form-group"><label class="form-label">帳戶名稱</label><input class="form-input" id="aName" value="${escAttr(a?.name||'')}" placeholder="e.g. 台新薪轉帳戶"></div>
+        <div class="form-group"><label class="form-label">帳號後四碼（選填）</label><input class="form-input" id="aLast4" maxlength="4" value="${escAttr(a?.last4||'')}" placeholder="1234"></div>
+      </div>
+    </div>
+    <div class="form-row mt-2">
+      <div class="form-group"><label class="form-label">帳戶類型</label>
+        <select class="form-select" id="aType" onchange="toggleCurrencyField(this.value);toggleSecuritiesField(this.value)">
+          ${['活存','定存','電子帳戶','外幣','證券','其他'].map(t2=>`<option value="${t2}"${(a?.accType||'活存')===t2?' selected':''}>${t2}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">最低餘額警示（0=不設定）</label><input class="form-input" id="aMinBal" type="number" value="${a?.minBalance||0}"></div>
+    </div>
+    <div class="form-group" id="currencyGroup" style="${(a?.accType||'活存')==='外幣'?'':'display:none'}">
+      <label class="form-label">外幣幣別（e.g. USD JPY EUR）</label>
+      <input class="form-input" id="aCurrency" value="${escAttr(a?.currency||'')}" placeholder="USD" style="text-transform:uppercase">
+    </div>
+    <div class="form-group">
+      <label class="form-label">初始餘額（NT$）</label>
+      <input class="form-input" id="aInitBal" type="number" value="${(()=>{if(!a)return 0;const l=(a.layers||[]).find(l=>l.label==='初始餘額');return l?l.amount:0;})()}">
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">
+        ${a?'💡 修改後將更新「初始餘額」分層金額':'💡 將自動建立「初始餘額」分層'}
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">帳戶備註（選填）</label><input class="form-input" id="aNotes" value="${escAttr(a?.notes||'')}" placeholder="e.g. 日常開銷用帳戶"></div>
+    <div id="securitiesGroup" style="display:none">
+      <div class="m-stripe" style="margin:14px 0 10px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:12px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);text-transform:uppercase">持股記錄</div>
+        <button type="button" class="btn btn-sm btn-violet" onclick="addHolding()">＋ 新增持股</button>
+      </div>
+      <div style="font-size:11px;color:var(--tx-secondary);margin-bottom:8px">台股：<strong>2330.TW</strong>　美股：<strong>AAPL</strong>　ETF：<strong>0050.TW</strong></div>
+      <div id="holdingsList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div class="form-group"><label class="form-label">代表顏色</label>${colorPicker('aColor',a?.color||'#0057B8')}</div>`;
+    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveAccount()">儲存</button>`;
+    setTimeout(()=>{ toggleSecuritiesField(a?.accType||'活存'); initHoldingsEditor(a?.holdings||[]); },60);
+  }
+
+  // ── LAYER ──
+  else if (type==='addLayer'||type==='editLayer') {
+    t=layer?'編輯資金分層':'新增資金分層';
+    b=`<input type="hidden" id="lAccId" value="${id}">
+    <input type="hidden" id="lLayId" value="${extraId||''}">
+    <div class="form-group"><label class="form-label">分層名稱</label><input class="form-input" id="lLabel" value="${escAttr(layer?.label||'')}" placeholder="e.g. 薪水、獎金"></div>
+    <div class="form-group"><label class="form-label">金額</label><input class="form-input" id="lAmt" type="number" step="any" value="${layer?.amount||0}"></div>
+    <div class="form-group"><label class="form-label">顏色</label>${colorPicker('lColor',layer?.color||accL?.color||'#0057B8')}</div>`;
+    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveLayer()">儲存</button>`;
+  }
+
+  else if (type==='addCardLayer'||type==='editCardLayer') {
+    t=clayer?'編輯消費分層':'新增消費分層';
+    b=`<input type="hidden" id="clCardId" value="${id}">
+    <input type="hidden" id="clLayId" value="${extraId||''}">
+    <div class="form-group"><label class="form-label">分層名稱</label><input class="form-input" id="clLabel" value="${escAttr(clayer?.label||'')}" placeholder="e.g. 日常、旅遊、餐飲"></div>
+    <div class="form-group">
+      <label class="form-label">支出金額（NT$）</label>
+      <input class="form-input" id="clAmt" type="number" step="any" value="${clayer?.amount||0}">
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 輸入此分層的支出總額，與快速記帳消費合計為信用卡消費總額</div>
+    </div>
+    <div class="form-group"><label class="form-label">顏色</label>${colorPicker('clColor',clayer?.color||cardL?.color||'#C8102E')}</div>`;
+    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCardLayer()">儲存</button>`;
+  }
+
+  // ── TRANSACTION ──
+  else if (type==='addTxn'||type==='editTxn') {
+    t=txn?'編輯消費記錄':'新增消費記錄';
+    const isInc=txn&&txn.amount>0;
+    const preSrc=preCard?'card_'+preCard:preAcc?'account_'+preAcc:txn?txn.sourceType+'_'+txn.sourceId:'';
+    b=`<div class="form-row">
+      <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tDate" type="date" value="${txn?.date||today()}"></div>
+      <div class="form-group"><label class="form-label">類型</label>
+        <select class="form-select" id="tType" onchange="reloadTxnCats(this.value)">
+          <option value="expense"${!isInc?' selected':''}>支出</option>
+          <option value="income"${isInc?' selected':''}>收入</option>
+          <option value="redemption"${txn?.isRedemption?' selected':''}>點數/回饋折抵</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="tAmt" type="number" value="${txn?Math.abs(txn.amount):''}" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="tCat">${catOpts(txn?.category||DB.categories.find(c=>(c.forType||'expense')==='expense')?.id||'', txn?(txn.amount>0?'income':'expense'):undefined)}</select></div>
+    </div>
+    <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="tDesc" value="${escAttr(txn?.desc||'')}" placeholder="e.g. 全聯購物"></div>
+    <div class="form-group"><label class="form-label">帳戶 / 卡片</label>
+      <select class="form-select" id="tSrc" onchange="onTxnSrcChange(this.value)"><option value="">請選擇</option>${srcOpts('both')}</select>
+    </div>
+    <div class="form-group" id="tLayerGroup" style="display:none">
+      <label class="form-label">扣款分層（選填）</label>
+      <select class="form-select" id="tLayer">
+        <option value="">不指定分層</option>
+      </select>
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 選擇後可追蹤每筆消費從哪個分層支出</div>
+    </div>
+    <div class="form-group"><label class="form-label">標籤（選填，可多選）</label>
+      <div class="tag-picker" id="tTagPicker">
+        ${(DB.userTags||[]).map(tg=>`<span class="tag-pick-btn${(txn?.tags||[]).includes(tg.id)?' active':''}" data-id="${tg.id}" style="--tclr:${tg.color}" onclick="toggleTxnTag(this,'${tg.id}')">#${escHtml(tg.name)}</span>`).join('')}
+        ${(DB.userTags||[]).length===0?'<span style="font-size:12px;color:var(--tx-muted)">尚無標籤，請至設定頁新增</span>':''}
+      </div>
+      <input type="hidden" id="tTagsVal" value="${JSON.stringify(txn?.tags||[])}">
+    </div>
+    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tNotes" value="${escAttr(txn?.notes||'')}"></div>
+    <div class="form-group" id="tFeeGroup" style="display:none">
+      <label class="form-label">手續費（NT$，選填）</label>
+      <input class="form-input" id="tFee" type="number" min="0" step="any" value="${txn?.fee||''}" placeholder="0">
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 手續費將另計入信用卡消費總額</div>
+    </div>`;
+    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveTxn()">儲存</button>`;
+    setTimeout(()=>{
+      const el=document.getElementById('tSrc');
+      if(el&&preSrc){ el.value=preSrc; onTxnSrcChange(preSrc, txn?.layerId||''); }
+    },60);
+  }
+
+  // ── PAYMENT ──
+  else if (type==='payment') {
+    const card=getCard(id), bal=cardBalance(id);
+    t='信用卡繳款 — '+(card?.name||'');
+    b=`<input type="hidden" id="pyCardId" value="${id}">
+    <div style="background:var(--err-bg);border:1px solid var(--bdr-red);border-radius:var(--r);padding:14px;margin-bottom:16px">
+      <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">目前欠款</div>
+      <div style="font-family:var(--ff-display);font-size:24px;font-weight:700;color:var(--tx-red)">−${fmt(Math.abs(bal))}</div>
+    </div>
+    <div class="form-group"><label class="form-label">繳款金額（NT$）</label><input class="form-input" id="pyAmt" type="number" value="${Math.abs(bal)}"></div>
+    <div class="form-group"><label class="form-label">從哪個帳戶扣款</label>
+      <select class="form-select" id="pyFrom" onchange="onPayAccChange(this.value)"><option value="">請選擇帳戶</option>${srcOpts('account')}</select>
+    </div>
+    <div class="form-group" id="pyLayerGroup" style="display:none">
+      <label class="form-label">從哪個分層扣款（選填）</label>
+      <select class="form-select" id="pyLayer"><option value="">不指定分層</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">繳款日期</label><input class="form-input" id="pyDate" type="date" value="${today()}"></div>
+    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="pyNotes"></div>`;
+    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-success" onclick="doPayment()">✅ 確認繳款</button>`;
+  }
+
+  // ── TRANSFER ──
+  else if (type==='transfer') {
+    t='帳戶轉帳';
+    const accOpts=DB.bankAccounts.map(a2=>`<option value="${a2.id}"${a2.id===id?' selected':''}>${escHtml(a2.name)}</option>`).join('');
+    b=`<div class="form-group"><label class="form-label">從帳戶</label>
+      <select class="form-select" id="tfFrom" onchange="onTfAccChange('from',this.value)">${accOpts}</select>
+    </div>
+    <div class="form-group" id="tfFromLayerGroup" style="display:none">
+      <label class="form-label">從哪個分層扣款（選填）</label>
+      <select class="form-select" id="tfFromLayer"><option value="">不指定分層</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">到帳戶</label>
+      <select class="form-select" id="tfTo" onchange="onTfAccChange('to',this.value)">${accOpts}</select>
+    </div>
+    <div class="form-group" id="tfToLayerGroup" style="display:none">
+      <label class="form-label">存入哪個分層（選填）</label>
+      <select class="form-select" id="tfToLayer"><option value="">不指定分層</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="tfAmt" type="number" placeholder="0"></div>
+    <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tfDate" type="date" value="${today()}"></div>
+    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tfNotes"></div>`;
+    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-violet" onclick="doTransfer()">🔄 確認轉帳</button>`;
+    // 初始化預選帳戶的分層
+    setTimeout(()=>{
+      onTfAccChange('from', id||DB.bankAccounts[0]?.id||'');
+      const toId = DB.bankAccounts.find(a=>a.id!==id)?.id||'';
+      if(toId) { document.getElementById('tfTo').value=toId; onTfAccChange('to',toId); }
+    },60);
+  }
+
+  // ── INSTALL ──
+  else if (type==='addInstall'||type==='editInstall') {
+    modalType=type; editTarget=id||null;
+    _openInstallModal(type,id); return;
+  }
+
+  // ── FIXED ──
+  else if (type==='addFixed'||type==='editFixed') {
+    t=fe?'編輯固定消費':'新增固定消費';
+    const pFS=fe?fe.sourceType+'_'+fe.sourceId:'';
+    const initLayers = fe?.layers||[];
+    const layersJson = escAttr(JSON.stringify(initLayers));
+    b=`<div class="form-row">
+      <div class="form-group"><label class="form-label">每月幾號</label><input class="form-input" id="feDay" type="number" min="1" max="28" value="${fe?.day||1}"></div>
+      <div class="form-group"><label class="form-label">金額（NT$，無分層時填寫）</label><input class="form-input" id="feAmt" type="number" value="${fe?.amount||0}" id="feAmt" oninput="syncFeTotal()"></div>
+    </div>
+    <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="feDesc" value="${escAttr(fe?.desc||'')}" placeholder="e.g. Netflix"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="feCat">${catOpts(fe?.category||DB.categories[0]?.id||'')}</select></div>
+      <div class="form-group"><label class="form-label">帳戶/卡片</label><select class="form-select" id="feSrc" onchange="toggleFeFee(this.value)"><option value="">請選擇</option>${srcOpts('both')}</select></div>
+    </div>
+    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="feNotes" value="${escAttr(fe?.notes||'')}"></div>
+    <div class="form-group" id="feFeeGroup" style="${fe?.sourceType==='card'||!fe?'':'display:none'}">
+      <label class="form-label">手續費（NT$，選填）</label>
+      <input class="form-input" id="feFee" type="number" min="0" step="any" value="${fe?.fee||''}" placeholder="0">
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 每月自動生成固定消費記錄時，手續費會一併帶入</div>
+    </div>
+    <!-- 分層 -->
+    <div class="m-stripe" style="margin:14px 0 10px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:12px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);text-transform:uppercase">消費分層（選填）</div>
+      <button type="button" class="btn btn-sm btn-violet" onclick="addFeLayer()">＋ 新增分層</button>
+    </div>
+    <div id="feLayerList" style="display:flex;flex-direction:column;gap:8px"></div>
+    <input type="hidden" id="feLayersData" value="${layersJson}">
+    <div id="feTotalHint" style="font-size:11px;color:var(--tx-secondary);margin-top:8px;text-align:right"></div>`;
+    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveFixed()">儲存</button>`;
+    setTimeout(()=>{
+      const el=document.getElementById('feSrc');
+      if(el&&pFS){ el.value=pFS; toggleFeFee(pFS); }
+      renderFeLayers();
+    },60);
+  }
+
+  // ── CATEGORY ──
+  else if (type==='addTag'||type==='editTag') {
+    const tg = id&&type==='editTag' ? (DB.userTags||[]).find(x=>x.id===id) : null;
+    t = tg ? '編輯標籤' : '新增標籤';
+    b = `<div class="form-group"><label class="form-label">標籤名稱（不含 #）</label>
+      <input class="form-input" id="tagN" value="${escAttr(tg?.name||'')}" placeholder="e.g. 出差、家用、個人"></div>
+    <div class="form-group"><label class="form-label">標籤顏色</label>${colorPicker('tagC', tg?.color||'#e67e22')}</div>
+    <div style="font-size:11px;color:var(--tx-secondary);margin-top:8px">預覽：<span class="user-tag-badge" id="tagPreview" style="background:${tg?.color||'#e67e22'}22;color:${tg?.color||'#e67e22'};border:1px solid ${tg?.color||'#e67e22'}66">#${escHtml(tg?.name||'標籤名稱')}</span></div>`;
+    f = `<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveTag()">儲存</button>`;
+  }
+
+  else if (type==='addCat'||type==='editCat') {
+    t=cat?'編輯類別':'新增類別';
+    // 預設值：有新版 startDay 就用，否則從舊版換算
+    const defStart = cat?.budgetStartDay ?? (cat?.budgetPeriod==='month'?1:8);
+    const defEnd   = cat?.budgetEndDay   ?? (cat?.budgetPeriod==='month'?31:5);
+    b=`<div style="display:flex;gap:14px;align-items:flex-start">
+      <div>
+        ${iconUpload('catIcon', cat?.icon||'')}
+        <div style="text-align:center;margin-top:6px">
+          <div class="form-label" style="margin-bottom:4px">Emoji 圖示</div>
+          <input class="form-input" id="catEmoji" value="${escAttr(cat?.emoji||'')}" placeholder="e.g. 🍔" style="width:64px;text-align:center;font-size:18px">
+        </div>
+      </div>
+      <div style="flex:1">
+        <div class="form-group"><label class="form-label">類別名稱</label><input class="form-input" id="catN" value="${escAttr(cat?.name||'')}" placeholder="e.g. 旅遊"></div>
+        <div class="form-group" style="margin:0"><label class="form-label">適用類型</label>
+          <select class="form-select" id="catForType">
+            <option value="expense"${(cat?.forType||'expense')==='expense'?' selected':''}>💸 支出</option>
+            <option value="income"${cat?.forType==='income'?' selected':''}>📥 收入</option>
+            <option value="both"${cat?.forType==='both'?' selected':''}>⇄ 兩者</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-top:10px">
+          <label class="form-label">額度計算區間（每月幾號起 ～ 幾號止）</label>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <input class="form-input" id="catStartDay" type="number" min="1" max="31" value="${defStart}" style="width:70px;text-align:center" placeholder="8">
+            <span style="color:var(--tx-muted);font-size:13px">日 起 ～</span>
+            <input class="form-input" id="catEndDay" type="number" min="1" max="31" value="${defEnd}" style="width:70px;text-align:center" placeholder="5">
+            <span style="color:var(--tx-muted);font-size:13px">日 止</span>
+          </div>
+          <div id="catRangeHint" style="font-size:11px;color:var(--tx-secondary);margin-top:4px"></div>
+        </div>
+        <div class="form-group" style="margin-top:10px"><label class="form-label">消費額度上限（0=不設限）</label><input class="form-input" id="catB" type="number" value="${cat?.budget||0}" placeholder="0"></div>
+        <div class="form-group" style="margin-top:10px"><label class="form-label" style="margin-bottom:6px">類別顏色</label>${colorPicker('catC',cat?.color||'#0057B8')}</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--tx-secondary);margin-top:8px">💡 起日 > 止日 → 跨月週期（如 8～5 = 每月8日起至次月5日）；起日 ≤ 止日 → 同月區間（如 1～31 = 整月）</div>`;
+    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCat()">儲存</button>`;
+    setTimeout(()=>{
+      const s=document.getElementById('catStartDay'), e=document.getElementById('catEndDay');
+      function updateHint(){
+        const sd=+s?.value||1, ed=+e?.value||31;
+        const hint=document.getElementById('catRangeHint');
+        if(!hint) return;
+        if(sd>ed) hint.textContent=`📅 跨月：每月 ${sd} 日 ～ 次月 ${ed} 日`;
+        else      hint.textContent=`📅 同月：每月 ${sd} 日 ～ ${ed} 日`;
+      }
+      if(s) s.addEventListener('input',updateHint);
+      if(e) e.addEventListener('input',updateHint);
+      updateHint();
+    },60);
+  }
+
+  document.getElementById('modalTitle').textContent=t;
+  document.getElementById('modalBody').innerHTML=b;
+  document.getElementById('modalFooter').innerHTML=f;
+  overlay.classList.add('active');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); modalType=null; editTarget=null; }
+function closeModalOverlay(e) { if(e.target===document.getElementById('modalOverlay')) closeModal(); }
+
+// ════════════════════════════════════════════════════════════════
+// SAVE HANDLERS
+// ════════════════════════════════════════════════════════════════
+function saveCard() {
+  const name=document.getElementById('cName').value.trim();
+  if(!name){toast('請填入卡片名稱','danger');return;}
+  const obj={name,color:v('cColor'),icon:v('cIcon'),limit:+v('cLimit')||0,
+    billingDay:+v('cBillingDay')||null, dueDay:+v('cDueDay')||null,
+    cashbackRate:+v('cCashback')||0, pointRate:+v('cPtRate')||0};
+  if(modalType==='editCard'){Object.assign(getCard(editTarget),obj);toast('信用卡已更新','success');}
+  else{DB.creditCards.push({id:uid(),...obj});toast('信用卡新增成功','success');}
+  saveDB();closeModal();renderCards();
+}
+function saveAccount() {
+  const name=document.getElementById('aName').value.trim();
+  if(!name){toast('請填入帳戶名稱','danger');return;}
+  const obj={name,color:v('aColor'),icon:v('aIcon'),
+    last4:(document.getElementById('aLast4')?.value||'').trim(),
+    accType:v('aType')||'活存',minBalance:+v('aMinBal')||0,
+    currency:(document.getElementById('aCurrency')?.value||'').trim().toUpperCase(),
+    notes:(document.getElementById('aNotes')?.value||'').trim(),
+    holdings:v('aType')==='證券'?_editingHoldings.filter(h=>h.symbol):undefined};
+  const initBal = +(document.getElementById('aInitBal')?.value) || 0;
+  if(modalType==='editAccount'){
+    const acc = getAcc(editTarget);
+    Object.assign(acc, obj);
+    // 更新或新增「初始餘額」分層
+    const existLayer = (acc.layers||[]).find(l=>l.label==='初始餘額');
+    if (existLayer) {
+      existLayer.amount = initBal;
+      existLayer.color  = obj.color;
+    } else if (initBal !== 0) {
+      if (!acc.layers) acc.layers = [];
+      acc.layers.unshift({id:uid(),label:'初始餘額',amount:initBal,color:obj.color});
+    }
+    toast('帳戶已更新','success');
+  } else {
+    const layers = initBal ? [{id:uid(),label:'初始餘額',amount:initBal,color:obj.color}] : [];
+    DB.bankAccounts.push({id:uid(),...obj,layers});
+    toast('帳戶新增成功','success');
+  }
+  saveDB();closeModal();renderAccounts();
+}
+function saveCardLayer() {
+  const cardId=v('clCardId'),layId=v('clLayId'),
+        label=document.getElementById('clLabel').value.trim(),
+        amount=parseFloat(document.getElementById('clAmt').value)||0,
+        color=v('clColor');
+  if(!label){toast('請填入分層名稱','danger');return;}
+  const card=getCard(cardId);if(!card)return;
+  if(!card.layers)card.layers=[];
+  if(layId){
+    const l=card.layers.find(x=>x.id===layId);
+    if(l)Object.assign(l,{label,amount,color});
+    toast('分層已更新','success');
+  } else {
+    card.layers.push({id:uid(),label,amount,color});
+    toast('分層新增成功','success');
+  }
+  saveDB();closeModal();renderCards();
+}
+function saveLayer() {
+  const accId=v('lAccId'),layId=v('lLayId'),label=document.getElementById('lLabel').value.trim(),
+        amount=parseFloat(document.getElementById('lAmt').value)||0,color=v('lColor');
+  if(!label){toast('請填入分層名稱','danger');return;}
+  const acc=getAcc(accId);if(!acc)return;
+  if(layId){const l=acc.layers.find(x=>x.id===layId);if(l)Object.assign(l,{label,amount,color});toast('分層已更新','success');}
+  else{acc.layers.push({id:uid(),label,amount,color});toast('分層新增成功','success');}
+  saveDB();closeModal();renderAccounts();
+}
+function saveTxn() {
+  const date=v('tDate'),type=v('tType'),amt=+v('tAmt'),
+        desc=document.getElementById('tDesc').value.trim(),
+        catId=v('tCat'),srcVal=v('tSrc'),notes=v('tNotes'),
+        layerId=v('tLayer')||null,
+        tags=JSON.parse(v('tTagsVal')||'[]'),
+        fee=+(document.getElementById('tFee')?.value)||0;
+  if(!date||!amt||!desc||!srcVal){toast('請填寫完整資訊','danger');return;}
+  const [sType,sId]=srcVal.split('_');
+  const isRed = type==='redemption';
+  const amount = type==='income'||isRed ? Math.abs(amt) : -Math.abs(amt);
+  const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,tags,fee:fee||0};
+  if(modalType==='editTxn'){
+    Object.assign(DB.transactions.find(t=>t.id===editTarget), txnObj);
+    toast('記錄已更新','success');
+  } else {
+    DB.transactions.push({id:uid(),...txnObj,isFixed:false});
+    const cat=getCat(catId);
+    if(cat.budget>0&&amount<0&&catMonthSpend(catId)>cat.budget)toast('⚠ 類別「'+cat.name+'」已超過本月額度！','danger');
+    else toast('記錄新增成功','success');
+  }
+  saveDB();closeModal();renderTxns();
+}
+// 填充分層選單通用函數
+function fillLayerSel(selId, groupId, accId) {
+  const grp = document.getElementById(groupId);
+  const sel = document.getElementById(selId);
+  if (!grp || !sel) return;
+  const layers = getAcc(accId)?.layers || [];
+  if (!layers.length) { grp.style.display='none'; return; }
+  sel.innerHTML = '<option value="">不指定分層</option>' +
+    layers.map(l=>`<option value="${l.id}">${escHtml(l.label)}（${fmt(l.amount)}）</option>`).join('');
+  grp.style.display = '';
+}
+function onPayAccChange(srcVal) {
+  const accId = srcVal.startsWith('account_') ? srcVal.split('_')[1] : srcVal;
+  fillLayerSel('pyLayer','pyLayerGroup', accId);
+}
+function onTfAccChange(side, accId) {
+  if (side==='from') fillLayerSel('tfFromLayer','tfFromLayerGroup', accId);
+  else               fillLayerSel('tfToLayer',  'tfToLayerGroup',   accId);
+}
+
+function doPayment() {
+  const cardId=v('pyCardId'),amt=+v('pyAmt'),fromVal=v('pyFrom'),date=v('pyDate'),notes=v('pyNotes');
+  const layerId = v('pyLayer')||null;
+  if(!amt||!fromVal){toast('請填寫完整資訊','danger');return;}
+  const [,fromId]=fromVal.split('_');
+  const card=getCard(cardId);
+  const lastCat=DB.categories[DB.categories.length-1]?.id||'';
+  DB.transactions.push({id:uid(),date,amount:-Math.abs(amt),desc:'信用卡繳款 — '+(card?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isPayment:true,layerId});
+  DB.transactions.push({id:uid(),date,amount:+Math.abs(amt),desc:'繳款入帳 — '+(card?.name||''),category:lastCat,sourceId:cardId,sourceType:'card',notes,isPayment:true});
+  saveDB();closeModal();renderCards();toast('繳款成功！','success');
+}
+function doTransfer() {
+  const fromId=v('tfFrom'),toId=v('tfTo'),amt=+v('tfAmt'),date=v('tfDate'),notes=v('tfNotes');
+  const fromLayerId = v('tfFromLayer')||null;
+  const toLayerId   = v('tfToLayer')||null;
+  if(!fromId||!toId||!amt){toast('請填寫完整資訊','danger');return;}
+  if(fromId===toId){toast('不能轉帳到相同帳戶','danger');return;}
+  const from=getAcc(fromId),to=getAcc(toId);
+  const lastCat=DB.categories[DB.categories.length-1]?.id||'';
+  DB.transactions.push({id:uid(),date,amount:-Math.abs(amt),desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true,layerId:fromLayerId});
+  DB.transactions.push({id:uid(),date,amount:+Math.abs(amt),desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true,layerId:toLayerId});
+  saveDB();closeModal();renderAccounts();toast('轉帳成功！','success');
+}
+// ════════════════════════════════════════════════════════════════
+// 固定消費分層管理（Modal 內 inline）
+// ════════════════════════════════════════════════════════════════
+function toggleFeFee(srcVal) {
+  const g = document.getElementById('feFeeGroup');
+  if (g) g.style.display = srcVal.startsWith('card_') ? '' : 'none';
+}
+function getFeLayersData() {
+  try { return JSON.parse(document.getElementById('feLayersData')?.value||'[]'); } catch{ return []; }
+}
+function setFeLayersData(arr) {
+  const el=document.getElementById('feLayersData'); if(el) el.value=JSON.stringify(arr);
+}
+function renderFeLayers() {
+  const layers = getFeLayersData();
+  const wrap = document.getElementById('feLayerList'); if (!wrap) return;
+  if (!layers.length) {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--tx-muted)">尚無分層，點「＋ 新增分層」加入</div>';
+    syncFeTotal(); return;
+  }
+  wrap.innerHTML = layers.map((l, i) => `
+    <div class="layer-bar" style="gap:8px;align-items:center">
+      <div style="width:12px;height:12px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
+      <input class="form-input" style="flex:1;min-width:80px;height:32px;font-size:13px" value="${escAttr(l.label)}"
+        placeholder="分層名稱（需與信用卡分層同名才能自動對應）" oninput="updateFeLayer(${i},'label',this.value)">
+      <input class="form-input" style="width:90px;height:32px;font-size:13px;text-align:right" type="number" value="${l.amount||0}"
+        placeholder="金額" oninput="updateFeLayer(${i},'amount',+this.value)">
+      <span style="font-size:11px;color:var(--tx-muted)">NT$</span>
+      <input type="color" value="${l.color||'#C8102E'}" style="width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;background:none"
+        oninput="updateFeLayer(${i},'color',this.value)">
+      <button class="btn btn-danger btn-icon btn-sm" onclick="removeFeLayer(${i})">✕</button>
+    </div>`).join('');
+  syncFeTotal();
+}
+function addFeLayer() {
+  const layers=getFeLayersData();
+  layers.push({label:'',amount:0,color:SWATCHES[layers.length%SWATCHES.length]});
+  setFeLayersData(layers); renderFeLayers();
+}
+function removeFeLayer(idx) {
+  const layers=getFeLayersData(); layers.splice(idx,1);
+  setFeLayersData(layers); renderFeLayers();
+}
+function updateFeLayer(idx,key,val) {
+  const layers=getFeLayersData(); if(!layers[idx]) return;
+  layers[idx][key]=val; setFeLayersData(layers); syncFeTotal();
+}
+function syncFeTotal() {
+  const layers=getFeLayersData();
+  const hint=document.getElementById('feTotalHint'); if(!hint) return;
+  if (!layers.length) { hint.textContent=''; return; }
+  const total=layers.reduce((s,l)=>s+(+l.amount||0),0);
+  hint.innerHTML=`分層合計：<strong style="color:var(--tx-red)">−${fmt(total)}</strong>　（儲存後將以此金額生成固定消費記錄）`;
+  // 自動同步到金額欄位
+  const amtEl=document.getElementById('feAmt'); if(amtEl) amtEl.value=total;
+}
+
+function saveFixed() {
+  const day=+v('feDay'),desc=document.getElementById('feDesc').value.trim(),
+        catId=v('feCat'),srcVal=v('feSrc'),notes=v('feNotes'),
+        fee=+(document.getElementById('feFee')?.value)||0;
+  const layers=getFeLayersData().filter(l=>l.label.trim());
+  const amt = layers.length ? layers.reduce((s,l)=>s+(+l.amount||0),0) : +v('feAmt');
+  if(!day||!amt||!desc||!srcVal){toast('請填寫完整資訊（含金額或分層）','danger');return;}
+  const [sType,sId]=srcVal.split('_');
+  const obj={day,amount:amt,desc,category:catId,sourceId:sId,sourceType:sType,notes,layers,fee:fee||0};
+  if(modalType==='editFixed'){Object.assign(DB.fixedExpenses.find(f=>f.id===editTarget),obj);toast('固定消費已更新','success');}
+  else{DB.fixedExpenses.push({id:uid(),...obj});toast('固定消費新增成功','success');}
+  saveDB();closeModal();renderFixed();
+}
+function saveCat() {
+  const name=document.getElementById('catN').value.trim(),budget=+v('catB')||0,color=v('catC');
+  const icon=(document.getElementById('catIcon')?.value)||'';
+  const emoji=(document.getElementById('catEmoji')?.value||'').trim();
+  const forType=v('catForType')||'expense';
+  const budgetStartDay=+(document.getElementById('catStartDay')?.value)||8;
+  const budgetEndDay  =+(document.getElementById('catEndDay')?.value)||5;
+  if(!name){toast('請填入類別名稱','danger');return;}
+  const obj={name,budget,color,icon,emoji,forType,budgetStartDay,budgetEndDay};
+  if(modalType==='editCat'){Object.assign(DB.categories.find(c=>c.id===editTarget),obj);toast('類別已更新','success');}
+  else{DB.categories.push({id:uid(),...obj});toast('類別新增成功','success');}
+  saveDB();closeModal();renderSettings();
+}
+
+// ════════════════════════════════════════════════════════════════
+// 行動版底部導覽列
+// ════════════════════════════════════════════════════════════════
+function mbnNav(el, page) {
+  document.querySelectorAll('.mbn-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  // 同步側欄高亮
+  const sideEl = document.querySelector(`[data-page="${page}"]`);
+  if (sideEl) nav(sideEl, page);
+  else {
+    document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
+    document.getElementById('page-'+page)?.classList.add('active');
+    renderPage(page);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// CountUp 數字動畫
+// ════════════════════════════════════════════════════════════════
+function countUp(el, targetText, duration=600) {
+  if (!el) return;
+  // 抓出數字部分
+  const match = targetText.replace(/,/g,'').match(/[\d.]+/);
+  if (!match) { el.textContent = targetText; return; }
+  const target = parseFloat(match[0]);
+  const prefix = targetText.slice(0, targetText.indexOf(match[0]));
+  const suffix = targetText.slice(targetText.indexOf(match[0]) + match[0].length);
+  const start = performance.now();
+  const from  = 0;
+  function step(now) {
+    const p = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3); // easeOutCubic
+    const cur = Math.round(from + (target - from) * ease);
+    el.textContent = prefix + cur.toLocaleString('zh-TW') + suffix;
+    if (p < 1) requestAnimationFrame(step);
+    else el.textContent = targetText;
+  }
+  requestAnimationFrame(step);
+}
+
+// ════════════════════════════════════════════════════════════════
+// Toast 退場動畫
+// ════════════════════════════════════════════════════════════════
+function toast(msg,type) {
+  const icons={success:'✅',danger:'❌',info:'ℹ️',warn:'⚠️'};
+  const el=document.createElement('div');
+  el.className='toast '+(type||'info');
+  el.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  document.getElementById('toastWrap').prepend(el);
+  setTimeout(()=>{
+    el.classList.add('fade-out');
+    setTimeout(()=>el.remove(), 320);
+  }, 3200);
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+// HELPERS FOR MODALS
+// ════════════════════════════════════════════════════════════════
+
+// 切換支出/收入時，重載類別選項
+function reloadTxnCats(typeVal) {
+  const sel = document.getElementById('tCat'); if (!sel) return;
+  const forType = typeVal === 'income' ? 'income' : 'expense';
+  const cur = sel.value;
+  sel.innerHTML = catOpts(cur, forType);
+  // 若原來選的類別不在新清單裡，自動選第一個
+  if (!sel.value) sel.selectedIndex = 0;
+}
+function reloadQaCats(typeVal) {
+  const sel = document.getElementById('qaCat'); if (!sel) return;
+  const forType = typeVal === 'income' ? 'income' : 'expense';
+  const cur = sel.value;
+  sel.innerHTML = catOpts(cur, forType);
+  if (!sel.value) sel.selectedIndex = 0;
+}
+function toggleCustomDays(period) {
+  const el = document.getElementById('customDaysGroup');
+  if (el) el.style.display = period === 'custom' ? '' : 'none';
+}
+
+// 帳戶來源切換時，動態顯示分層選單
+function onTxnSrcChange(srcVal, preLayerId) {
+  const group = document.getElementById('tLayerGroup');
+  const sel   = document.getElementById('tLayer');
+  const feeGroup = document.getElementById('tFeeGroup');
+  if (!group || !sel) return;
+
+  // 手續費欄位：只在信用卡來源時顯示
+  if (feeGroup) feeGroup.style.display = srcVal.startsWith('card_') ? '' : 'none';
+
+  if (!srcVal) { group.style.display='none'; return; }
+
+  let layers = [];
+  if (srcVal.startsWith('account_')) {
+    const accId = srcVal.split('_')[1];
+    layers = getAcc(accId)?.layers || [];
+  } else if (srcVal.startsWith('card_')) {
+    const cardId = srcVal.split('_')[1];
+    layers = getCard(cardId)?.layers || [];
+  }
+
+  if (!layers.length) { group.style.display='none'; return; }
+  sel.innerHTML = '<option value="">不指定分層</option>' +
+    layers.map(l =>
+      `<option value="${l.id}"${l.id===preLayerId?' selected':''}>${l.label}${l.amount?'（'+fmt(l.amount)+'）':''}</option>`
+    ).join('');
+  if (preLayerId) sel.value = preLayerId;
+  group.style.display = '';
+}
+function toggleCurrencyField(accType) {
+  const el = document.getElementById('currencyGroup');
+  if (el) el.style.display = accType === '外幣' ? '' : 'none';
+}
+
+// ════════════════════════════════════════════════════════════════
+// 1. 繳款提醒推播
+// ════════════════════════════════════════════════════════════════
+function requestNotifyPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function checkDueNotifications() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = new Date();
+  DB.creditCards.forEach(card => {
+    if (!card.dueDay) return;
+    const days = daysUntilDue(card);
+    if (days === null) return;
+    const notifyKey = 'mwallet_notified_' + card.id + '_' + nowYM();
+    if (days <= 5 && days >= 0 && !sessionStorage.getItem(notifyKey)) {
+      const msg = days === 0
+        ? `${card.name} 今日繳款截止！`
+        : `${card.name} 還有 ${days} 天到繳款截止日，欠款 ${fmt(Math.abs(cardBalance(card.id)))}`;
+      new Notification('M WALLET 繳款提醒', {
+        body: msg,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%230057B8"/><text y="44" x="10" font-size="40" fill="white">M</text></svg>'
+      });
+      sessionStorage.setItem(notifyKey, '1');
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// 2. 快速記帳 FAB
+// ════════════════════════════════════════════════════════════════
+function openQuickAdd() {
+  const overlay = document.getElementById('modalOverlay');
+  document.getElementById('modalBox').className = 'modal';
+  modalType = 'quickAdd'; editTarget = null;
+
+  const srcOpts2 = () => {
+    let o = '';
+    DB.creditCards.forEach(c2  => { o += `<option value="card_${c2.id}">[卡] ${escHtml(c2.name)}</option>`; });
+    DB.bankAccounts.forEach(a2 => { o += `<option value="account_${a2.id}">[帳] ${escHtml(a2.name)}</option>`; });
+    return o;
+  };
+
+  document.getElementById('modalTitle').textContent = '⚡ 快速記帳';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="form-group" style="margin:0">
+        <label class="form-label">金額（NT$）</label>
+        <input class="form-input" id="qaAmt" type="number" placeholder="0" autofocus
+          style="font-size:22px;font-weight:700;font-family:var(--ff-display)">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label">類型</label>
+        <select class="form-select" id="qaType" onchange="reloadQaCats(this.value)">
+          <option value="expense">支出</option>
+          <option value="income">收入</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">消費內容</label>
+      <input class="form-input" id="qaDesc" placeholder="e.g. 午餐、計程車">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group" style="margin:0">
+        <label class="form-label">類別</label>
+        <select class="form-select" id="qaCat">${catOpts(DB.categories[0]?.id||'')}</select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label">帳戶/卡片</label>
+        <select class="form-select" id="qaSrc" onchange="onQaSrcChange(this.value)">
+          <option value="">請選擇</option>${srcOpts2()}
+        </select>
+      </div>
+    </div>
+    <div class="form-group" id="qaLayerGroup" style="display:none">
+      <label class="form-label">扣款分層（選填）</label>
+      <select class="form-select" id="qaLayer">
+        <option value="">不指定分層</option>
+      </select>
+    </div>
+    <input type="hidden" id="qaDate" value="${today()}">
+  `;
+  document.getElementById('modalFooter').innerHTML =
+    `<button class="btn btn-ghost" onclick="closeModal()">取消</button>
+     <button class="btn btn-primary" style="min-width:100px" onclick="saveQuickAdd()">✅ 記帳</button>`;
+  overlay.classList.add('active');
+  setTimeout(() => { const el = document.getElementById('qaAmt'); if(el) el.focus(); }, 80);
+}
+
+// 快速記帳帳戶切換 → 動態顯示分層
+function onQaSrcChange(srcVal) {
+  const group = document.getElementById('qaLayerGroup');
+  const sel   = document.getElementById('qaLayer');
+  if (!group || !sel) return;
+  if (!srcVal || !srcVal.startsWith('account_')) {
+    group.style.display = 'none'; return;
+  }
+  const acc = getAcc(srcVal.split('_')[1]);
+  const layers = acc?.layers || [];
+  if (!layers.length) { group.style.display = 'none'; return; }
+  sel.innerHTML = '<option value="">不指定分層</option>' +
+    layers.map(l => `<option value="${l.id}">${escHtml(l.label)}（${fmt(l.amount)}）</option>`).join('');
+  group.style.display = '';
+}
+
+function saveQuickAdd() {
+  const amt    = +v('qaAmt');
+  const desc   = (document.getElementById('qaDesc')?.value||'').trim() || '快速記帳';
+  const catId  = v('qaCat');
+  const srcVal = v('qaSrc');
+  const type   = v('qaType');
+  const layerId= v('qaLayer') || null;
+  if (!amt || !srcVal) { toast('請填入金額並選擇帳戶','danger'); return; }
+  const [sType, sId] = srcVal.split('_');
+  const amount = type === 'income' ? Math.abs(amt) : -Math.abs(amt);
+  DB.transactions.push({
+    id:uid(), date:today(), amount, desc, category:catId,
+    sourceId:sId, sourceType:sType, notes:'', isFixed:false, tags:[], layerId
+  });
+  const cat = getCat(catId);
+  if (cat.budget>0 && amount<0 && catMonthSpend(catId)>cat.budget)
+    toast('⚠ 類別「'+cat.name+'」已超過本月額度！','danger');
+  const layerName = layerId ? (getAcc(sId)?.layers||[]).find(l=>l.id===layerId)?.label : null;
+  const successMsg = layerName
+    ? `✅ 已記帳 ${fmt(Math.abs(amt))}（${layerName}）`
+    : `✅ 記帳成功：${fmt(Math.abs(amt))}`;
+  saveDB(); closeModal(); renderDashboard(); toast(successMsg,'success');
+}
+
+// ════════════════════════════════════════════════════════════════
+// 3. 匯率換算
+// ════════════════════════════════════════════════════════════════
+let exchangeRates = {};
+
+async function fetchExchangeRates() {
+  const CACHE_KEY = 'mwallet_rates';
+  const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 小時才重新抓
+
+  // ① 先讀快取，立即渲染，不等 API
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (cached) {
+    try {
+      const d = JSON.parse(cached);
+      exchangeRates = d.rates;
+      renderAccounts();
+      // 快取還新鮮 → 不重抓
+      if (Date.now() - d.ts < CACHE_TTL) return;
+    } catch {}
+  }
+
+  // ② 背景更新匯率（CDN 快取，台灣取速度快）
+  // 來源：fawazahmed0/currency-api via jsDelivr CDN
+  // 回傳格式：{ twd: { usd: 0.0312, jpy: 4.72, ... } }
+  const URLS = [
+    'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/twd.json',
+    'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/twd.min.json',
+  ];
+
+  for (const url of URLS) {
+    try {
+      const res  = await fetch(url, { cache: 'no-store' });
+      const data = await res.json();
+      const twd  = data.twd || data; // 格式保險
+      if (!twd || typeof twd !== 'object') continue;
+
+      exchangeRates = { TWD: 1 };
+      Object.entries(twd).forEach(([cur, rate]) => {
+        // rate = 1 TWD → X cur，所以 1 cur = 1/rate TWD
+        if (typeof rate === 'number' && rate > 0) {
+          exchangeRates[cur.toUpperCase()] = 1 / rate;
+        }
+      });
+
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), rates: exchangeRates }));
+      renderAccounts();
+      return; // 成功就停
+    } catch {}
+  }
+  // 所有來源都失敗 → 沿用快取，靜默忽略
+}
+
+// 1 unit of currency → TWD amount
+function getRateTWD(currency) {
+  if (!currency || currency === 'TWD') return 1;
+  return exchangeRates[currency.toUpperCase()] || null;
+}
+
+// Format foreign currency with proper decimals
+function fmtFX(amount, currency) {
+  if (!currency || currency === 'TWD') return fmt(amount);
+  const noDecimal = ['JPY','KRW','IDR','VND'].includes(currency.toUpperCase());
+  const dec = noDecimal ? 0 : 2;
+  const abs = Math.abs(amount);
+  return currency + ' ' + abs.toLocaleString('zh-TW', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+// ════════════════════════════════════════════════════════════════
+// 4. 定期備份提醒
+// ════════════════════════════════════════════════════════════════
+function checkBackupReminder() {
+  const last = parseInt(localStorage.getItem('mwallet_last_backup') || '0');
+  const daysSince = (Date.now() - last) / 86400000;
+  const banner = document.getElementById('backupBanner');
+  if (!banner) return;
+  // show if never backed up (last=0 means > 30 days trivially) or > 30 days
+  if (last === 0 || daysSince > 30) {
+    banner.style.display = 'flex';
+  }
+}
+
+function exportDataAndDismiss() {
+  exportData();
+  localStorage.setItem('mwallet_last_backup', Date.now().toString());
+  dismissBackup();
+}
+function dismissBackup() {
+  const b = document.getElementById('backupBanner');
+  if (b) b.style.display = 'none';
+}
+
+// Override exportData to also update backup timestamp
+const _origExportData = typeof exportData === 'function' ? exportData : null;
+
+function exportData() {
+  const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+  a.download='mwallet_backup_'+today()+'.json'; a.click();
+  toast('備份匯出成功！','success');
+  localStorage.setItem('mwallet_last_backup', Date.now().toString());
+  dismissBackup();
+}
+
+
+// ════════════════════════════════════════════════════════════════
+// CALCULATOR
+// ════════════════════════════════════════════════════════════════
+let calcTargetId = null;
+let calcState = { expr: '', prev: '', op: '', justEq: false };
+function openCalc(inputId) {
+  calcTargetId = inputId;
+  const el = document.getElementById(inputId);
+  const cur = el ? parseFloat(el.value)||0 : 0;
+  calcState = { expr: cur ? String(cur) : '', prev: '', op: '', justEq: false };
+  renderCalcDisplay();
+  const p = document.getElementById('calcPanel');
+  p.style.display = 'flex';
+}
+function closeCalc() {
+  document.getElementById('calcPanel').style.display = 'none';
+  calcTargetId = null;
+}
+function renderCalcDisplay() {
+  document.getElementById('calcDisplay').textContent = calcState.expr || '0';
+  document.getElementById('calcExpr').textContent =
+    calcState.prev && calcState.op ? calcState.prev + ' ' + calcState.op : '';
+}
+function calcInput(key) {
+  const s = calcState;
+  if (key === 'C') { s.expr=''; s.prev=''; s.op=''; s.justEq=false; }
+  else if (key === '±') { s.expr = s.expr.startsWith('-') ? s.expr.slice(1) : (s.expr?'-'+s.expr:''); }
+  else if (key === '%') { s.expr = String(parseFloat(s.expr||0)/100); }
+  else if (['+','−','×','÷'].includes(key)) {
+    if (s.expr && s.op && s.prev) calcDoOp();
+    s.prev = s.expr||s.prev||'0'; s.op=key; s.expr=''; s.justEq=false;
+  } else if (key === '.') {
+    if (!s.expr.includes('.')) s.expr += (s.expr?'':'0')+'.';
+  } else {
+    if (s.justEq) { s.prev=''; s.op=''; s.justEq=false; }
+    s.expr = (s.expr==='0'?'':s.expr) + key;
+  }
+  renderCalcDisplay();
+}
+function calcDoOp() {
+  const a=parseFloat(calcState.prev||0), b=parseFloat(calcState.expr||0);
+  let r=a;
+  if(calcState.op==='+') r=a+b;
+  if(calcState.op==='−') r=a-b;
+  if(calcState.op==='×') r=a*b;
+  if(calcState.op==='÷') r=b!==0?a/b:0;
+  calcState.expr=String(parseFloat(r.toFixed(6)));
+  calcState.prev=''; calcState.op=''; calcState.justEq=true;
+  renderCalcDisplay();
+}
+function calcApply() {
+  if (calcState.op && calcState.prev && calcState.expr) calcDoOp();
+  const val = parseFloat(calcState.expr||calcState.prev||0);
+  if (calcTargetId) {
+    const el = document.getElementById(calcTargetId);
+    if (el) { el.value=val; el.dispatchEvent(new Event('input')); }
+  }
+  closeCalc();
+  toast('計算結果已套用：'+val.toLocaleString('zh-TW'),'success');
+}
+
+// ════════════════════════════════════════════════════════════════
+// INSTALLMENTS
+// ════════════════════════════════════════════════════════════════
+function ensureInstallments() { if (!DB.installments) DB.installments=[]; }
+function renderInstall() {
+  ensureInstallments();
+  const wrap=document.getElementById('installList'); if(!wrap) return;
+  if (!DB.installments.length) { wrap.innerHTML=emptyState('📅','尚無分期記錄','新增信用卡分期、貸款等分期追蹤項目'); return; }
+  wrap.innerHTML = DB.installments.map(inst=>{
+    const monthlyAmt=Math.round(inst.totalAmt/inst.months);
+    const paid=(inst.paidMonths||[]).length, remain=inst.months-paid;
+    const pct=Math.min(100,Math.round(paid/inst.months*100));
+    const cat=getCat(inst.category);
+    const src=inst.sourceType==='card'?getCard(inst.sourceId):getAcc(inst.sourceId);
+    const curYM=nowYM(), alreadyPaid=(inst.paidMonths||[]).includes(curYM);
+    const isComplete=paid>=inst.months;
+    const barColor=isComplete?'var(--tx-green)':pct>=80?'var(--m-violet)':'var(--m-blue)';
+    return '<div class="install-item'+(isComplete?' install-done':'')+'"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div class="install-badge">'+(inst.day||1)+'</div><div style="flex:1"><div style="font-weight:600;font-size:14px">'+escHtml(inst.desc)+(isComplete?' <span class="badge badge-green">已完成</span>':'')+'</div><div style="font-size:11px;color:var(--tx-secondary);margin-top:3px"><span class="badge" style="background:'+cat.color+'22;color:'+cat.color+';border:1px solid '+cat.color+'55">'+cat.name+'</span>'+(src?'<span style="margin-left:6px">'+escHtml(src.name)+'</span>':'')+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:var(--tx-red)">−'+fmt(monthlyAmt)+'<span style="font-size:11px;color:var(--tx-muted)">/月</span></div><div style="font-size:11px;color:var(--tx-secondary)">共 '+fmt(inst.totalAmt)+'</div></div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="prog-wrap" style="flex:1"><div class="prog-bar-gradient" style="width:'+pct+'%;background:'+barColor+'"></div></div><span style="font-size:12px;color:var(--tx-secondary);flex-shrink:0">'+paid+'/'+inst.months+' 期（剩 '+remain+' 期）</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+(!isComplete&&!alreadyPaid?'<button class="btn btn-sm btn-success" onclick="payInstallMonth(\''+inst.id+'\')">✅ 本月已付 ('+curYM+')</button>':'')+(alreadyPaid&&!isComplete?'<span class="badge badge-green">✓ 本月已記帳</span>':'')+'<button class="btn btn-ghost btn-sm" onclick="openModal(\'editInstall\',\''+inst.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteInstall(\''+inst.id+'\')">🗑</button><span style="margin-left:auto;font-size:11px;color:var(--tx-muted)">剩餘 '+fmt(remain*monthlyAmt)+'</span></div></div>';
+  }).join('');
+}
+function payInstallMonth(id) {
+  ensureInstallments();
+  const inst=DB.installments.find(i=>i.id===id); if(!inst) return;
+  const curYM=nowYM();
+  if((inst.paidMonths||[]).includes(curYM)){toast('本月已記帳','info');return;}
+  const monthlyAmt=Math.round(inst.totalAmt/inst.months);
+  const d=String(Math.min(inst.day||1,28)).padStart(2,'0');
+  DB.transactions.push({id:uid(),date:curYM+'-'+d,amount:-Math.abs(monthlyAmt),
+    desc:inst.desc+'（分期 '+((inst.paidMonths||[]).length+1)+'/'+inst.months+'）',
+    category:inst.category,sourceId:inst.sourceId,sourceType:inst.sourceType,
+    notes:'',isFixed:false,tags:[],installId:inst.id});
+  if(!inst.paidMonths) inst.paidMonths=[];
+  inst.paidMonths.push(curYM);
+  saveDB(); renderInstall(); toast('已記帳本月分期 '+fmt(monthlyAmt),'success');
+}
+function deleteInstall(id) {
+  ensureInstallments();
+  if(!confirm('確定刪除此分期追蹤？')) return;
+  DB.installments=DB.installments.filter(i=>i.id!==id);
+  saveDB(); renderInstall(); toast('分期追蹤已刪除','danger');
+}
+function saveInstall() {
+  ensureInstallments();
+  const desc=(document.getElementById('instDesc')?.value||'').trim();
+  const totalAmt=+(document.getElementById('instTotal')?.value)||0;
+  const months=+(document.getElementById('instMonths')?.value)||0;
+  const day=+(document.getElementById('instDay')?.value)||1;
+  const catId=v('instCat'), srcVal=v('instSrc');
+  const notes=(document.getElementById('instNotes')?.value||'').trim();
+  if(!desc||!totalAmt||!months||!srcVal){toast('請填寫完整資訊','danger');return;}
+  const [sType,sId]=srcVal.split('_');
+  const obj={desc,totalAmt,months,day,category:catId,sourceId:sId,sourceType:sType,notes,paidMonths:[]};
+  if(modalType==='editInstall'){
+    const ex=DB.installments.find(i=>i.id===editTarget);
+    if(ex){Object.assign(ex,obj);toast('分期已更新','success');}
+  } else {
+    DB.installments.push({id:uid(),...obj});toast('分期新增成功','success');
+  }
+  saveDB(); closeModal(); renderInstall();
+}
+
+// ════════════════════════════════════════════════════════════════
+// PAGINATION
+// ════════════════════════════════════════════════════════════════
+let txnCurrentPage=1, _lastTxnTotal=0;
+const TXN_PAGE_SIZE=30;
+function renderTxnPager(total) {
+  const totalPages=Math.ceil(total/TXN_PAGE_SIZE);
+  if(totalPages<=1) return '';
+  let btns=[];
+  for(let p=1;p<=totalPages;p++){
+    if(p===1||p===totalPages||Math.abs(p-txnCurrentPage)<=1)
+      btns.push('<button class="pager-btn'+(p===txnCurrentPage?' active':'')+'" onclick="setTxnPage('+p+')">'+p+'</button>');
+    else if(btns[btns.length-1]!=='…') btns.push('…');
+  }
+  return '<div class="pager-bar"><button class="pager-btn" onclick="setTxnPage('+(txnCurrentPage-1)+')" '+(txnCurrentPage===1?'disabled':'')+'>‹</button>'+btns.join('')+'<button class="pager-btn" onclick="setTxnPage('+(txnCurrentPage+1)+')" '+(txnCurrentPage===totalPages?'disabled':'')+'>›</button><span style="font-size:11px;color:var(--tx-muted);margin-left:8px">共 '+total+' 筆</span></div>';
+}
+function setTxnPage(p) {
+  const t=Math.ceil(_lastTxnTotal/TXN_PAGE_SIZE);
+  if(p<1||p>t) return;
+  txnCurrentPage=p; renderTxns();
+}
+
+// ════════════════════════════════════════════════════════════════
+// THEME SETTINGS
+// ════════════════════════════════════════════════════════════════
+function setThemeMode(mode) {
+  manualTheme=mode; localStorage.setItem('mwallet_theme',mode); autoTheme();
+  updateThemeCards();
+  const labels={auto:'🌗 已設定為自動模式',light:'☀️ 已設定為固定淺色',dark:'🌙 已設定為固定深色'};
+  toast(labels[mode]||'主題已更新','success');
+}
+function updateThemeCards() {
+  ['auto','light','dark'].forEach(m=>{
+    const el=document.getElementById('tcard-'+m);
+    if(el) el.classList.toggle('active', manualTheme===m);
+  });
+  const status=document.getElementById('themeModeStatus'); if(!status) return;
+  const now=new Date(), {sunrise,sunset}=getSunTimes(now);
+  const h2=now.getHours()+now.getMinutes()/60;
+  const isDay=h2>=sunrise&&h2<sunset;
+  const toHM=v=>{const hh=Math.floor(v),mm=Math.round((v-hh)*60);return hh+':'+String(mm).padStart(2,'0');};
+  status.innerHTML='台中今日日出 <strong>'+toHM(sunrise)+'</strong>，日落 <strong>'+toHM(sunset)+'</strong>。<br>目前<strong>'+(isDay?'白天 ☀️':'夜間 🌙')+'</strong>，自動模式顯示<strong>'+(isDay?'淺色':'深色')+'</strong>主題。';
+}
+function switchSettingsTab(tab) {
+  document.querySelectorAll('.settings-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.settings-tab-panel').forEach(p=>p.classList.remove('active'));
+  const btn=document.getElementById('stab-'+tab), panel=document.getElementById('spanel-'+tab);
+  if(btn) btn.classList.add('active');
+  if(panel) panel.classList.add('active');
+  const hdr=document.getElementById('settingsAddBtn');
+  if(hdr) hdr.style.display=tab==='cat'?'':'none';
+  if(tab==='theme') updateThemeCards();
+  if(tab==='data'||tab==='theme') checkStorageCapacity();
+}
+
+// ════════════════════════════════════════════════════════════════
+// localStorage CAPACITY
+// ════════════════════════════════════════════════════════════════
+function checkStorageCapacity() {
+  try {
+    const used=Object.keys(localStorage).reduce((s,k)=>s+(localStorage.getItem(k)||'').length*2,0);
+    const limit=5*1024*1024;
+    const pct=Math.min(100,Math.round(used/limit*100));
+    const bar=document.getElementById('storageBarFill');
+    const label=document.getElementById('storageLabel');
+    if(bar){bar.style.width=pct+'%';bar.style.background=pct>80?'var(--m-red)':pct>60?'var(--warn)':'var(--m-blue)';}
+    if(label){const kb=Math.round(used/1024);label.textContent='已使用約 '+kb+' KB（估計上限 5 MB，'+pct+'%）';}
+    if(pct>85) toast('⚠️ 儲存空間超過 85%，建議立即備份！','danger');
+  } catch {}
+}
+
+// ════════════════════════════════════════════════════════════════
+// MOBILE KEYBOARD FIX
+// ════════════════════════════════════════════════════════════════
+function setupViewportFix() {
+  if(!window.visualViewport) return;
+  window.visualViewport.addEventListener('resize',()=>{
+    const overlay=document.getElementById('modalOverlay');
+    if(!overlay?.classList.contains('active')) return;
+    const vvh=window.visualViewport.height;
+    const box=document.getElementById('modalBox');
+    if(box){ const kbOpen=vvh<window.innerHeight*0.75; box.style.maxHeight=kbOpen?(vvh-60)+'px':''; }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// SECURITIES — Yahoo Finance
+// ════════════════════════════════════════════════════════════════
+let stockPrices={};
+const STOCK_CACHE_KEY='mwallet_stocks', STOCK_CACHE_TTL=5*60*1000;
+async function fetchStockPrices() {
+  const symbols=[...new Set(DB.bankAccounts.filter(a=>a.accType==='證券').flatMap(a=>(a.holdings||[]).map(h=>h.symbol)).filter(Boolean))];
+  if(!symbols.length) return;
+  try {
+    const c=JSON.parse(localStorage.getItem(STOCK_CACHE_KEY)||'{}');
+    if(c.ts&&Date.now()-c.ts<STOCK_CACHE_TTL){ stockPrices={...stockPrices,...c.prices}; renderAccounts(); return; }
+  } catch {}
+  for(const sym of symbols) await fetchSingleStock(sym);
+  localStorage.setItem(STOCK_CACHE_KEY,JSON.stringify({ts:Date.now(),prices:stockPrices}));
+  renderAccounts();
+}
+async function fetchSingleStock(symbol) {
+  const base='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol)+'?interval=1d&range=1d';
+  const proxy='https://corsproxy.io/?'+encodeURIComponent(base);
+  for(const url of [base,proxy]){
+    try{
+      const res=await fetch(url,{signal:AbortSignal.timeout(6000)});
+      if(!res.ok) continue;
+      const data=await res.json();
+      const result=data?.chart?.result?.[0]; if(!result) continue;
+      const meta=result.meta, price=meta.regularMarketPrice||0;
+      const prev=meta.previousClose||meta.chartPreviousClose||price;
+      const change=price-prev, changePct=prev?(change/prev*100):0;
+      stockPrices[symbol.toUpperCase()]={price,change,changePct,currency:meta.currency||'TWD',name:meta.shortName||symbol,updatedAt:Date.now()};
+      return;
+    } catch {}
+  }
+}
+function renderStockHoldings(acc) {
+  if(acc.accType!=='證券') return '';
+  const holdings=acc.holdings||[];
+  if(!holdings.length) return '<div style="font-size:12px;color:var(--tx-muted);margin-top:8px">尚無持股記錄，點✏️編輯新增持股</div>';
+  const rows=holdings.map(h=>{
+    const sp=stockPrices[h.symbol?.toUpperCase()];
+    const costTotal=h.totalCost||0;
+    const costPerShare=h.shares>0?costTotal/h.shares:0;
+    const isTW=h.symbol?.toUpperCase().endsWith('.TW')||h.symbol?.toUpperCase().endsWith('.TWO');
+    const cur=isTW?'NT$':'$';
+    let priceCell='<span style="color:var(--tx-muted)">載入中...</span>';
+    let plCell='';
+    if(sp){
+      const curTotal=(h.shares||0)*sp.price, pl=curTotal-costTotal;
+      const plPct=costTotal?pl/costTotal*100:0;
+      const plCls=pl>=0?'color:var(--tx-green)':'color:var(--tx-red)';
+      const chgCls=sp.changePct>=0?'color:var(--tx-green)':'color:var(--tx-red)';
+      const fmtP=isTW?sp.price.toFixed(2):sp.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+      priceCell='<span>'+cur+fmtP+'</span> <span style="'+chgCls+';font-size:10px">'+(sp.changePct>=0?'+':'')+sp.changePct.toFixed(2)+'%</span>';
+      plCell='<span style="'+plCls+';font-weight:600">'+(pl>=0?'+':'')+fmt(Math.round(pl))+'</span><span style="font-size:10px;'+plCls+'"> ('+plPct.toFixed(1)+'%)</span>';
+    }
+    return '<div class="stock-row">'
+      +'<div class="stock-symbol">'+escHtml(h.symbol)+'</div>'
+      +'<div class="stock-name">'+escHtml(h.name||'')+'</div>'
+      +'<div style="font-size:11px;color:var(--tx-secondary)">'+h.shares+' 股　成本/股 '+cur+(costPerShare>0?costPerShare.toFixed(1):'—')+'</div>'
+      +'<div class="stock-price">'+priceCell+'</div>'
+      +'<div class="stock-pl">'+plCell+'</div>'
+      +'</div>';
+  }).join('');
+  const totalCost=holdings.reduce((s,h)=>s+(h.totalCost||0),0);
+  const totalMkt=holdings.reduce((s,h)=>{const sp=stockPrices[h.symbol?.toUpperCase()];return s+(sp?(h.shares||0)*sp.price:(h.totalCost||0));},0);
+  const totalPl=totalMkt-totalCost, totalPlCls=totalPl>=0?'var(--tx-green)':'var(--tx-red)';
+  return '<div class="m-stripe" style="margin:10px 0 8px"></div>'
+    +'<div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);text-transform:uppercase;font-family:var(--ff-display);margin-bottom:8px">📈 持股明細</div>'
+    +rows
+    +'<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr-subtle);display:flex;justify-content:space-between;font-size:12px">'
+    +'<span style="color:var(--tx-secondary)">投入成本：'+fmt(totalCost)+'</span>'
+    +'<span style="color:'+totalPlCls+';font-weight:700">損益：'+(totalPl>=0?'+':'')+fmt(Math.round(totalPl))+'</span>'
+    +'</div>'
+    +'<button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%" onclick="fetchStockPrices()">🔄 更新股價</button>';
+}
+function toggleSecuritiesField(accType) {
+  const g=document.getElementById('securitiesGroup');
+  const ib=document.getElementById('initBalGroup');
+  if(g) g.style.display=accType==='證券'?'':'none';
+  if(ib) ib.style.display=accType==='證券'?'none':'';
+}
+let _editingHoldings=[];
+function initHoldingsEditor(existing) {
+  _editingHoldings=JSON.parse(JSON.stringify(existing||[]));
+  renderHoldingsEditor();
+}
+function renderHoldingsEditor() {
+  const wrap=document.getElementById('holdingsList'); if(!wrap) return;
+  if(!_editingHoldings.length){
+    wrap.innerHTML='<div style="font-size:12px;color:var(--tx-muted)">尚無持股，點「＋ 新增持股」加入</div>';
+    return;
+  }
+  wrap.innerHTML=_editingHoldings.map((h,i)=>{
+    const perShare=h.shares>0&&h.totalCost>0?(h.totalCost/h.shares).toFixed(1):'';
+    return '<div style="background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:8px">'
+      +'<div style="display:flex;gap:8px;align-items:center">'
+      +'<input class="form-input" style="width:130px;height:34px;font-size:13px;font-family:var(--ff-display);font-weight:700" placeholder="股票代號" value="'+escAttr(h.symbol||'')+'" oninput="_editingHoldings['+i+'].symbol=this.value">'
+      +'<input class="form-input" style="flex:1;height:34px;font-size:12px" placeholder="名稱（選填）" value="'+escAttr(h.name||'')+'" oninput="_editingHoldings['+i+'].name=this.value">'
+      +'<button class="btn btn-danger btn-icon btn-sm" onclick="_editingHoldings.splice('+i+',1);renderHoldingsEditor()">✕</button>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
+      +'<div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:80px">'
+      +'<label style="font-size:10px;color:var(--tx-muted)">股數</label>'
+      +'<input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" type="number" placeholder="0" value="'+(h.shares||'')+'" oninput="_editingHoldings['+i+'].shares=+this.value;renderHoldingsEditor()">'
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:2px;flex:2;min-width:130px">'
+      +'<label style="font-size:10px;color:var(--tx-muted)">投入成本金額（NT$）</label>'
+      +'<input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" type="number" placeholder="0" value="'+(h.totalCost||'')+'" oninput="_editingHoldings['+i+'].totalCost=+this.value;renderHoldingsEditor()">'
+      +'</div>'
+      +(perShare?'<div style="font-size:11px;color:var(--tx-muted);padding-bottom:8px;white-space:nowrap">≈ NT$'+Number(perShare).toLocaleString()+'/股</div>':'')
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+function addHolding() {
+  _editingHoldings.push({id:uid(),symbol:'',name:'',shares:0,totalCost:0});
+  renderHoldingsEditor();
+}
+
+// installment modal type handler (injected via openModal)
+function _openInstallModal(type, id) {
+  ensureInstallments();
+  const inst=id&&type==='editInstall'?DB.installments.find(i=>i.id===id):null;
+  document.getElementById('modalTitle').textContent=inst?'編輯分期':'新增分期追蹤';
+  document.getElementById('modalBody').innerHTML=
+    '<div class="form-group"><label class="form-label">分期名稱</label>'
+    +'<input class="form-input" id="instDesc" value="'+(inst?escAttr(inst.desc):'')+'" placeholder="e.g. MacBook Pro 24期"></div>'
+    +'<div class="form-row">'
+    +'<div class="form-group"><label class="form-label">總金額（NT$）<button type="button" class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px;margin-left:4px" onclick="openCalc(\'instTotal\')">🔢</button></label>'
+    +'<input class="form-input" id="instTotal" type="number" value="'+(inst?inst.totalAmt:'')+'" placeholder="0"></div>'
+    +'<div class="form-group"><label class="form-label">分期期數（月）</label>'
+    +'<input class="form-input" id="instMonths" type="number" min="1" value="'+(inst?inst.months:'')+'" placeholder="12"></div>'
+    +'</div>'
+    +'<div class="form-row">'
+    +'<div class="form-group"><label class="form-label">每月幾號扣款</label>'
+    +'<input class="form-input" id="instDay" type="number" min="1" max="28" value="'+(inst?inst.day||1:1)+'"></div>'
+    +'<div class="form-group"><label class="form-label">類別</label>'
+    +'<select class="form-select" id="instCat">'+catOpts(inst?.category||DB.categories[0]?.id||'')+'</select></div>'
+    +'</div>'
+    +'<div class="form-group"><label class="form-label">扣款帳戶/卡片</label>'
+    +'<select class="form-select" id="instSrc"><option value="">請選擇</option>'+srcOpts('both')+'</select></div>'
+    +'<div class="form-group"><label class="form-label">備註（選填）</label>'
+    +'<input class="form-input" id="instNotes" value="'+(inst?escAttr(inst.notes||''):'')+'" ></div>';
+  document.getElementById('modalFooter').innerHTML=
+    '<button class="btn btn-ghost" onclick="closeModal()">取消</button>'
+    +'<button class="btn btn-primary" onclick="saveInstall()">儲存</button>';
+  document.getElementById('modalOverlay').classList.add('active');
+  setTimeout(()=>{
+    const el=document.getElementById('instSrc');
+    if(el&&inst) el.value=inst.sourceType+'_'+inst.sourceId;
+  },60);
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
+function init() {
+  autoTheme();
+  setInterval(autoTheme, 60000);
+
+  const now=new Date();
+  const _m=String(now.getMonth()+1).padStart(2,'0'),_d=String(now.getDate()).padStart(2,'0');
+  document.getElementById('navMonth').textContent=now.getFullYear()+' / '+_m+' / '+_d;
+  // Sidebar toggle button
+  document.getElementById('menuToggle').onclick = () =>
+    document.getElementById('sidebar').classList.toggle('open');
+
+  // 點擊遮罩任意處關閉側欄
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('open');
+    });
+  }
+
+  // 手勢：從左側往右滑開啟側欄；側欄開啟時往左滑關閉
+  let touchStartX = 0, touchStartY = 0;
+  document.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+    const sidebar = document.getElementById('sidebar');
+    // 橫向滑動為主（dy < 60 避免垂直捲動誤觸）
+    if (dy > 60) return;
+    if (dx > 60 && touchStartX < 40) {
+      // 從左邊緣往右滑 → 開側欄
+      sidebar.classList.add('open');
+    } else if (dx < -60 && sidebar.classList.contains('open')) {
+      // 側欄開啟時往左滑 → 關側欄
+      sidebar.classList.remove('open');
+    }
+  }, { passive: true });
+
+  const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');
+  document.getElementById('filterFrom').value=y+'-'+m+'-01';
+  document.getElementById('filterTo').value=today();
+
+  ensureTags();
+  generateFixed();
+  renderDashboard();
+
+  // 1. 推播通知
+  requestNotifyPermission();
+  setTimeout(checkDueNotifications, 2000);
+
+  // 3. 匯率
+  fetchExchangeRates();
+
+  // 4. 備份提醒
+  checkBackupReminder();
+  // 5. 鍵盤修正
+  setupViewportFix();
+  // 6. 儲存容量
+  checkStorageCapacity();
+  // 7. 股票
+  fetchStockPrices();
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+
+<!-- ══ MOBILE BOTTOM NAV ══════════════════════════════════════ -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+  <div class="mbn-items">
+    <div class="mbn-item active" id="mbn-dashboard" onclick="mbnNav(this,'dashboard')">
+      <span class="mbn-icon">📊</span><span>儀表板</span>
+    </div>
+    <div class="mbn-item" id="mbn-cards" onclick="mbnNav(this,'cards')">
+      <span class="mbn-icon">💳</span><span>信用卡</span>
+    </div>
+    <div class="mbn-fab-center" onclick="openQuickAdd()" title="快速記帳">
+      <span class="mbn-fab-icon">＋</span>
+    </div>
+    <div class="mbn-item" id="mbn-accounts" onclick="mbnNav(this,'accounts')">
+      <span class="mbn-icon">🏦</span><span>帳戶</span>
+    </div>
+    <div class="mbn-item" id="mbn-settings" onclick="mbnNav(this,'settings')">
+      <span class="mbn-icon">⚙️</span><span>設定</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ FAB 快速記帳 ═══════════════════════════════════════════ -->
+<button class="fab-btn" id="fabBtn" onclick="openQuickAdd()" title="快速記帳">
+  <span class="fab-icon">＋</span>
+</button>
+
+<!-- ══ BACKUP BANNER ══════════════════════════════════════════ -->
+<div class="backup-banner" id="backupBanner" style="display:none">
+  <span>📦 超過 30 天未備份，建議匯出資料備份</span>
+  <div style="display:flex;gap:8px;flex-shrink:0">
+    <button class="btn btn-sm btn-primary" onclick="exportDataAndDismiss()">立即備份</button>
+    <button class="btn btn-sm btn-ghost" onclick="dismissBackup()">稍後再說</button>
+  </div>
+</div>
+
+<!-- ══ CALCULATOR PANEL ════════════════════════════════════════ -->
+<div id="calcPanel" style="display:none;position:fixed;inset:0;z-index:9999;display:none;align-items:flex-end;justify-content:center">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.55)" onclick="closeCalc()"></div>
+  <div class="calc-box">
+    <div class="calc-header">
+      <span style="font-family:var(--ff-display);font-size:13px;letter-spacing:1px;color:var(--tx-secondary)">CALCULATOR</span>
+      <button class="modal-close" onclick="closeCalc()">✕</button>
+    </div>
+    <div class="calc-display" id="calcDisplay">0</div>
+    <div class="calc-expr" id="calcExpr"></div>
+    <div class="calc-grid">
+      <button class="calc-btn calc-fn" onclick="calcInput('C')">C</button>
+      <button class="calc-btn calc-fn" onclick="calcInput('±')">±</button>
+      <button class="calc-btn calc-fn" onclick="calcInput('%')">%</button>
+      <button class="calc-btn calc-op" onclick="calcInput('÷')">÷</button>
+      <button class="calc-btn" onclick="calcInput('7')">7</button>
+      <button class="calc-btn" onclick="calcInput('8')">8</button>
+      <button class="calc-btn" onclick="calcInput('9')">9</button>
+      <button class="calc-btn calc-op" onclick="calcInput('×')">×</button>
+      <button class="calc-btn" onclick="calcInput('4')">4</button>
+      <button class="calc-btn" onclick="calcInput('5')">5</button>
+      <button class="calc-btn" onclick="calcInput('6')">6</button>
+      <button class="calc-btn calc-op" onclick="calcInput('−')">−</button>
+      <button class="calc-btn" onclick="calcInput('1')">1</button>
+      <button class="calc-btn" onclick="calcInput('2')">2</button>
+      <button class="calc-btn" onclick="calcInput('3')">3</button>
+      <button class="calc-btn calc-op" onclick="calcInput('+')">+</button>
+      <button class="calc-btn calc-zero" onclick="calcInput('0')">0</button>
+      <button class="calc-btn" onclick="calcInput('.')">.</button>
+      <button class="calc-btn calc-eq" onclick="calcApply()">✓ 套用</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
