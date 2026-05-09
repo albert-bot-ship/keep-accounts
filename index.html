@@ -1630,8 +1630,8 @@ function openModal(type,id,preCard,preAcc,extraId) {
     </div>
     <div class="form-row mt-2">
       <div class="form-group"><label class="form-label">帳戶類型</label>
-        <select class="form-select" id="aType" onchange="toggleCurrencyField(this.value)">
-          ${['活存','定存','電子帳戶','外幣','其他'].map(t2=>`<option value="${t2}"${(a?.accType||'活存')===t2?' selected':''}>${t2}</option>`).join('')}
+        <select class="form-select" id="aType" onchange="toggleCurrencyField(this.value);toggleSecuritiesField(this.value)">
+          ${['活存','定存','電子帳戶','外幣','證券','其他'].map(t2=>`<option value="${t2}"${(a?.accType||'活存')===t2?' selected':''}>${t2}</option>`).join('')}
         </select>
       </div>
       <div class="form-group"><label class="form-label">最低餘額警示（0=不設定）</label><input class="form-input" id="aMinBal" type="number" value="${a?.minBalance||0}"></div>
@@ -1648,8 +1648,19 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>
     </div>
     <div class="form-group"><label class="form-label">帳戶備註（選填）</label><input class="form-input" id="aNotes" value="${escAttr(a?.notes||'')}" placeholder="e.g. 日常開銷用帳戶"></div>
+    <!-- 證券持股群組 -->
+    <div id="securitiesGroup" style="display:${(a?.accType||'活存')==='證券'?'':'none'}">
+      <div class="m-stripe" style="margin:14px 0 10px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:12px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);text-transform:uppercase">持股記錄</div>
+        <button type="button" class="btn btn-sm btn-violet" onclick="addHolding()">＋ 新增持股</button>
+      </div>
+      <div style="font-size:11px;color:var(--tx-secondary);margin-bottom:8px">台股格式：<strong>2330.TW</strong>　美股：<strong>AAPL</strong>　ETF：<strong>0050.TW</strong></div>
+      <div id="holdingsList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
     <div class="form-group"><label class="form-label">代表顏色</label>${colorPicker('aColor',a?.color||'#0057B8')}</div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveAccount()">儲存</button>`;
+    setTimeout(()=>{ toggleSecuritiesField(a?.accType||'活存'); initHoldingsEditor(a?.holdings||[]); },60);
   }
 
   // ── LAYER ──
