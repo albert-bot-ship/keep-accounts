@@ -689,7 +689,8 @@ function renderDashboard() {
       // 用市值代替 accountBalance
       const mktVal = (a.holdings||[]).reduce((ss,h)=>{
         const sp = stockPrices[h.symbol?.toUpperCase()];
-        return ss + (sp ? (h.shares||0)*sp.price : (h.shares||0)*(h.costBasis||0));
+        const hc = h.totalCost||(h.shares||0)*(h.costBasis||0);
+        return ss + (sp ? (h.shares||0)*sp.price : hc);
       }, 0);
       return s + mktVal;
     }
@@ -968,10 +969,11 @@ function renderAccounts() {
           // ── 證券帳戶：改用持股市值 ──
           if (a.accType === '證券') {
             const holdings = a.holdings || [];
-            const totalCost = holdings.reduce((s,h)=>s+(h.shares||0)*(h.costBasis||0),0);
+            const totalCost = holdings.reduce((s,h)=>s+(h.totalCost||(h.shares||0)*(h.costBasis||0)),0);
             const totalMktVal = holdings.reduce((s,h)=>{
               const sp = stockPrices[h.symbol?.toUpperCase()];
-              return s + (sp ? (h.shares||0)*sp.price : (h.shares||0)*(h.costBasis||0));
+              const hCost = h.totalCost || (h.shares||0)*(h.costBasis||0);
+              return s + (sp ? (h.shares||0)*sp.price : hCost);
             }, 0);
             const hasPrice = holdings.some(h=>stockPrices[h.symbol?.toUpperCase()]);
             const pl = totalMktVal - totalCost;
@@ -1638,7 +1640,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
     b=`<div style="display:flex;gap:14px;align-items:flex-start">
       ${iconUpload('cIcon',c?.icon||'')}
       <div style="flex:1">
-        <div class="form-group"><label class="form-label">卡片名稱</label><input class="form-input" id="cName" value="${escAttr(c?.name||'')}" placeholder="e.g. 玉山現金回饋卡"></div>
+        ${(a?.accType||'活存')==='證券'?'':`<div class="form-group"><label class="form-label">卡片名稱</label><input class="form-input" id="cName" value="${escAttr(c?.name||'')}" placeholder="e.g. 玉山現金回饋卡"></div>
         <div class="form-group"><label class="form-label">信用額度（0=不設限）</label><input class="form-input" id="cLimit" type="number" value="${c?.limit||0}"></div>
       </div>
     </div>
@@ -1682,7 +1684,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">
         ${a?'💡 修改後將更新「初始餘額」分層金額':'💡 將自動建立「初始餘額」分層'}
       </div>
-    </div>
+    </div>`}
     <div class="form-group"><label class="form-label">帳戶備註（選填）</label><input class="form-input" id="aNotes" value="${escAttr(a?.notes||'')}" placeholder="e.g. 日常開銷用帳戶"></div>
     <!-- 證券持股群組 -->
     <div id="securitiesGroup" style="display:${(a?.accType||'活存')==='證券'?'':'none'}">
@@ -2879,30 +2881,30 @@ function renderStockHoldings(acc) {
   if (!holdings.length) return '<div style="font-size:12px;color:var(--tx-muted);margin-top:8px">尚無持股記錄</div>';
   const rows = holdings.map(h => {
     const sp = stockPrices[h.symbol?.toUpperCase()];
-    const costTotal = (h.shares || 0) * (h.costBasis || 0);
+    const costTotal = h.totalCost || (h.shares || 0) * (h.costBasis || 0); // 相容舊格式
+    const costPerShare = h.shares > 0 ? costTotal / h.shares : 0;
     let priceCell = '<span style="color:var(--tx-muted)">載入中...</span>';
     let plCell = '';
     if (sp) {
-      const curTotal = h.shares * sp.price;
+      const curTotal = (h.shares || 0) * sp.price;
       const pl = curTotal - costTotal;
       const plPct = costTotal ? pl / costTotal * 100 : 0;
       const plCls = pl >= 0 ? 'color:var(--tx-green)' : 'color:var(--tx-red)';
       const chgCls = sp.changePct >= 0 ? 'color:var(--tx-green)' : 'color:var(--tx-red)';
       const sym = h.symbol.toUpperCase();
-      const isTW = sym.endsWith('.TW') || sym.endsWith('.TWO');
-      const fmtPrice = isTW
+      const isTW2 = sym.endsWith('.TW') || sym.endsWith('.TWO');
+      const fmtPrice = isTW2
         ? sp.price.toFixed(2)
         : sp.price.toLocaleString('en-US', {minimumFractionDigits:2,maximumFractionDigits:2});
-      const currency = isTW ? 'NT$' : '$';
-      priceCell = `<span>${currency}${fmtPrice}</span> <span style="${chgCls};font-size:10px">${sp.changePct >= 0 ? '+' : ''}${sp.changePct.toFixed(2)}%</span>`;
+      const currency2 = isTW2 ? 'NT$' : '$';
+      priceCell = `<span>${currency2}${fmtPrice}</span> <span style="${chgCls};font-size:10px">${sp.changePct >= 0 ? '+' : ''}${sp.changePct.toFixed(2)}%</span>`;
       plCell = `<span style="${plCls};font-weight:600">${pl >= 0 ? '+' : ''}${fmt(Math.round(pl))}</span><span style="font-size:10px;${plCls}"> (${plPct.toFixed(1)}%)</span>`;
     }
     const isTW = h.symbol?.toUpperCase().endsWith('.TW') || h.symbol?.toUpperCase().endsWith('.TWO');
-    const cur = isTW ? 'NT$' : '$';
     return `<div class="stock-row">
       <div class="stock-symbol">${escHtml(h.symbol)}</div>
       <div class="stock-name">${escHtml(h.name || '')}</div>
-      <div style="font-size:11px;color:var(--tx-secondary)">${h.shares} 股　成本 ${cur}${h.costBasis?.toLocaleString() || 0}</div>
+      <div style="font-size:11px;color:var(--tx-secondary)">${h.shares} 股　成本/股 ${isTW?'NT$':'$'}${costPerShare>0?costPerShare.toFixed(1):'—'}</div>
       <div class="stock-price">${priceCell}</div>
       <div class="stock-pl">${plCell}</div>
     </div>`;
@@ -2941,21 +2943,37 @@ function renderHoldingsEditor() {
     wrap.innerHTML = '<div style="font-size:12px;color:var(--tx-muted)">尚無持股，點「＋ 新增持股」加入</div>';
     return;
   }
-  wrap.innerHTML = _editingHoldings.map((h, i) => `
-    <div class="layer-bar" style="gap:8px;flex-wrap:wrap">
-      <input class="form-input" style="width:110px;height:32px;font-size:12px;font-family:var(--ff-display)" 
-        placeholder="代號 e.g.2330.TW" value="${escAttr(h.symbol||'')}" oninput="_editingHoldings[${i}].symbol=this.value">
-      <input class="form-input" style="width:100px;height:32px;font-size:12px" 
-        placeholder="名稱（選填）" value="${escAttr(h.name||'')}" oninput="_editingHoldings[${i}].name=this.value">
-      <input class="form-input" style="width:80px;height:32px;font-size:12px;text-align:right" 
-        type="number" placeholder="股數" value="${h.shares||''}" oninput="_editingHoldings[${i}].shares=+this.value">
-      <input class="form-input" style="width:100px;height:32px;font-size:12px;text-align:right" 
-        type="number" placeholder="成本/股" value="${h.costBasis||''}" oninput="_editingHoldings[${i}].costBasis=+this.value">
-      <button class="btn btn-danger btn-icon btn-sm" onclick="_editingHoldings.splice(${i},1);renderHoldingsEditor()">✕</button>
-    </div>`).join('');
+  wrap.innerHTML = _editingHoldings.map((h, i) => {
+    const perShare = h.shares>0&&h.totalCost>0 ? (h.totalCost/h.shares).toFixed(2) : '';
+    return `
+    <div style="background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input class="form-input" style="width:120px;height:34px;font-size:13px;font-family:var(--ff-display);font-weight:700" 
+          placeholder="股票代號" value="${escAttr(h.symbol||'')}" oninput="_editingHoldings[${i}].symbol=this.value">
+        <input class="form-input" style="width:100px;height:34px;font-size:12px" 
+          placeholder="名稱（選填）" value="${escAttr(h.name||'')}" oninput="_editingHoldings[${i}].name=this.value">
+        <button class="btn btn-danger btn-icon btn-sm" style="margin-left:auto" onclick="_editingHoldings.splice(${i},1);renderHoldingsEditor()">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:80px">
+          <label style="font-size:10px;color:var(--tx-muted);letter-spacing:.5px">股數</label>
+          <input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" 
+            type="number" placeholder="0" value="${h.shares||''}"
+            oninput="_editingHoldings[${i}].shares=+this.value;renderHoldingsEditor()">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;flex:2;min-width:120px">
+          <label style="font-size:10px;color:var(--tx-muted);letter-spacing:.5px">投入成本金額（NT$）</label>
+          <input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" 
+            type="number" placeholder="0" value="${h.totalCost||''}"
+            oninput="_editingHoldings[${i}].totalCost=+this.value;renderHoldingsEditor()">
+        </div>
+        ${perShare?`<div style="font-size:11px;color:var(--tx-muted);align-self:flex-end;padding-bottom:8px;white-space:nowrap">≈ NT$${Number(perShare).toLocaleString()}/股</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
 }
 function addHolding() {
-  _editingHoldings.push({ id: uid(), symbol: '', name: '', shares: 0, costBasis: 0 });
+  _editingHoldings.push({ id: uid(), symbol: '', name: '', shares: 0, totalCost: 0 });
   renderHoldingsEditor();
 }
 
