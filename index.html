@@ -684,7 +684,17 @@ function renderDashboard() {
   const spend  = Math.abs(rtx.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
   const income = rtx.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
   const totalDebt = DB.creditCards.reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
-  const totalBank = DB.bankAccounts.reduce((s,a)=>s+accountBalance(a.id),0);
+  const totalBank = DB.bankAccounts.reduce((s,a)=>{
+    if (a.accType === '證券') {
+      // 用市值代替 accountBalance
+      const mktVal = (a.holdings||[]).reduce((ss,h)=>{
+        const sp = stockPrices[h.symbol?.toUpperCase()];
+        return ss + (sp ? (h.shares||0)*sp.price : (h.shares||0)*(h.costBasis||0));
+      }, 0);
+      return s + mktVal;
+    }
+    return s + accountBalance(a.id);
+  }, 0);
   const ccSpend   = Math.abs(thisMonthCCSpend());
   const salarySum = DB.bankAccounts.reduce((s,a)=>{
     const l=(a.layers||[]).find(l=>l.label.includes('薪')); return s+(l?l.amount:0);
@@ -954,11 +964,37 @@ function renderAccounts() {
         </div>
       </div>
       <div class="account-card-body">
-        <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">帳戶餘額${a.accType==='外幣'&&a.currency?` (${a.currency})`:''}
-        </div>
-        <div class="account-balance ${bal<0?'negative':isLow?'warning':'positive'}">
-          ${a.accType==='外幣'&&a.currency ? fmtFX(bal,a.currency) : fmt(bal)}
-        </div>
+        ${(()=>{
+          // ── 證券帳戶：改用持股市值 ──
+          if (a.accType === '證券') {
+            const holdings = a.holdings || [];
+            const totalCost = holdings.reduce((s,h)=>s+(h.shares||0)*(h.costBasis||0),0);
+            const totalMktVal = holdings.reduce((s,h)=>{
+              const sp = stockPrices[h.symbol?.toUpperCase()];
+              return s + (sp ? (h.shares||0)*sp.price : (h.shares||0)*(h.costBasis||0));
+            }, 0);
+            const hasPrice = holdings.some(h=>stockPrices[h.symbol?.toUpperCase()]);
+            const pl = totalMktVal - totalCost;
+            const plPct = totalCost ? pl/totalCost*100 : 0;
+            const valCls = totalMktVal >= totalCost ? 'positive' : 'negative';
+            const plCls  = pl >= 0 ? 'color:var(--tx-green)' : 'color:var(--tx-red)';
+            const plSign = pl >= 0 ? '+' : '';
+            return `
+              <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">持股市值${hasPrice?'':' (尚未載入股價)'}</div>
+              <div class="account-balance ${valCls}">${fmt(Math.round(totalMktVal))}</div>
+              <div style="font-size:12px;color:var(--tx-secondary);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap">
+                <span>投入成本：<span style="color:var(--tx-muted)">${fmt(totalCost)}</span></span>
+                ${totalCost>0?`<span style="${plCls};font-weight:600">${plSign}${fmt(Math.round(pl))} (${plSign}${plPct.toFixed(1)}%)</span>`:''}
+              </div>`;
+          }
+          // ── 一般帳戶 ──
+          return `
+            <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">帳戶餘額${a.accType==='外幣'&&a.currency?` (${a.currency})`:''}
+            </div>
+            <div class="account-balance ${bal<0?'negative':isLow?'warning':'positive'}">
+              ${a.accType==='外幣'&&a.currency ? fmtFX(bal,a.currency) : fmt(bal)}
+            </div>`;
+        })()}
         ${(()=>{
           if(a.accType!=='外幣'||!a.currency) return '';
           const rate=getRateTWD(a.currency);
