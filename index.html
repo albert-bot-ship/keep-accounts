@@ -2818,16 +2818,22 @@ function renderHoldingsEditor() {
       +'<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
       +'<div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:80px">'
       +'<label style="font-size:10px;color:var(--tx-muted)">股數</label>'
-      +'<input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" type="number" placeholder="0" value="'+(h.shares||'')+'" oninput="_editingHoldings['+i+'].shares=+this.value;renderHoldingsEditor()">'
+      +'<input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" type="number" placeholder="0" value="'+(h.shares||'')+'" oninput="_editingHoldings['+i+'].shares=+this.value;_updatePerShare('+i+')">'
       +'</div>'
       +'<div style="display:flex;flex-direction:column;gap:2px;flex:2;min-width:130px">'
       +'<label style="font-size:10px;color:var(--tx-muted)">投入成本金額（NT$）</label>'
-      +'<input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" type="number" placeholder="0" value="'+(h.totalCost||'')+'" oninput="_editingHoldings['+i+'].totalCost=+this.value;renderHoldingsEditor()">'
+      +'<input class="form-input" style="height:34px;font-size:13px;text-align:right;font-family:var(--ff-display)" type="number" placeholder="0" value="'+(h.totalCost||'')+'" oninput="_editingHoldings['+i+'].totalCost=+this.value;_updatePerShare('+i+')">'
       +'</div>'
-      +(perShare?'<div style="font-size:11px;color:var(--tx-muted);padding-bottom:8px;white-space:nowrap">≈ NT$'+Number(perShare).toLocaleString()+'/股</div>':'')
+      +'<div id="perShare_'+i+'" style="font-size:11px;color:var(--tx-muted);padding-bottom:8px;white-space:nowrap">'+(perShare?'≈ NT$'+Number(perShare).toLocaleString()+'/股':'')+'</div>'
       +'</div>'
       +'</div>';
   }).join('');
+}
+function _updatePerShare(i) {
+  const h = _editingHoldings[i]; if(!h) return;
+  const el = document.getElementById('perShare_'+i); if(!el) return;
+  const perShare = h.shares>0&&h.totalCost>0 ? (h.totalCost/h.shares).toFixed(1) : '';
+  el.textContent = perShare ? '≈ NT$'+Number(perShare).toLocaleString()+'/股' : '';
 }
 function addHolding() {
   _editingHoldings.push({id:uid(),symbol:'',name:'',shares:0,totalCost:0});
