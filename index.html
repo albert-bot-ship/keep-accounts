@@ -727,7 +727,7 @@ function renderCCLayerSelector() {
     });
   });
 
-  // ── 收集信用卡所有分層（實際消費 = 手動 + 帶layerId交易）──
+  // ── 收集信用卡所有分層（實際消費 = 手動 + 帶layerId交易；有monthlyAmt則另標）──
   const ccLayers = [];
   DB.creditCards.forEach(card => {
     (card.layers || []).forEach(layer => {
@@ -735,7 +735,8 @@ function renderCCLayerSelector() {
         .filter(t => t.sourceType==='card' && t.sourceId===card.id && t.layerId===layer.id && t.amount<0 && !t.isPayment)
         .reduce((s,t) => s + Math.abs(t.amount), 0);
       const actual = (layer.amount || 0) + txAmt;
-      ccLayers.push({ cardId: card.id, cardName: card.name, cardColor: card.color, layerId: layer.id, label: layer.label, actual });
+      const monthly = (layer.monthlyAmt != null && layer.monthlyAmt !== '') ? layer.monthlyAmt : null;
+      ccLayers.push({ cardId: card.id, cardName: card.name, cardColor: card.color, layerId: layer.id, label: layer.label, actual, monthly });
     });
   });
 
@@ -743,7 +744,7 @@ function renderCCLayerSelector() {
 
   // ── 合計 ──
   const bankTotal = bankLayers.filter(l => selectedBankLayers.has(l.accId+'_'+l.layerId)).reduce((s,l) => s+l.actual, 0);
-  const ccTotal   = ccLayers.filter(l => selectedCCLayers.has(l.cardId+'_'+l.layerId)).reduce((s,l) => s+l.actual, 0);
+  const ccTotal   = ccLayers.filter(l => selectedCCLayers.has(l.cardId+'_'+l.layerId)).reduce((s,l) => s+(l.monthly!=null?l.monthly:l.actual), 0);
   const remain    = bankTotal - ccTotal;
 
   const mkChip = (key, color, isSelected, label1, label2, amt, onchange) =>
@@ -777,8 +778,19 @@ function renderCCLayerSelector() {
     html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">';
     ccLayers.forEach(l => {
       const key = l.cardId+'_'+l.layerId;
-      html += mkChip(key, l.cardColor, selectedCCLayers.has(key), l.cardName, l.label, l.actual,
-        'toggleCCLayer(\''+l.cardId+'\',\''+l.layerId+'\',this.checked)');
+      const isSelected = selectedCCLayers.has(key);
+      const dispAmt = l.monthly != null ? l.monthly : l.actual;
+      const dispSuffix = l.monthly != null ? '/月' : '';
+      html += '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;' +
+        'background:var(--bg-primary);border:1px solid '+(isSelected?l.cardColor:'var(--bdr-subtle)')+';' +
+        'border-radius:6px;padding:4px 10px;transition:border .2s">' +
+        '<input type="checkbox"'+(isSelected?' checked':'')+' style="cursor:pointer;accent-color:'+l.cardColor+'" onchange="toggleCCLayer(\''+l.cardId+'\',\''+l.layerId+'\',this.checked)">' +
+        '<span style="color:'+l.cardColor+';font-weight:600">'+escHtml(l.cardName)+'</span>' +
+        '<span style="color:var(--tx-secondary)"> / </span>' +
+        '<span>'+escHtml(l.label)+'</span>' +
+        '<span style="color:var(--tx-muted);margin-left:4px">NT$'+Math.abs(dispAmt).toLocaleString('zh-TW')+dispSuffix+'</span>' +
+        (l.monthly!=null?'<span style="font-size:10px;background:#1c69d422;color:#1c69d4;border-radius:3px;padding:1px 4px;margin-left:2px">分期</span>':'') +
+        '</label>';
     });
     html += '</div>';
   }
@@ -840,11 +852,12 @@ function renderDashboard() {
         }, 0);
       }, 0)
     : 0;
-  // 扣除項目：勾選的信用卡分層實際消費合計（手動 + 帶layerId交易）
+  // 扣除項目：勾選的信用卡分層（有monthlyAmt用每月金額，否則用實際消費合計）
   const selectedLayerDeduct = selectedCCLayers.size > 0
     ? DB.creditCards.reduce((s,card) => {
         return s + (card.layers||[]).reduce((ss,layer) => {
           if (!selectedCCLayers.has(card.id+'_'+layer.id)) return ss;
+          if (layer.monthlyAmt != null && layer.monthlyAmt !== '') return ss + (layer.monthlyAmt||0);
           const txAmt = DB.transactions
             .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.layerId===layer.id&&t.amount<0&&!t.isPayment)
             .reduce((r,t)=>r+Math.abs(t.amount),0);
@@ -957,10 +970,11 @@ function renderCards() {
         .reduce((s,t)=>s+Math.abs(t.amount),0);
       const totalLayerAmt = layerAmt + feLayerAmt + txLayerAmt;
       const hasDetail = feLayerAmt>0 || txLayerAmt>0;
+      const hasMonthly = l.monthlyAmt!=null && l.monthlyAmt!=='';
       return `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||c.color}"></div>
         <div style="flex:1;min-width:0">
-          <div class="layer-name">${escHtml(l.label)}</div>
+          <div class="layer-name">${escHtml(l.label)}${hasMonthly?`<span style="font-size:10px;background:#1c69d422;color:#1c69d4;border-radius:3px;padding:1px 5px;margin-left:6px">分期 每月 −${fmt(l.monthlyAmt)}</span>`:''}</div>
           ${hasDetail?`<div style="font-size:10px;color:var(--tx-muted);margin-top:2px">${layerAmt>0?`手動 −${fmt(layerAmt)}　`:''}${txLayerAmt>0?`記帳 −${fmt(txLayerAmt)}　`:''}${feLayerAmt>0?`固定消費 −${fmt(feLayerAmt)}`:''}</div>`:''}
         </div>
         <span class="layer-amt" style="color:var(--tx-red);font-weight:700">−${fmt(totalLayerAmt)}</span>
@@ -1881,6 +1895,11 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <input class="form-input" id="clAmt" type="number" step="any" value="${clayer?.amount||0}">
       <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 輸入此分層的支出總額，與快速記帳消費合計為信用卡消費總額</div>
     </div>
+    <div class="form-group">
+      <label class="form-label">每月分期金額（NT$）<span style="font-size:11px;color:var(--tx-muted);margin-left:4px">選填</span></label>
+      <input class="form-input" id="clMonthlyAmt" type="number" step="any" value="${clayer?.monthlyAmt||''}" placeholder="留空則以實際消費計算">
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">📅 填入後，儀表板「剩餘生活費」將以此每月金額計算，適合信用卡分期情境</div>
+    </div>
     <div class="form-group"><label class="form-label">顏色</label>${colorPicker('clColor',clayer?.color||cardL?.color||'#C8102E')}</div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCardLayer()">儲存</button>`;
   }
@@ -2150,16 +2169,18 @@ function saveCardLayer() {
   const cardId=v('clCardId'),layId=v('clLayId'),
         label=document.getElementById('clLabel').value.trim(),
         amount=parseFloat(document.getElementById('clAmt').value)||0,
-        color=v('clColor');
+        color=v('clColor'),
+        monthlyAmtRaw=document.getElementById('clMonthlyAmt')?.value,
+        monthlyAmt=monthlyAmtRaw&&monthlyAmtRaw.trim()!==''?parseFloat(monthlyAmtRaw)||0:null;
   if(!label){toast('請填入分層名稱','danger');return;}
   const card=getCard(cardId);if(!card)return;
   if(!card.layers)card.layers=[];
   if(layId){
     const l=card.layers.find(x=>x.id===layId);
-    if(l)Object.assign(l,{label,amount,color});
+    if(l)Object.assign(l,{label,amount,color,monthlyAmt});
     toast('分層已更新','success');
   } else {
-    card.layers.push({id:uid(),label,amount,color});
+    card.layers.push({id:uid(),label,amount,color,monthlyAmt});
     toast('分層新增成功','success');
   }
   saveDB();closeModal();renderCards();
