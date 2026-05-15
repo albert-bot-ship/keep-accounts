@@ -736,7 +736,7 @@ function renderDashboard() {
     statCard(lbl+'收入', fmt(income), income>0?'success':'', '', '📥') +
     statCard('信用卡未償還', fmt(-totalDebt), totalDebt>0?'danger':'success', '所有卡片累積', '💳') +
     statCard('銀行總資產', fmt(totalBank), 'blue', '所有帳戶餘額', '🏦') +
-    statCard('本月剩餘生活費', fmt(salarySum-ccSpend), (salarySum-ccSpend)<0?'danger':(salarySum-ccSpend)<salarySum*0.2?'warning':'success','薪水 − 本月CC消費','💰');
+    statCard('剩餘生活費', fmt(salarySum-totalDebt), (salarySum-totalDebt)<0?'danger':(salarySum-totalDebt)<salarySum*0.2?'warning':'success','薪水 − 未繳卡費餘額','💰');
 
   // CountUp 動畫
   setTimeout(() => {
