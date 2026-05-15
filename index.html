@@ -333,6 +333,7 @@ let selectedTxns = new Set();
 let _readOnlyMode = true; // GitHub Pages 唯讀模式
 let selectedCCLayers  = new Set(); // 剩餘生活費勾選的信用卡分層
 let selectedBankLayers = new Set(); // 剩餘生活費勾選的銀行帳戶分層
+let dashRemainAmt = null; // 儀表板剩餘生活費計算結果（null=未勾選）
 
 function defaultDB() {
   return {
@@ -854,6 +855,7 @@ function renderDashboard() {
   const layerRemain  = salarySum - selectedLayerDeduct;
   const anySelected  = selectedBankLayers.size > 0 || selectedCCLayers.size > 0;
   const layerSubLabel = anySelected ? '薪水分層 − 信用卡分層' : '請在上方勾選分層';
+  dashRemainAmt = anySelected ? layerRemain : null;
 
   const labels = {month:'本月',salary:'本期(8日~隔月5日)',30:'近30天',7:'近7天',today:'今天',all:'全部'};
   const lbl = labels[dashRange]||'';
@@ -1081,8 +1083,10 @@ function renderAccounts() {
     const bal  = accountBalance(a.id);
     const icon = a.icon?`<img src="${a.icon}" alt="">`:'🏦';
     const salaryLayer = (a.layers||[]).find(l=>l.label.includes('薪'));
-    // 薪水剩餘生活費用動態餘額（初始金額 + 此分層的所有交易增減）
-    const salaryDynamic = salaryLayer ? layerDynamicBalance(a.id, salaryLayer.id) : null;
+    // 薪水剩餘生活費：儀表板有勾選時同步顯示儀表板計算結果，否則顯示本帳戶薪水分層動態餘額
+    const salaryDynamic = dashRemainAmt !== null
+      ? dashRemainAmt
+      : (salaryLayer ? layerDynamicBalance(a.id, salaryLayer.id) : null);
     const isLow = a.minBalance>0 && bal<a.minBalance;
     const mthOut = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount<0&&ym(t.date)===nowYM()).reduce((s,t)=>s+Math.abs(t.amount),0);
     const mthIn  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount>0&&ym(t.date)===nowYM()).reduce((s,t)=>s+t.amount,0);
