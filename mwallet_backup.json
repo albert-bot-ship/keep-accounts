@@ -15,7 +15,8 @@
           "id": "mowulbb3xlf57",
           "label": "南山年繳",
           "amount": 5204,
-          "color": "#54b02d"
+          "color": "#54b02d",
+          "monthlyAmt": 1967
         },
         {
           "id": "mowvgma9od1k8",
