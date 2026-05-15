@@ -69,7 +69,7 @@
         {
           "id": "mowt3b5ret5t3",
           "label": "薪水",
-          "amount": 12973,
+          "amount": 6973,
           "color": "#2ecc71"
         },
         {
@@ -77,6 +77,12 @@
           "label": "獎金",
           "amount": 47170,
           "color": "#00c7fc"
+        },
+        {
+          "id": "mp76aznhv0bb6",
+          "label": "租金",
+          "amount": 6000,
+          "color": "#0057B8"
         }
       ],
       "last4": "",
