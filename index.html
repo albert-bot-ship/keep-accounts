@@ -331,7 +331,8 @@ let modalType = null, editTarget = null;
 let dashRange = 'month';
 let selectedTxns = new Set();
 let _readOnlyMode = true; // GitHub Pages 唯讀模式
-let selectedCCLayers = new Set(); // 剩餘生活費勾選的信用卡分層
+let selectedCCLayers  = new Set(); // 剩餘生活費勾選的信用卡分層
+let selectedBankLayers = new Set(); // 剩餘生活費勾選的銀行帳戶分層
 
 function defaultDB() {
   return {
@@ -711,42 +712,98 @@ function setDashRange(el, range) {
   renderDashboard();
 }
 
-// ─── 剩餘生活費：信用卡分層勾選器 ────────────────────────────
+// ─── 剩餘生活費：勾選器（銀行分層 + 信用卡分層）────────────
 function renderCCLayerSelector() {
   const el = document.getElementById('ccLayerSelector');
   if (!el) return;
-  const allLayers = [];
-  DB.creditCards.forEach(card => {
-    (card.layers || []).forEach(layer => {
-      allLayers.push({ cardId: card.id, cardName: card.name, cardColor: card.color, layerId: layer.id, label: layer.label, amount: layer.amount || 0 });
+
+  // ── 收集銀行帳戶所有分層（實際餘額）──
+  const bankLayers = [];
+  DB.bankAccounts.forEach(acc => {
+    (acc.layers || []).forEach(layer => {
+      const actual = layerDynamicBalance(acc.id, layer.id);
+      bankLayers.push({ accId: acc.id, accName: acc.name, accColor: acc.color, layerId: layer.id, label: layer.label, actual });
     });
   });
-  if (allLayers.length === 0) { el.innerHTML = ''; return; }
-  const selectedTotal = allLayers
-    .filter(l => selectedCCLayers.has(l.cardId + '_' + l.layerId))
-    .reduce((s, l) => s + Math.abs(l.amount), 0);
-  el.innerHTML =
-    '<div style="background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:10px;padding:10px 14px;">' +
-    '<div style="font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin-bottom:8px;font-family:var(--ff-display)">💰 剩餘生活費 — 選擇扣除的信用卡分層</div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">' +
-    allLayers.map(l => {
-      const key = l.cardId + '_' + l.layerId;
-      const checked = selectedCCLayers.has(key) ? 'checked' : '';
-      return '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;' +
-        'background:var(--bg-primary);border:1px solid ' + (selectedCCLayers.has(key) ? l.cardColor : 'var(--bdr-subtle)') + ';' +
-        'border-radius:6px;padding:4px 10px;transition:border .2s">' +
-        '<input type="checkbox" ' + checked + ' style="cursor:pointer;accent-color:' + l.cardColor + '" ' +
-        'onchange="toggleCCLayer(\'' + l.cardId + '\',\'' + l.layerId + '\',this.checked)">' +
-        '<span style="color:' + l.cardColor + ';font-weight:600">' + escHtml(l.cardName) + '</span>' +
-        '<span style="color:var(--tx-secondary)"> / </span>' +
-        '<span>' + escHtml(l.label) + '</span>' +
-        '<span style="color:var(--tx-muted);margin-left:4px">NT$' + Math.abs(l.amount).toLocaleString('zh-TW') + '</span>' +
-        '</label>';
-    }).join('') +
-    (selectedCCLayers.size > 0
-      ? '<span style="margin-left:auto;font-size:12px;color:var(--tx-secondary)">扣除合計：<strong style="color:var(--tx-red)">NT$' + selectedTotal.toLocaleString('zh-TW') + '</strong></span>'
-      : '<span style="font-size:11px;color:var(--tx-muted)">（尚未勾選，剩餘生活費將顯示 0）</span>') +
-    '</div></div>';
+
+  // ── 收集信用卡所有分層（實際消費 = 手動 + 帶layerId交易）──
+  const ccLayers = [];
+  DB.creditCards.forEach(card => {
+    (card.layers || []).forEach(layer => {
+      const txAmt = DB.transactions
+        .filter(t => t.sourceType==='card' && t.sourceId===card.id && t.layerId===layer.id && t.amount<0 && !t.isPayment)
+        .reduce((s,t) => s + Math.abs(t.amount), 0);
+      const actual = (layer.amount || 0) + txAmt;
+      ccLayers.push({ cardId: card.id, cardName: card.name, cardColor: card.color, layerId: layer.id, label: layer.label, actual });
+    });
+  });
+
+  if (bankLayers.length === 0 && ccLayers.length === 0) { el.innerHTML = ''; return; }
+
+  // ── 合計 ──
+  const bankTotal = bankLayers.filter(l => selectedBankLayers.has(l.accId+'_'+l.layerId)).reduce((s,l) => s+l.actual, 0);
+  const ccTotal   = ccLayers.filter(l => selectedCCLayers.has(l.cardId+'_'+l.layerId)).reduce((s,l) => s+l.actual, 0);
+  const remain    = bankTotal - ccTotal;
+
+  const mkChip = (key, color, isSelected, label1, label2, amt, onchange) =>
+    '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;' +
+    'background:var(--bg-primary);border:1px solid '+(isSelected?color:'var(--bdr-subtle)')+';' +
+    'border-radius:6px;padding:4px 10px;transition:border .2s">' +
+    '<input type="checkbox"'+(isSelected?' checked':'')+' style="cursor:pointer;accent-color:'+color+'" onchange="'+onchange+'">' +
+    '<span style="color:'+color+';font-weight:600">'+escHtml(label1)+'</span>' +
+    '<span style="color:var(--tx-secondary)"> / </span>' +
+    '<span>'+escHtml(label2)+'</span>' +
+    '<span style="color:var(--tx-muted);margin-left:4px">NT$'+Math.abs(amt).toLocaleString('zh-TW')+'</span>' +
+    '</label>';
+
+  let html = '<div style="background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:10px;padding:10px 14px;">';
+
+  // 銀行薪水來源區
+  if (bankLayers.length > 0) {
+    html += '<div style="font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin-bottom:6px;font-family:var(--ff-display)">🏦 薪水來源 — 選擇銀行帳戶分層</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">';
+    bankLayers.forEach(l => {
+      const key = l.accId+'_'+l.layerId;
+      html += mkChip(key, l.accColor||'#1c69d4', selectedBankLayers.has(key), l.accName, l.label, l.actual,
+        'toggleBankLayer(\''+l.accId+'\',\''+l.layerId+'\',this.checked)');
+    });
+    html += '</div>';
+  }
+
+  // 信用卡扣除區
+  if (ccLayers.length > 0) {
+    html += '<div style="font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin-bottom:6px;font-family:var(--ff-display)">💳 扣除項目 — 選擇信用卡分層</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">';
+    ccLayers.forEach(l => {
+      const key = l.cardId+'_'+l.layerId;
+      html += mkChip(key, l.cardColor, selectedCCLayers.has(key), l.cardName, l.label, l.actual,
+        'toggleCCLayer(\''+l.cardId+'\',\''+l.layerId+'\',this.checked)');
+    });
+    html += '</div>';
+  }
+
+  // 合計列
+  html += '<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--bdr-subtle);display:flex;gap:16px;flex-wrap:wrap;font-size:12px;align-items:center">';
+  if (selectedBankLayers.size > 0)
+    html += '<span style="color:var(--tx-secondary)">薪水合計：<strong style="color:var(--tx-green)">NT$'+bankTotal.toLocaleString('zh-TW')+'</strong></span>';
+  if (selectedCCLayers.size > 0)
+    html += '<span style="color:var(--tx-secondary)">扣除合計：<strong style="color:var(--tx-red)">NT$'+ccTotal.toLocaleString('zh-TW')+'</strong></span>';
+  if (selectedBankLayers.size > 0 || selectedCCLayers.size > 0)
+    html += '<span style="margin-left:auto;color:var(--tx-secondary)">剩餘生活費：<strong style="color:'+(remain<0?'var(--tx-red)':remain<bankTotal*0.2?'var(--tx-warning)':'var(--tx-green)')+'">NT$'+remain.toLocaleString('zh-TW')+'</strong></span>';
+  else
+    html += '<span style="color:var(--tx-muted);font-size:11px">請在上方勾選分層</span>';
+  html += '</div>';
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function toggleBankLayer(accId, layerId, checked) {
+  const key = accId + '_' + layerId;
+  if (checked) selectedBankLayers.add(key);
+  else selectedBankLayers.delete(key);
+  renderCCLayerSelector();
+  renderDashboard();
 }
 
 function toggleCCLayer(cardId, layerId, checked) {
@@ -774,18 +831,29 @@ function renderDashboard() {
     return s + accountBalance(a.id);
   }, 0);
   const ccSpend   = Math.abs(thisMonthCCSpend());
-  const salarySum = DB.bankAccounts.reduce((s,a)=>{
-    const l=(a.layers||[]).find(l=>l.label.includes('薪')); return s+(l?l.amount:0);
-  },0);
-
-  // 計算勾選分層的扣除總額
-  const selectedLayerDeduct = DB.creditCards.reduce((s,card)=>{
-    return s + (card.layers||[]).reduce((ss,layer)=>{
-      return selectedCCLayers.has(card.id+'_'+layer.id) ? ss+Math.abs(layer.amount||0) : ss;
-    },0);
-  },0);
-  const layerRemain = salarySum - selectedLayerDeduct;
-  const layerSubLabel = selectedCCLayers.size > 0 ? '薪水 − 勾選分層合計' : '請在上方勾選分層';
+  // 薪水來源：勾選的銀行帳戶分層實際餘額合計
+  const salarySum = selectedBankLayers.size > 0
+    ? DB.bankAccounts.reduce((s,a) => {
+        return s + (a.layers||[]).reduce((ss,l) => {
+          return selectedBankLayers.has(a.id+'_'+l.id) ? ss + layerDynamicBalance(a.id, l.id) : ss;
+        }, 0);
+      }, 0)
+    : 0;
+  // 扣除項目：勾選的信用卡分層實際消費合計（手動 + 帶layerId交易）
+  const selectedLayerDeduct = selectedCCLayers.size > 0
+    ? DB.creditCards.reduce((s,card) => {
+        return s + (card.layers||[]).reduce((ss,layer) => {
+          if (!selectedCCLayers.has(card.id+'_'+layer.id)) return ss;
+          const txAmt = DB.transactions
+            .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.layerId===layer.id&&t.amount<0&&!t.isPayment)
+            .reduce((r,t)=>r+Math.abs(t.amount),0);
+          return ss + (layer.amount||0) + txAmt;
+        }, 0);
+      }, 0)
+    : 0;
+  const layerRemain  = salarySum - selectedLayerDeduct;
+  const anySelected  = selectedBankLayers.size > 0 || selectedCCLayers.size > 0;
+  const layerSubLabel = anySelected ? '薪水分層 − 信用卡分層' : '請在上方勾選分層';
 
   const labels = {month:'本月',salary:'本期(8日~隔月5日)',30:'近30天',7:'近7天',today:'今天',all:'全部'};
   const lbl = labels[dashRange]||'';
@@ -795,7 +863,7 @@ function renderDashboard() {
     statCard(lbl+'收入', fmt(income), income>0?'success':'', '', '📥') +
     statCard('信用卡未償還', fmt(-totalDebt), totalDebt>0?'danger':'success', '所有卡片累積', '💳') +
     statCard('銀行總資產', fmt(totalBank), 'blue', '所有帳戶餘額', '🏦') +
-    statCard('剩餘生活費', selectedCCLayers.size>0?fmt(layerRemain):'— 未選分層 —', selectedCCLayers.size===0?'':(layerRemain<0?'danger':layerRemain<salarySum*0.2?'warning':'success'), layerSubLabel, '💰');
+    statCard('剩餘生活費', anySelected?fmt(layerRemain):'— 未選分層 —', !anySelected?'':(layerRemain<0?'danger':layerRemain<salarySum*0.2?'warning':'success'), layerSubLabel, '💰');
 
   // CountUp 動畫
   setTimeout(() => {
