@@ -2705,23 +2705,21 @@ async function fetchExchangeRates() {
     } catch {}
   }
 
-  // ② 背景更新匯率（CDN 快取，台灣取速度快）
-  // 來源：fawazahmed0/currency-api via jsDelivr CDN
-  // 回傳格式：{ twd: { usd: 0.0312, jpy: 4.72, ... } }
+  // ② 背景更新匯率
+  // 來源：open.er-api.com（免費、無需金鑰、穩定）
+  // 回傳格式：{ rates: { USD: 0.031, JPY: 4.72, ... } }（以 TWD 為基準）
   const URLS = [
-    'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/twd.json',
-    'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/twd.min.json',
+    'https://open.er-api.com/v6/latest/TWD',
   ];
 
   for (const url of URLS) {
     try {
       const res  = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
-      const twd  = data.twd || data; // 格式保險
-      if (!twd || typeof twd !== 'object') continue;
+      if (data.result !== 'success' || !data.rates) continue;
 
       exchangeRates = { TWD: 1 };
-      Object.entries(twd).forEach(([cur, rate]) => {
+      Object.entries(data.rates).forEach(([cur, rate]) => {
         // rate = 1 TWD → X cur，所以 1 cur = 1/rate TWD
         if (typeof rate === 'number' && rate > 0) {
           exchangeRates[cur.toUpperCase()] = 1 / rate;
