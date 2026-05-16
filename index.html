@@ -1329,7 +1329,7 @@ function txnTable(txns, withActions) {
     return `<tr class="txn-row" ${rowClick}>
       ${chk}
       <td style="white-space:nowrap">${t.date}</td>
-      <td style="word-break:break-word">${escHtml(t.desc)}${sysTags}${feeBadge}${userTagBadges}</td>
+      <td style="white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis">${escHtml(t.desc)}${sysTags}${feeBadge}${userTagBadges}</td>
       <td style="white-space:nowrap"><span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span></td>
       <td style="white-space:nowrap">${sourceName(t)}</td>
       <td class="${amtCls}" style="white-space:nowrap">${sign}${fmt(Math.abs(t.amount))}</td>
@@ -1341,17 +1341,7 @@ function txnTable(txns, withActions) {
   const cols  = withActions ? 7 : 5;
   const chkTh = withActions ? '<th style="width:32px"><input type="checkbox" id="chkAll" onchange="toggleAllChk(this)"></th>' : '';
   const actTh = withActions ? '<th>操作</th>' : '';
-  return `<table style="table-layout:fixed;width:100%">
-    <colgroup>
-      ${withActions ? '<col style="width:36px">' : ''}
-      <col style="width:100px">
-      <col>
-      <col style="width:120px">
-      <col style="width:130px">
-      <col style="width:110px">
-      <col style="width:110px">
-      ${withActions ? '<col style="width:80px">' : ''}
-    </colgroup>
+  return `<table style="width:100%">
     <thead><tr>${chkTh}<th>日期</th><th>內容</th><th>類別</th><th>帳戶/卡片</th><th>金額</th><th>備註</th>${actTh}</tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr style="background:var(--bg-secondary)">
