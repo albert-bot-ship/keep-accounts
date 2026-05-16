@@ -266,8 +266,8 @@
       <!-- ── 資料管理 Tab ── -->
       <div class="settings-tab-panel" id="spanel-data">
         <div style="background:rgba(28,105,212,.13);border:1px solid var(--m-blue);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--tx-primary)">
-          🔄 <strong>雙軌模式</strong>｜平時資料存於本機（localStorage），跨裝置同步請手動備份。<br>
-          同步流程：匯出 JSON → 覆蓋 GitHub 的 <code>mwallet_backup.json</code> → push → 新裝置開啟自動載入。
+          🌐 <strong>唯讀模式</strong>｜資料從 <code>mwallet_backup.json</code> 載入，不使用本機儲存空間。<br>
+          更新資料流程：在本機匯出 JSON → 上傳至 GitHub 覆蓋 <code>mwallet_backup.json</code> → 重新整理頁面。
         </div>
         <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:14px">匯出可將目前載入的資料另存備份，匯入功能在唯讀模式下僅於本次會話有效。</p>
         <div class="flex gap-3" style="flex-wrap:wrap">
@@ -336,7 +336,7 @@ let charts = {};
 let modalType = null, editTarget = null;
 let dashRange = 'month';
 let selectedTxns = new Set();
-let _readOnlyMode = false; // 雙軌模式：localStorage + GitHub 備援
+let _readOnlyMode = true; // GitHub Pages 唯讀模式
 let selectedCCLayers  = new Set(); // 剩餘生活費勾選的信用卡分層
 let selectedBankLayers = new Set(); // 剩餘生活費勾選的銀行帳戶分層
 let dashRemainAmt = null; // 儀表板剩餘生活費計算結果（null=未勾選）
@@ -363,27 +363,12 @@ function defaultDB() {
     ]
   };
 }
-const LS_KEY = 'mwallet_v2_data';
-
 function loadDB() {
-  // 雙軌模式：優先讀 localStorage，沒有才用 defaultDB
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) {
-      const data = JSON.parse(raw);
-      if (data && Array.isArray(data.transactions)) return data;
-    }
-  } catch(e) {}
+  // GitHub Pages 唯讀模式：不使用 localStorage
   return defaultDB();
 }
-
 function saveDB() {
-  // 雙軌模式：寫入 localStorage
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(DB));
-  } catch(e) {
-    console.warn('[mwallet] localStorage 寫入失敗:', e.message);
-  }
+  // 唯讀模式：不寫入任何儲存空間，資料僅存在記憶體中
 }
 
 async function loadFromGitHub() {
@@ -3203,18 +3188,8 @@ async function init() {
   document.getElementById('filterFrom').value=y+'-'+m+'-01';
   document.getElementById('filterTo').value=today();
 
-  // 雙軌載入：localStorage 有資料優先用，沒有才從 GitHub 抓備份
-  const lsRaw = localStorage.getItem(LS_KEY);
-  const hasLocal = !!(lsRaw && (() => { try { const d=JSON.parse(lsRaw); return d && Array.isArray(d.transactions); } catch(e){ return false; } })());
-
-  if (hasLocal) {
-    DB = loadDB();
-    toast('📱 已載入本機資料','success');
-  } else {
-    await loadFromGitHub();
-    // GitHub 資料載入後同步寫入 localStorage，方便後續操作
-    saveDB();
-  }
+  // 從 GitHub 載入資料（唯讀模式）
+  await loadFromGitHub();
 
   ensureTags();
   generateFixed();
