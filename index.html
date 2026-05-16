@@ -1329,8 +1329,11 @@ function txnTable(txns, withActions) {
     return `<tr class="txn-row" ${rowClick}>
       ${chk}
       <td style="white-space:nowrap">${t.date}</td>
-      <td>${escHtml(t.desc)}${tags}</td>
-      <td><span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span></td>
+      <td>${escHtml(t.desc)}${feeBadge}${userTagBadges}</td>
+      <td style="white-space:nowrap">
+        <span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span>
+        ${sysTags}
+      </td>
       <td style="white-space:nowrap">${sourceName(t)}</td>
       <td class="${amtCls}" style="white-space:nowrap">${sign}${fmt(Math.abs(t.amount))}</td>
       <td style="color:var(--tx-secondary);font-size:12px">${escHtml(t.notes||'—')}</td>
