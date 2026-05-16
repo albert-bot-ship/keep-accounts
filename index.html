@@ -637,6 +637,28 @@ function daysUntilBilling(card) {
   if (d < now) d.setMonth(d.getMonth()+1);
   return Math.ceil((d - now) / 86400000);
 }
+
+// 計算信用卡本期結帳週期的起訖日期字串（YYYY-MM-DD）
+function cardBillingPeriod(card) {
+  const now = new Date();
+  const today = now.getDate();
+  const billingDay = card.billingDay || 1;
+  let periodStart, periodEnd;
+  if (today <= billingDay) {
+    // 今天還沒到結帳日，本期是上月billingDay+1 ～ 本月billingDay
+    const startDate = new Date(now.getFullYear(), now.getMonth()-1, billingDay+1);
+    const endDate   = new Date(now.getFullYear(), now.getMonth(), billingDay);
+    periodStart = startDate.toISOString().slice(0,10);
+    periodEnd   = endDate.toISOString().slice(0,10);
+  } else {
+    // 今天已過結帳日，本期是本月billingDay+1 ～ 下月billingDay
+    const startDate = new Date(now.getFullYear(), now.getMonth(), billingDay+1);
+    const endDate   = new Date(now.getFullYear(), now.getMonth()+1, billingDay);
+    periodStart = startDate.toISOString().slice(0,10);
+    periodEnd   = endDate.toISOString().slice(0,10);
+  }
+  return { periodStart, periodEnd };
+}
 // Card monthly cashback
 function cardMonthlyCashback(card) {
   if (!card.cashbackRate || card.cashbackRate <= 0) return 0;
@@ -941,7 +963,14 @@ function renderCards() {
     const isNeg   = bal < 0;
     const used    = c.limit>0?Math.min(100,Math.abs(bal)/c.limit*100):0;
     const icon    = c.icon?`<img src="${c.icon}" alt="">`:'💳';
-    const mSpend  = DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&ym(t.date)===nowYM()&&!t.isPayment).reduce((s,t)=>s+Math.abs(t.amount),0);
+    // 本期結帳週期
+    const { periodStart, periodEnd } = c.billingDay ? cardBillingPeriod(c) : { periodStart: nowYM()+'-01', periodEnd: nowYM()+'-31' };
+    const nowDay = new Date().getDate();
+
+    // 本期消費（結帳日週期內的交易）
+    const mSpend  = DB.transactions
+      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
+      .reduce((s,t)=>s+Math.abs(t.amount),0);
     const cashback= cardMonthlyCashback(c);
     const due     = daysUntilDue(c);
     const billing = daysUntilBilling(c);
@@ -957,11 +986,11 @@ function renderCards() {
       ? `<div class="billing-badge ${bilCls}">${billing<=0?'📋 今日結帳':billing<=2?'📋 '+billing+'天後結帳':'📋 '+billing+'天後結帳'}</div>`
       : '';
 
-    // 各分層的手動支出金額 + 固定消費依名稱匹配到此分層的金額 + 帶此 layerId 的交易
+    // 各分層的手動支出金額 + 固定消費依名稱匹配到此分層的金額（日期到了才計） + 帶此 layerId 的交易
     const layersHtml = (c.layers||[]).map(l=>{
       const layerAmt = l.amount||0;
       const feLayerAmt = DB.fixedExpenses
-        .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
+        .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id && (fe.day||1) <= nowDay)
         .flatMap(fe => (fe.layers||[]))
         .filter(fl => fl.label.trim() === l.label.trim())
         .reduce((s,fl) => s+(+fl.amount||0), 0);
@@ -988,7 +1017,7 @@ function renderCards() {
     const layerTotal = (c.layers||[]).reduce((s,l) => {
       const own = l.amount||0;
       const fe  = DB.fixedExpenses
-        .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
+        .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id && (fe.day||1) <= nowDay)
         .flatMap(fe => (fe.layers||[]))
         .filter(fl => fl.label.trim() === l.label.trim())
         .reduce((ss,fl) => ss+(+fl.amount||0), 0);
@@ -998,7 +1027,7 @@ function renderCards() {
       return s + own + fe + tx;
     }, 0);
     const feUnmappedAmt = DB.fixedExpenses
-      .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id)
+      .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id && (fe.day||1) <= nowDay)
       .flatMap(fe => (fe.layers||[]))
       .filter(fl => !cardLayerLabels.has(fl.label.trim()))
       .reduce((s,fl) => s+(+fl.amount||0), 0);
@@ -1032,7 +1061,7 @@ function renderCards() {
         <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">消費總額</div>
         <div class="account-balance negative">−${fmt(totalSpend)}</div>
         <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
-          <div style="font-size:11px;color:var(--tx-secondary)">本月消費：<span style="color:var(--tx-red)">${fmt(-mSpend)}</span></div>
+          <div style="font-size:11px;color:var(--tx-secondary)">本期消費：<span style="color:var(--tx-red)">${fmt(-mSpend)}</span><span style="font-size:10px;color:var(--tx-muted);margin-left:4px">(${periodStart.slice(5)} ～ ${periodEnd.slice(5)})</span></div>
           ${(c.layers||[]).length>0?`<div style="font-size:11px;color:var(--tx-secondary)">分層：<span style="color:var(--tx-red)">−${fmt(layerTotal)}</span>　快速記帳：<span style="color:var(--tx-red)">−${fmt(unlayeredSpend)}</span>${feUnmappedAmt>0?`　固定(未對應)：<span style="color:var(--tx-red)">−${fmt(feUnmappedAmt)}</span>`:''}</div>`:''}
           ${totalCardFees>0?`<div style="font-size:11px;color:var(--tx-secondary)">手續費：<span style="color:#e67800">+${fmt(totalCardFees)}</span></div>`:''}
           ${c.cashbackRate>0?`<div style="font-size:11px;color:var(--tx-secondary)">本月回饋：<span style="color:var(--tx-green)">+${fmt(-cashback)}</span><span style="font-size:10px;color:var(--tx-muted)">（${c.cashbackRate}%）</span></div>`:''}
