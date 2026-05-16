@@ -266,8 +266,8 @@
       <!-- ── 資料管理 Tab ── -->
       <div class="settings-tab-panel" id="spanel-data">
         <div style="background:rgba(28,105,212,.13);border:1px solid var(--m-blue);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--tx-primary)">
-          🌐 <strong>唯讀模式</strong>｜資料從 <code>mwallet_backup.json</code> 載入，不使用本機儲存空間。<br>
-          更新資料流程：在本機匯出 JSON → 上傳至 GitHub 覆蓋 <code>mwallet_backup.json</code> → 重新整理頁面。
+          🔄 <strong>雙軌模式</strong>｜平時資料存於本機（localStorage），跨裝置同步請手動備份。<br>
+          同步流程：匯出 JSON → 覆蓋 GitHub 的 <code>mwallet_backup.json</code> → push → 新裝置開啟自動載入。
         </div>
         <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:14px">匯出可將目前載入的資料另存備份，匯入功能在唯讀模式下僅於本次會話有效。</p>
         <div class="flex gap-3" style="flex-wrap:wrap">
@@ -336,7 +336,7 @@ let charts = {};
 let modalType = null, editTarget = null;
 let dashRange = 'month';
 let selectedTxns = new Set();
-let _readOnlyMode = true; // GitHub Pages 唯讀模式
+let _readOnlyMode = false; // 雙軌模式：localStorage + GitHub 備援
 let selectedCCLayers  = new Set(); // 剩餘生活費勾選的信用卡分層
 let selectedBankLayers = new Set(); // 剩餘生活費勾選的銀行帳戶分層
 let dashRemainAmt = null; // 儀表板剩餘生活費計算結果（null=未勾選）
@@ -363,12 +363,27 @@ function defaultDB() {
     ]
   };
 }
+const LS_KEY = 'mwallet_v2_data';
+
 function loadDB() {
-  // GitHub Pages 唯讀模式：不使用 localStorage
+  // 雙軌模式：優先讀 localStorage，沒有才用 defaultDB
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data && Array.isArray(data.transactions)) return data;
+    }
+  } catch(e) {}
   return defaultDB();
 }
+
 function saveDB() {
-  // 唯讀模式：不寫入任何儲存空間，資料僅存在記憶體中
+  // 雙軌模式：寫入 localStorage
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(DB));
+  } catch(e) {
+    console.warn('[mwallet] localStorage 寫入失敗:', e.message);
+  }
 }
 
 async function loadFromGitHub() {
@@ -1720,6 +1735,15 @@ function toggleTxnTag(el, tagId) {
   inp.value = JSON.stringify(arr);
 }
 
+function toggleQaTag(el, tagId) {
+  const inp = document.getElementById('qaTagsVal');
+  if (!inp) return;
+  let arr = JSON.parse(inp.value||'[]');
+  if (arr.includes(tagId)) { arr=arr.filter(x=>x!==tagId); el.classList.remove('active'); }
+  else { arr.push(tagId); el.classList.add('active'); }
+  inp.value = JSON.stringify(arr);
+}
+
 // ════════════════════════════════════════════════════════════════
 // SETTINGS TABS
 // ════════════════════════════════════════════════════════════════
@@ -2544,43 +2568,58 @@ function openQuickAdd() {
 
   document.getElementById('modalTitle').textContent = '⚡ 快速記帳';
   document.getElementById('modalBody').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="form-group" style="margin:0">
-        <label class="form-label">金額（NT$）</label>
-        <input class="form-input" id="qaAmt" type="number" placeholder="0" autofocus
-          style="font-size:22px;font-weight:700;font-family:var(--ff-display)">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">日期</label>
+        <input class="form-input" id="qaDate" type="date" value="${today()}">
       </div>
-      <div class="form-group" style="margin:0">
-        <label class="form-label">類型</label>
+      <div class="form-group"><label class="form-label">類型</label>
         <select class="form-select" id="qaType" onchange="reloadQaCats(this.value)">
           <option value="expense">支出</option>
           <option value="income">收入</option>
+          <option value="redemption">點數/回饋折抵</option>
         </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">金額（NT$）</label>
+        <input class="form-input" id="qaAmt" type="number" placeholder="0" autofocus
+          style="font-size:22px;font-weight:700;font-family:var(--ff-display)">
+      </div>
+      <div class="form-group"><label class="form-label">類別</label>
+        <select class="form-select" id="qaCat">${catOpts(DB.categories[0]?.id||'')}</select>
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">消費內容</label>
       <input class="form-input" id="qaDesc" placeholder="e.g. 午餐、計程車">
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="form-group" style="margin:0">
-        <label class="form-label">類別</label>
-        <select class="form-select" id="qaCat">${catOpts(DB.categories[0]?.id||'')}</select>
-      </div>
-      <div class="form-group" style="margin:0">
-        <label class="form-label">帳戶/卡片</label>
-        <select class="form-select" id="qaSrc" onchange="onQaSrcChange(this.value)">
-          <option value="">請選擇</option>${srcOpts2()}
-        </select>
-      </div>
+    <div class="form-group"><label class="form-label">帳戶/卡片</label>
+      <select class="form-select" id="qaSrc" onchange="onQaSrcChange(this.value)">
+        <option value="">請選擇</option>${srcOpts2()}
+      </select>
     </div>
     <div class="form-group" id="qaLayerGroup" style="display:none">
       <label class="form-label">扣款分層（選填）</label>
       <select class="form-select" id="qaLayer">
         <option value="">不指定分層</option>
       </select>
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 選擇後可追蹤每筆消費從哪個分層支出</div>
     </div>
-    <input type="hidden" id="qaDate" value="${today()}">
+    <div class="form-group" id="qaFeeGroup" style="display:none">
+      <label class="form-label">手續費（NT$，選填）</label>
+      <input class="form-input" id="qaFee" type="number" min="0" step="any" placeholder="0">
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 手續費將另計入信用卡消費總額</div>
+    </div>
+    <div class="form-group"><label class="form-label">標籤（選填，可多選）</label>
+      <div class="tag-picker" id="qaTagPicker">
+        ${(DB.userTags||[]).map(tg=>`<span class="tag-pick-btn" data-id="${tg.id}" style="--tclr:${tg.color}" onclick="toggleQaTag(this,'${tg.id}')">#${escHtml(tg.name)}</span>`).join('')}
+        ${(DB.userTags||[]).length===0?'<span style="font-size:12px;color:var(--tx-muted)">尚無標籤，請至設定頁新增</span>':''}
+      </div>
+      <input type="hidden" id="qaTagsVal" value="[]">
+    </div>
+    <div class="form-group"><label class="form-label">備註（選填）</label>
+      <input class="form-input" id="qaNotes" placeholder="">
+    </div>
   `;
   document.getElementById('modalFooter').innerHTML =
     `<button class="btn btn-ghost" onclick="closeModal()">取消</button>
@@ -2589,40 +2628,61 @@ function openQuickAdd() {
   setTimeout(() => { const el = document.getElementById('qaAmt'); if(el) el.focus(); }, 80);
 }
 
-// 快速記帳帳戶切換 → 動態顯示分層
+// 快速記帳帳戶切換 → 動態顯示分層、手續費
 function onQaSrcChange(srcVal) {
-  const group = document.getElementById('qaLayerGroup');
-  const sel   = document.getElementById('qaLayer');
+  const group    = document.getElementById('qaLayerGroup');
+  const sel      = document.getElementById('qaLayer');
+  const feeGroup = document.getElementById('qaFeeGroup');
   if (!group || !sel) return;
-  if (!srcVal || !srcVal.startsWith('account_')) {
-    group.style.display = 'none'; return;
+
+  // 手續費：只在信用卡時顯示
+  if (feeGroup) feeGroup.style.display = srcVal.startsWith('card_') ? '' : 'none';
+
+  if (!srcVal) { group.style.display = 'none'; return; }
+
+  let layers = [];
+  if (srcVal.startsWith('account_')) {
+    layers = getAcc(srcVal.split('_')[1])?.layers || [];
+  } else if (srcVal.startsWith('card_')) {
+    layers = getCard(srcVal.split('_')[1])?.layers || [];
   }
-  const acc = getAcc(srcVal.split('_')[1]);
-  const layers = acc?.layers || [];
+
   if (!layers.length) { group.style.display = 'none'; return; }
   sel.innerHTML = '<option value="">不指定分層</option>' +
-    layers.map(l => `<option value="${l.id}">${escHtml(l.label)}（${fmt(l.amount)}）</option>`).join('');
+    layers.map(l => `<option value="${l.id}">${escHtml(l.label)}${l.amount?'（'+fmt(l.amount)+'）':''}</option>`).join('');
   group.style.display = '';
 }
 
 function saveQuickAdd() {
-  const amt    = +v('qaAmt');
-  const desc   = (document.getElementById('qaDesc')?.value||'').trim() || '快速記帳';
-  const catId  = v('qaCat');
-  const srcVal = v('qaSrc');
-  const type   = v('qaType');
-  const layerId= v('qaLayer') || null;
+  const amt     = +v('qaAmt');
+  const desc    = (document.getElementById('qaDesc')?.value||'').trim() || '快速記帳';
+  const catId   = v('qaCat');
+  const srcVal  = v('qaSrc');
+  const type    = v('qaType');
+  const layerId = v('qaLayer') || null;
+  const date    = v('qaDate') || today();
+  const notes   = (document.getElementById('qaNotes')?.value||'').trim();
+  const fee     = parseFloat(document.getElementById('qaFee')?.value||0) || 0;
+  const tags    = JSON.parse(document.getElementById('qaTagsVal')?.value||'[]');
+  const isRedemption = type === 'redemption';
+
   if (!amt || !srcVal) { toast('請填入金額並選擇帳戶','danger'); return; }
   const [sType, sId] = srcVal.split('_');
-  const amount = type === 'income' ? Math.abs(amt) : -Math.abs(amt);
+  const amount = (type === 'income' || isRedemption) ? Math.abs(amt) : -Math.abs(amt);
+
   DB.transactions.push({
-    id:uid(), date:today(), amount, desc, category:catId,
-    sourceId:sId, sourceType:sType, notes:'', isFixed:false, tags:[], layerId
+    id:uid(), date, amount, desc, category:catId,
+    sourceId:sId, sourceType:sType, notes, isFixed:false,
+    tags, layerId, fee: fee||undefined, isRedemption: isRedemption||undefined
   });
+
   const cat = getCat(catId);
-  if (cat.budget>0 && amount<0 && catMonthSpend(catId)>cat.budget)
+  if (cat?.budget>0 && amount<0 && catMonthSpend(catId)>cat.budget)
     toast('⚠ 類別「'+cat.name+'」已超過本月額度！','danger');
-  const layerName = layerId ? (getAcc(sId)?.layers||[]).find(l=>l.id===layerId)?.label : null;
+
+  const layerName = layerId
+    ? ([...(getAcc(sId)?.layers||[]), ...(getCard(sId)?.layers||[])].find(l=>l.id===layerId)?.label)
+    : null;
   const successMsg = layerName
     ? `✅ 已記帳 ${fmt(Math.abs(amt))}（${layerName}）`
     : `✅ 記帳成功：${fmt(Math.abs(amt))}`;
@@ -3143,8 +3203,18 @@ async function init() {
   document.getElementById('filterFrom').value=y+'-'+m+'-01';
   document.getElementById('filterTo').value=today();
 
-  // 從 GitHub 載入資料（唯讀模式）
-  await loadFromGitHub();
+  // 雙軌載入：localStorage 有資料優先用，沒有才從 GitHub 抓備份
+  const lsRaw = localStorage.getItem(LS_KEY);
+  const hasLocal = !!(lsRaw && (() => { try { const d=JSON.parse(lsRaw); return d && Array.isArray(d.transactions); } catch(e){ return false; } })());
+
+  if (hasLocal) {
+    DB = loadDB();
+    toast('📱 已載入本機資料','success');
+  } else {
+    await loadFromGitHub();
+    // GitHub 資料載入後同步寫入 localStorage，方便後續操作
+    saveDB();
+  }
 
   ensureTags();
   generateFixed();
