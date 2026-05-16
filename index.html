@@ -723,7 +723,7 @@ function renderCCLayerSelector() {
   DB.bankAccounts.forEach(acc => {
     (acc.layers || []).forEach(layer => {
       const actual = layerDynamicBalance(acc.id, layer.id);
-      bankLayers.push({ accId: acc.id, accName: acc.name, accColor: acc.color, layerId: layer.id, label: layer.label, actual });
+      bankLayers.push({ accId: acc.id, accName: acc.name, accColor: layer.color||acc.color||'#1c69d4', layerId: layer.id, label: layer.label, actual });
     });
   });
 
@@ -736,7 +736,7 @@ function renderCCLayerSelector() {
         .reduce((s,t) => s + Math.abs(t.amount), 0);
       const actual = (layer.amount || 0) + txAmt;
       const monthly = (layer.monthlyAmt != null && layer.monthlyAmt !== '') ? layer.monthlyAmt : null;
-      ccLayers.push({ cardId: card.id, cardName: card.name, cardColor: card.color, layerId: layer.id, label: layer.label, actual, monthly });
+      ccLayers.push({ cardId: card.id, cardName: card.name, cardColor: layer.color||card.color, layerId: layer.id, label: layer.label, actual, monthly });
     });
   });
 
