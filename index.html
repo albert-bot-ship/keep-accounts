@@ -13,8 +13,16 @@
     .mobile-bottom-nav { overflow: visible !important; }
     .mbn-items { overflow: visible !important; }
     .mbn-fab-center { position: relative; z-index: 10; }
-    /* ── 頂部導覽列固定（修正被 position:relative 覆蓋的問題）── */
-    .topnav { position: fixed !important; top: 0; left: 0; right: 0; z-index: 1000; }
+    /* ── 頂部導覽列固定（所有裝置、所有頁面）── */
+    .topnav,
+    header.topnav,
+    #appBody .topnav { 
+      position: fixed !important; 
+      top: 0 !important; 
+      left: 0 !important; 
+      right: 0 !important; 
+      z-index: 1000 !important; 
+    }
   </style>
 </head>
 <body id="appBody">
