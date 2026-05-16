@@ -484,11 +484,24 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mp8ppvbhs3ktq",
+      "date": "2026-05-01",
+      "amount": -165,
+      "desc": "Apple Music（固定）",
+      "category": "mov4018zsf3sq",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isFixed": true,
+      "fixedId": "mp8hjphcke43x",
+      "fee": 2
     }
   ],
   "fixedExpenses": [
     {
-      "id": "mp8hjphcke43x",
+      "id": "mp8pqqbj8s0wl",
       "day": 1,
       "amount": 165,
       "desc": "Apple Music",
@@ -498,15 +511,16 @@
       "notes": "",
       "layers": [
         {
+          "layerId": "mowvgma9od1k8",
           "label": "生活消費",
-          "amount": 165,
-          "color": "#C8102E"
+          "amount": 0,
+          "color": "#FF8F00"
         }
       ],
       "fee": 2
     },
     {
-      "id": "mp8hl4a55v9ys",
+      "id": "mp8prfljkwqsm",
       "day": 24,
       "amount": 90,
       "desc": "iCloud+",
@@ -516,9 +530,10 @@
       "notes": "",
       "layers": [
         {
+          "layerId": "mowvgma9od1k8",
           "label": "生活消費",
-          "amount": 90,
-          "color": "#C8102E"
+          "amount": 0,
+          "color": "#FF8F00"
         }
       ],
       "fee": 1
@@ -528,7 +543,8 @@
     "2026-05": [
       "mov85gnihp8gu",
       "mowy61nzto3q4",
-      "mowy73nno13b3"
+      "mowy73nno13b3",
+      "mp8hjphcke43x"
     ]
   },
   "categories": [
