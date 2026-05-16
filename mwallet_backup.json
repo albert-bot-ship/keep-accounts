@@ -149,13 +149,13 @@
           "id": "mowt9nf0j6och",
           "label": "換美元",
           "amount": 0,
-          "color": "#fefcdd"
+          "color": "#00C853"
         },
         {
           "id": "mowta3z63r8ij",
           "label": "活用金額",
           "amount": 0,
-          "color": "#fff995"
+          "color": "#00BCD4"
         }
       ],
       "last4": "",
