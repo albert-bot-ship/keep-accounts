@@ -1502,14 +1502,36 @@ function renderFixed() {
       const cat=getCat(fe.category);
       const src=fe.sourceType==='card'?getCard(fe.sourceId):getAcc(fe.sourceId);
       const layers=fe.layers||[];
+      const nowDay = new Date().getDate();
       const layersHtml = layers.length ? `
         <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr-subtle);display:flex;flex-direction:column;gap:4px">
-          ${layers.map(l=>`
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px">
+          ${layers.map(l=>{
+            // 取得該分層的實際金額（與信用卡/帳戶頁同步）
+            let actualAmt = 0;
+            if (l.layerId) {
+              if (fe.sourceType==='card') {
+                const card = getCard(fe.sourceId);
+                const cardLayer = (card?.layers||[]).find(cl=>cl.id===l.layerId);
+                const layerManual = cardLayer?.amount||0;
+                const layerFe = DB.fixedExpenses
+                  .filter(f=>f.sourceType==='card'&&f.sourceId===fe.sourceId&&(f.day||1)<=nowDay)
+                  .flatMap(f=>f.layers||[])
+                  .filter(fl=>fl.layerId===l.layerId)
+                  .reduce((s,fl)=>s+(+fl.amount||0),0);
+                const layerTx = DB.transactions
+                  .filter(t=>t.sourceType==='card'&&t.sourceId===fe.sourceId&&t.layerId===l.layerId&&t.amount<0&&!t.isPayment)
+                  .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
+                actualAmt = layerManual + layerFe + layerTx;
+              } else {
+                actualAmt = layerDynamicBalance(fe.sourceId, l.layerId);
+              }
+            }
+            return `<div style="display:flex;align-items:center;gap:6px;font-size:11px">
               <div style="width:8px;height:8px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
               <span style="flex:1;color:var(--tx-secondary)">${escHtml(l.label)}</span>
-              <span style="color:var(--tx-red);font-weight:600">−${fmt(+l.amount||0)}</span>
-            </div>`).join('')}
+              <span style="color:var(--tx-red);font-weight:600">−${fmt(actualAmt)}</span>
+            </div>`;
+          }).join('')}
         </div>` : '';
       return `<div class="fe-item" style="flex-direction:column;align-items:stretch;gap:0">
         <div style="display:flex;align-items:center;gap:10px">
