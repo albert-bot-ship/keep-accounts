@@ -695,10 +695,28 @@ function generateFixed() {
     if (DB.generatedFixed[curYM].includes(fe.id)) return;
     if (curDay < fe.day) return;
     const d = String(Math.min(fe.day,28)).padStart(2,'0');
-    DB.transactions.push({ id:uid(), date:curYM+'-'+d, amount:-Math.abs(fe.amount),
-      desc:fe.desc+'（固定）', category:fe.category, sourceId:fe.sourceId,
-      sourceType:fe.sourceType, notes:fe.notes||'', isFixed:true, fixedId:fe.id,
-      fee:fe.fee||0 });
+    // 若有分層設定，每個分層各生成一筆交易並帶 layerId
+    const layers = (fe.layers||[]).filter(l => l.layerId && l.amount > 0);
+    if (layers.length > 0) {
+      layers.forEach(l => {
+        DB.transactions.push({ id:uid(), date:curYM+'-'+d, amount:-Math.abs(l.amount),
+          desc:fe.desc+'（固定）', category:fe.category, sourceId:fe.sourceId,
+          sourceType:fe.sourceType, notes:fe.notes||'', isFixed:true, fixedId:fe.id,
+          fee:0, layerId:l.layerId });
+      });
+      // 手續費單獨一筆（不歸分層）
+      if (fe.fee > 0) {
+        DB.transactions.push({ id:uid(), date:curYM+'-'+d, amount:-Math.abs(fe.fee),
+          desc:fe.desc+'（手續費）', category:fe.category, sourceId:fe.sourceId,
+          sourceType:fe.sourceType, notes:'', isFixed:true, fixedId:fe.id, fee:fe.fee });
+      }
+    } else {
+      // 無分層：單筆生成（原本邏輯）
+      DB.transactions.push({ id:uid(), date:curYM+'-'+d, amount:-Math.abs(fe.amount),
+        desc:fe.desc+'（固定）', category:fe.category, sourceId:fe.sourceId,
+        sourceType:fe.sourceType, notes:fe.notes||'', isFixed:true, fixedId:fe.id,
+        fee:fe.fee||0 });
+    }
     DB.generatedFixed[curYM].push(fe.id);
     added++;
   });
@@ -1002,17 +1020,18 @@ function renderCards() {
       ? `<div class="billing-badge ${bilCls}">${billing<=0?'📋 今日結帳':billing<=2?'📋 '+billing+'天後結帳':'📋 '+billing+'天後結帳'}</div>`
       : '';
 
-    // 各分層的手動支出金額 + 固定消費依名稱匹配到此分層的金額（日期到了才計） + 帶此 layerId 的交易
+    // 各分層的手動支出金額 + 固定消費依layerId匹配到此分層的金額（日期到了才計） + 帶此 layerId 的交易（含手續費）
     const layersHtml = (c.layers||[]).map(l=>{
       const layerAmt = l.amount||0;
+      // 固定消費：優先用layerId匹配，fallback用名稱匹配
       const feLayerAmt = DB.fixedExpenses
         .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id && (fe.day||1) <= nowDay)
         .flatMap(fe => (fe.layers||[]))
-        .filter(fl => fl.label.trim() === l.label.trim())
+        .filter(fl => fl.layerId ? fl.layerId===l.id : fl.label.trim()===l.label.trim())
         .reduce((s,fl) => s+(+fl.amount||0), 0);
       const txLayerAmt = DB.transactions
         .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
-        .reduce((s,t)=>s+Math.abs(t.amount),0);
+        .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
       const totalLayerAmt = layerAmt + feLayerAmt + txLayerAmt;
       const hasDetail = feLayerAmt>0 || txLayerAmt>0;
       const hasMonthly = l.monthlyAmt!=null && l.monthlyAmt!=='';
@@ -1028,24 +1047,25 @@ function renderCards() {
       </div>`;
     }).join('');
 
-    // 消費總額 = 各分層合計（含匹配的固定消費層＋帶layerId的交易） + 未匹配分層的固定消費層 + 快速記帳
+    // 消費總額 = 各分層合計（含匹配的固定消費層＋帶layerId的交易含手續費） + 未匹配分層的固定消費層 + 快速記帳
     const cardLayerLabels = new Set((c.layers||[]).map(l=>l.label.trim()));
+    const cardLayerIds    = new Set((c.layers||[]).map(l=>l.id));
     const layerTotal = (c.layers||[]).reduce((s,l) => {
       const own = l.amount||0;
       const fe  = DB.fixedExpenses
         .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id && (fe.day||1) <= nowDay)
         .flatMap(fe => (fe.layers||[]))
-        .filter(fl => fl.label.trim() === l.label.trim())
+        .filter(fl => fl.layerId ? fl.layerId===l.id : fl.label.trim()===l.label.trim())
         .reduce((ss,fl) => ss+(+fl.amount||0), 0);
       const tx = DB.transactions
         .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
-        .reduce((ss,t)=>ss+Math.abs(t.amount),0);
+        .reduce((ss,t)=>ss+Math.abs(t.amount)+(t.fee||0),0);
       return s + own + fe + tx;
     }, 0);
     const feUnmappedAmt = DB.fixedExpenses
       .filter(fe => fe.sourceType==='card' && fe.sourceId===c.id && (fe.day||1) <= nowDay)
       .flatMap(fe => (fe.layers||[]))
-      .filter(fl => !cardLayerLabels.has(fl.label.trim()))
+      .filter(fl => fl.layerId ? !cardLayerIds.has(fl.layerId) : !cardLayerLabels.has(fl.label.trim()))
       .reduce((s,fl) => s+(+fl.amount||0), 0);
     const unlayeredSpend = DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.layerId&&!t.isPayment)
@@ -2099,8 +2119,9 @@ function openModal(type,id,preCard,preAcc,extraId) {
     <div class="m-stripe" style="margin:14px 0 10px"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div style="font-size:12px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);text-transform:uppercase">消費分層（選填）</div>
-      <button type="button" class="btn btn-sm btn-violet" onclick="addFeLayer()">＋ 新增分層</button>
+      <button type="button" class="btn btn-sm btn-violet" onclick="addFeLayer()">＋ 選擇分層</button>
     </div>
+    <div style="font-size:11px;color:var(--tx-secondary);margin-bottom:8px">💡 選擇帳戶/卡片後，可從現有分層中選擇</div>
     <div id="feLayerList" style="display:flex;flex-direction:column;gap:8px"></div>
     <input type="hidden" id="feLayersData" value="${layersJson}">
     <div id="feTotalHint" style="font-size:11px;color:var(--tx-secondary);margin-top:8px;text-align:right"></div>`;
@@ -2328,6 +2349,7 @@ function doTransfer() {
 function toggleFeFee(srcVal) {
   const g = document.getElementById('feFeeGroup');
   if (g) g.style.display = srcVal.startsWith('card_') ? '' : 'none';
+  renderFeLayers(); // 帳戶切換時更新分層選項
 }
 function getFeLayersData() {
   try { return JSON.parse(document.getElementById('feLayersData')?.value||'[]'); } catch{ return []; }
@@ -2338,27 +2360,53 @@ function setFeLayersData(arr) {
 function renderFeLayers() {
   const layers = getFeLayersData();
   const wrap = document.getElementById('feLayerList'); if (!wrap) return;
+
+  // 取得目前選擇的帳戶/卡片的分層選項
+  const srcVal = document.getElementById('feSrc')?.value || '';
+  let srcLayers = [];
+  if (srcVal.startsWith('account_')) srcLayers = getAcc(srcVal.split('_')[1])?.layers || [];
+  else if (srcVal.startsWith('card_')) srcLayers = getCard(srcVal.split('_')[1])?.layers || [];
+
+  const layerOpts = srcLayers.map(l =>
+    `<option value="${l.id}" data-label="${escAttr(l.label)}" data-color="${l.color||'#888'}">${escHtml(l.label)}</option>`
+  ).join('');
+
   if (!layers.length) {
-    wrap.innerHTML = '<div style="font-size:12px;color:var(--tx-muted)">尚無分層，點「＋ 新增分層」加入</div>';
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--tx-muted)">尚無分層，點「＋ 選擇分層」加入</div>';
     syncFeTotal(); return;
   }
-  wrap.innerHTML = layers.map((l, i) => `
-    <div class="layer-bar" style="gap:8px;align-items:center">
+
+  wrap.innerHTML = layers.map((l, i) => {
+    const selOpts = srcLayers.length
+      ? `<select class="form-select" style="flex:1;height:32px;font-size:13px" onchange="updateFeLayerSel(${i},this)">
+           <option value="">選擇分層</option>
+           ${srcLayers.map(sl => `<option value="${sl.id}" data-label="${escAttr(sl.label)}" data-color="${sl.color||'#888'}"${sl.id===l.layerId?' selected':''}>${escHtml(sl.label)}</option>`).join('')}
+         </select>`
+      : `<span style="font-size:12px;color:var(--tx-muted);flex:1">請先選擇帳戶/卡片</span>`;
+    return `<div class="layer-bar" style="gap:8px;align-items:center">
       <div style="width:12px;height:12px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
-      <input class="form-input" style="flex:1;min-width:80px;height:32px;font-size:13px" value="${escAttr(l.label)}"
-        placeholder="分層名稱（需與信用卡分層同名才能自動對應）" oninput="updateFeLayer(${i},'label',this.value)">
+      ${selOpts}
       <input class="form-input" style="width:90px;height:32px;font-size:13px;text-align:right" type="number" value="${l.amount||0}"
         placeholder="金額" oninput="updateFeLayer(${i},'amount',+this.value)">
       <span style="font-size:11px;color:var(--tx-muted)">NT$</span>
-      <input type="color" value="${l.color||'#C8102E'}" style="width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;background:none"
-        oninput="updateFeLayer(${i},'color',this.value)">
       <button class="btn btn-danger btn-icon btn-sm" onclick="removeFeLayer(${i})">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   syncFeTotal();
 }
+
+function updateFeLayerSel(idx, sel) {
+  const layers = getFeLayersData(); if (!layers[idx]) return;
+  const opt = sel.options[sel.selectedIndex];
+  layers[idx].layerId = sel.value;
+  layers[idx].label   = opt.dataset.label || '';
+  layers[idx].color   = opt.dataset.color || '#888';
+  setFeLayersData(layers); renderFeLayers();
+}
+
 function addFeLayer() {
-  const layers=getFeLayersData();
-  layers.push({label:'',amount:0,color:SWATCHES[layers.length%SWATCHES.length]});
+  const layers = getFeLayersData();
+  layers.push({ layerId:'', label:'', amount:0, color: SWATCHES[layers.length % SWATCHES.length] });
   setFeLayersData(layers); renderFeLayers();
 }
 function removeFeLayer(idx) {
