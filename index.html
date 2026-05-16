@@ -88,7 +88,7 @@
         <div class="page-title">儀表板</div>
         <div class="dash-filter-bar">
           <button class="dash-filter-btn active" data-range="month" onclick="setDashRange(this,'month')">本月</button>
-          <button class="dash-filter-btn" data-range="salary" onclick="setDashRange(this,'salary')">本期(8日~隔月5日)</button>
+          <button class="dash-filter-btn" data-range="salary" onclick="setDashRange(this,'salary')">本期(25日~隔月24日)</button>
           <button class="dash-filter-btn" data-range="30" onclick="setDashRange(this,'30')">近30天</button>
           <button class="dash-filter-btn" data-range="7" onclick="setDashRange(this,'7')">近7天</button>
           <button class="dash-filter-btn" data-range="today" onclick="setDashRange(this,'today')">今天</button>
@@ -433,16 +433,15 @@ function getSalaryCycle() {
   const todayStr = fmt2(now);
 
   let fromDate, toDate;
-  if (day >= 8) {
-    // 本月8日 → 下月5日
-    fromDate = new Date(y, m, 8);
-    toDate   = new Date(m === 11 ? y+1 : y, m === 11 ? 0 : m+1, 5);
+  if (day >= 25) {
+    // 本月25日 → 下月24日
+    fromDate = new Date(y, m, 25);
+    toDate   = new Date(m === 11 ? y+1 : y, m === 11 ? 0 : m+1, 24);
   } else {
-    // 上月8日 → 本月5日
-    fromDate = new Date(m === 0 ? y-1 : y, m === 0 ? 11 : m-1, 8);
-    toDate   = new Date(y, m, 5);
+    // 上月25日 → 本月24日
+    fromDate = new Date(m === 0 ? y-1 : y, m === 0 ? 11 : m-1, 25);
+    toDate   = new Date(y, m, 24);
   }
-  // to 取「週期結束日」與「今天」的較小值，避免顯示未來消費
   const toStr = fmt2(toDate) < todayStr ? fmt2(toDate) : todayStr;
   return { from: fmt2(fromDate), to: toStr };
 }
@@ -571,50 +570,8 @@ function thisMonthCCSpend() {
   return DB.transactions.filter(t=>t.sourceType==='card'&&t.amount<0&&ym(t.date)===nowYM())
     .reduce((s,t)=>s+t.amount,0);
 }
-// 依類別設定的週期計算花費
+// 所有類別統一使用薪資週期（上月25日～本月24日）
 function catPeriodRange(cat) {
-  const todayStr = today();
-  // 新版：自訂起訖日（startDay/endDay 為每月幾號）
-  if (cat?.budgetStartDay != null && cat?.budgetEndDay != null) {
-    const sd = cat.budgetStartDay, ed = cat.budgetEndDay;
-    const now = new Date(), y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
-    const pad2 = n => String(n).padStart(2,'0');
-    let fromDate, toDate;
-    if (sd <= ed) {
-      // 同月區間 e.g. 1→25
-      fromDate = new Date(y, m, sd);
-      toDate   = new Date(y, m, ed);
-      if (d < sd) { fromDate.setMonth(m-1); toDate.setMonth(m-1); }
-    } else {
-      // 跨月區間 e.g. 8→5（下個月）
-      if (d >= sd) {
-        fromDate = new Date(y, m, sd);
-        toDate   = new Date(y, m+1, ed);
-      } else {
-        fromDate = new Date(y, m-1, sd);
-        toDate   = new Date(y, m, ed);
-      }
-    }
-    const toStr = toDate.toISOString().slice(0,10) < todayStr ? toDate.toISOString().slice(0,10) : todayStr;
-    return { from: fromDate.toISOString().slice(0,10), to: toStr };
-  }
-  // 舊版相容
-  const period = cat?.budgetPeriod || 'cycle';
-  if (period === 'cycle') {
-    return getSalaryCycle();
-  } else if (period === 'month') {
-    const now = new Date();
-    return { from: now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-01', to: todayStr };
-  } else if (period === 'week') {
-    const now = new Date();
-    const dow = now.getDay();
-    const mon = new Date(now); mon.setDate(now.getDate() - (dow===0?6:dow-1));
-    return { from: mon.toISOString().slice(0,10), to: todayStr };
-  } else if (period === 'custom') {
-    const days = (cat?.budgetDays||30) - 1;
-    const from = new Date(); from.setDate(from.getDate() - days);
-    return { from: from.toISOString().slice(0,10), to: todayStr };
-  }
   return getSalaryCycle();
 }
 function catMonthSpend(id) {
@@ -920,7 +877,7 @@ function renderDashboard() {
   const layerSubLabel = anySelected ? '薪水分層 − 信用卡分層' : '請在上方勾選分層';
   dashRemainAmt = anySelected ? layerRemain : null;
 
-  const labels = {month:'本月',salary:'本期(8日~隔月5日)',30:'近30天',7:'近7天',today:'今天',all:'全部'};
+  const labels = {month:'本月',salary:'本期(25日~隔月24日)',30:'近30天',7:'近7天',today:'今天',all:'全部'};
   const lbl = labels[dashRange]||'';
 
   document.getElementById('dashStats').innerHTML =
@@ -963,7 +920,7 @@ function renderDashboard() {
       </div>`;
     }).join('')||emptyState('🏦','尚無銀行帳戶');
 
-  const rangeLabel = {month:'最近消費',salary:'本期(8日~隔月5日)消費',30:'近30天消費',7:'近7天消費',today:'今天消費',all:'全部消費'};
+  const rangeLabel = {month:'最近消費',salary:'本期(25日~隔月24日)消費',30:'近30天消費',7:'近7天消費',today:'今天消費',all:'全部消費'};
   document.getElementById('dashRecentLabel').textContent = rangeLabel[dashRange]||'最近消費';
   const recent = [...rtx].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
   document.getElementById('dashRecent').innerHTML = txnTable(recent, false);
@@ -1635,13 +1592,8 @@ function renderSettings() {
     const iconEl = c.icon
       ? `<img src="${c.icon}" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0">`
       : `<div style="width:32px;height:32px;border-radius:8px;background:${c.color};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${c.emoji||'🏷'}</div>`;
-    const periodLabel = (()=>{
-      if (c.budgetStartDay != null && c.budgetEndDay != null) {
-        return `每月${c.budgetStartDay}日～${c.budgetEndDay <= c.budgetStartDay ? '次月' : ''}${c.budgetEndDay}日`;
-      }
-      const p=c.budgetPeriod||'cycle';
-      return {cycle:'本期(8～5日)',month:'本月',week:'本週',custom:(c.budgetDays||30)+'天'}[p]||'本期';
-    })();
+    const { from, to } = getSalaryCycle();
+    const periodLabel = `${from.slice(5)}～${to.slice(5)}`;
     const barColor = pct>=100?'var(--m-red)':pct>=80?'var(--warn)':'var(--m-blue)';
     // ▲▼ disabled 以「區內位置」判斷，避免跨區移動
     const disUp   = sectionIdx===0 ? 'disabled' : '';
