@@ -695,21 +695,15 @@ function generateFixed() {
     if (DB.generatedFixed[curYM].includes(fe.id)) return;
     if (curDay < fe.day) return;
     const d = String(Math.min(fe.day,28)).padStart(2,'0');
-    // 若有分層設定，每個分層各生成一筆交易並帶 layerId
-    const layers = (fe.layers||[]).filter(l => l.layerId && l.amount > 0);
+    // 若有分層設定，生成一筆交易並帶 layerId（金額 = 固定消費總額）
+    const layers = (fe.layers||[]).filter(l => l.layerId);
     if (layers.length > 0) {
-      layers.forEach(l => {
-        DB.transactions.push({ id:uid(), date:curYM+'-'+d, amount:-Math.abs(l.amount),
-          desc:fe.desc+'（固定）', category:fe.category, sourceId:fe.sourceId,
-          sourceType:fe.sourceType, notes:fe.notes||'', isFixed:true, fixedId:fe.id,
-          fee:0, layerId:l.layerId });
-      });
-      // 手續費單獨一筆（不歸分層）
-      if (fe.fee > 0) {
-        DB.transactions.push({ id:uid(), date:curYM+'-'+d, amount:-Math.abs(fe.fee),
-          desc:fe.desc+'（手續費）', category:fe.category, sourceId:fe.sourceId,
-          sourceType:fe.sourceType, notes:'', isFixed:true, fixedId:fe.id, fee:fe.fee });
-      }
+      // 只取第一個分層（固定消費通常對應單一分層）
+      const l = layers[0];
+      DB.transactions.push({ id:uid(), date:curYM+'-'+d, amount:-Math.abs(fe.amount),
+        desc:fe.desc+'（固定）', category:fe.category, sourceId:fe.sourceId,
+        sourceType:fe.sourceType, notes:fe.notes||'', isFixed:true, fixedId:fe.id,
+        fee:fe.fee||0, layerId:l.layerId });
     } else {
       // 無分層：單筆生成（原本邏輯）
       DB.transactions.push({ id:uid(), date:curYM+'-'+d, amount:-Math.abs(fe.amount),
@@ -2102,7 +2096,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
     const layersJson = escAttr(JSON.stringify(initLayers));
     b=`<div class="form-row">
       <div class="form-group"><label class="form-label">每月幾號</label><input class="form-input" id="feDay" type="number" min="1" max="28" value="${fe?.day||1}"></div>
-      <div class="form-group"><label class="form-label">金額（NT$，無分層時填寫）</label><input class="form-input" id="feAmt" type="number" value="${fe?.amount||0}" id="feAmt" oninput="syncFeTotal()"></div>
+      <div class="form-group"><label class="form-label">金額（NT$，無分層時填寫）</label><input class="form-input" id="feAmt" type="number" value="${fe?.amount||0}" oninput="syncFeTotal()"></div>
     </div>
     <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="feDesc" value="${escAttr(fe?.desc||'')}" placeholder="e.g. Netflix"></div>
     <div class="form-row">
@@ -2112,7 +2106,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
     <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="feNotes" value="${escAttr(fe?.notes||'')}"></div>
     <div class="form-group" id="feFeeGroup" style="${fe?.sourceType==='card'||!fe?'':'display:none'}">
       <label class="form-label">手續費（NT$，選填）</label>
-      <input class="form-input" id="feFee" type="number" min="0" step="any" value="${fe?.fee||''}" placeholder="0">
+      <input class="form-input" id="feFee" type="number" min="0" step="any" value="${fe?.fee||''}" placeholder="0" oninput="syncFeTotal()">
       <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 每月自動生成固定消費記錄時，手續費會一併帶入</div>
     </div>
     <!-- 分層 -->
@@ -2386,9 +2380,6 @@ function renderFeLayers() {
     return `<div class="layer-bar" style="gap:8px;align-items:center">
       <div style="width:12px;height:12px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
       ${selOpts}
-      <input class="form-input" style="width:90px;height:32px;font-size:13px;text-align:right" type="number" value="${l.amount||0}"
-        placeholder="金額" oninput="updateFeLayer(${i},'amount',+this.value)">
-      <span style="font-size:11px;color:var(--tx-muted)">NT$</span>
       <button class="btn btn-danger btn-icon btn-sm" onclick="removeFeLayer(${i})">✕</button>
     </div>`;
   }).join('');
@@ -2418,21 +2409,22 @@ function updateFeLayer(idx,key,val) {
   layers[idx][key]=val; setFeLayersData(layers); syncFeTotal();
 }
 function syncFeTotal() {
-  const layers=getFeLayersData();
-  const hint=document.getElementById('feTotalHint'); if(!hint) return;
-  if (!layers.length) { hint.textContent=''; return; }
-  const total=layers.reduce((s,l)=>s+(+l.amount||0),0);
-  hint.innerHTML=`分層合計：<strong style="color:var(--tx-red)">−${fmt(total)}</strong>　（儲存後將以此金額生成固定消費記錄）`;
-  // 自動同步到金額欄位
-  const amtEl=document.getElementById('feAmt'); if(amtEl) amtEl.value=total;
+  const layers = getFeLayersData();
+  const hint = document.getElementById('feTotalHint'); if (!hint) return;
+  if (!layers.length) { hint.textContent = ''; return; }
+  const amt = parseFloat(document.getElementById('feAmt')?.value) || 0;
+  const fee = parseFloat(document.getElementById('feFee')?.value) || 0;
+  const total = amt + fee;
+  const selCount = layers.filter(l => l.layerId).length;
+  hint.innerHTML = `已選 ${selCount}/${layers.length} 個分層　系統將自動記入：<strong style="color:var(--tx-red)">−${fmt(total)}</strong>（消費 ${fmt(amt)}${fee>0?' + 手續費 '+fmt(fee):''}）`;
 }
 
 function saveFixed() {
   const day=+v('feDay'),desc=document.getElementById('feDesc').value.trim(),
         catId=v('feCat'),srcVal=v('feSrc'),notes=v('feNotes'),
         fee=+(document.getElementById('feFee')?.value)||0;
-  const layers=getFeLayersData().filter(l=>l.label.trim());
-  const amt = layers.length ? layers.reduce((s,l)=>s+(+l.amount||0),0) : +v('feAmt');
+  const layers = getFeLayersData().filter(l => l.layerId);
+  const amt = layers.length ? +v('feAmt') : +v('feAmt');
   if(!day||!amt||!desc||!srcVal){toast('請填寫完整資訊（含金額或分層）','danger');return;}
   const [sType,sId]=srcVal.split('_');
   const obj={day,amount:amt,desc,category:catId,sourceId:sId,sourceType:sType,notes,layers,fee:fee||0};
