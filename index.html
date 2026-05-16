@@ -1167,7 +1167,15 @@ function renderAccounts() {
             ${lIncome>0?`<span style="color:var(--tx-green)">收入 +${fmt(lIncome)}</span>`:''}
           </div>
         </div>
-        <span class="layer-amt" style="${dynCls};font-weight:700">${a.accType==='外幣'&&a.currency?fmtFX(dynBal,a.currency):fmt(dynBal)}</span>
+        <div style="text-align:right">
+          <span class="layer-amt" style="${dynCls};font-weight:700">${a.accType==='外幣'&&a.currency?fmtFX(dynBal,a.currency):fmt(dynBal)}</span>
+          ${(()=>{
+            if (a.accType!=='外幣'||!a.currency) return '';
+            const rate = getRateTWD(a.currency);
+            if (!rate) return '';
+            return `<div style="font-size:10px;color:var(--tx-muted);margin-top:2px">≈ ${fmt(dynBal*rate)}</div>`;
+          })()}
+        </div>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editLayer','${a.id}',null,null,'${l.id}')">✏️</button>
         <button class="btn btn-danger btn-icon btn-sm" onclick="delLayer('${a.id}','${l.id}')">✕</button>
       </div>`;
