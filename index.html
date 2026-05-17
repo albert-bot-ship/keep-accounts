@@ -1772,11 +1772,7 @@ function switchSettingsTab(tab) {
 }
 
 function addIncCat() {
-  openModal('addCat');
-  setTimeout(() => {
-    const sel = document.getElementById('catForType');
-    if (sel) { sel.value = 'income'; }
-  }, 50);
+  openModal('addCat', null, null, null, 'income');
 }
 function deleteCat(id) {
   if (!confirm('確定刪除？')) return;
@@ -2131,9 +2127,19 @@ function openModal(type,id,preCard,preAcc,extraId) {
 
   else if (type==='addCat'||type==='editCat') {
     t=cat?'編輯類別':'新增類別';
-    // 預設值：有新版 startDay 就用，否則從舊版換算
     const defStart = cat?.budgetStartDay ?? (cat?.budgetPeriod==='month'?1:8);
     const defEnd   = cat?.budgetEndDay   ?? (cat?.budgetPeriod==='month'?31:5);
+    const fixedType = !cat && extraId ? extraId : null; // 新增時由extraId鎖定forType
+    const currentType = cat?.forType || fixedType || 'expense';
+    const forTypeField = fixedType
+      ? `<input type="hidden" id="catForType" value="${fixedType}">`  // 新增時隱藏，直接帶值
+      : `<div class="form-group" style="margin:0"><label class="form-label">適用類型</label>
+          <select class="form-select" id="catForType">
+            <option value="expense"${currentType==='expense'?' selected':''}>💸 支出</option>
+            <option value="income"${currentType==='income'?' selected':''}>📥 收入</option>
+            <option value="both"${currentType==='both'?' selected':''}>⇄ 兩者</option>
+          </select>
+        </div>`;
     b=`<div style="display:flex;gap:14px;align-items:flex-start">
       <div>
         ${iconUpload('catIcon', cat?.icon||'')}
@@ -2144,13 +2150,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>
       <div style="flex:1">
         <div class="form-group"><label class="form-label">類別名稱</label><input class="form-input" id="catN" value="${escAttr(cat?.name||'')}" placeholder="e.g. 旅遊"></div>
-        <div class="form-group" style="margin:0"><label class="form-label">適用類型</label>
-          <select class="form-select" id="catForType">
-            <option value="expense"${(cat?.forType||'expense')==='expense'?' selected':''}>💸 支出</option>
-            <option value="income"${cat?.forType==='income'?' selected':''}>📥 收入</option>
-            <option value="both"${cat?.forType==='both'?' selected':''}>⇄ 兩者</option>
-          </select>
-        </div>
+        ${forTypeField}
         <div class="form-group" style="margin-top:10px">
           <label class="form-label">額度計算區間（每月幾號起 ～ 幾號止）</label>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
