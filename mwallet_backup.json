@@ -101,7 +101,7 @@
           "id": "mowt3ljhtenlu",
           "label": "獎金",
           "amount": 47170,
-          "color": "#00c7fc"
+          "color": "#ffaa00"
         },
         {
           "id": "mp76aznhv0bb6",
@@ -125,13 +125,13 @@
           "id": "mowt7wruf1yp4",
           "label": "繳卡費用",
           "amount": 0,
-          "color": "#669c35"
+          "color": "#53d5fd"
         },
         {
           "id": "mowt8rfv4npge",
           "label": "活用金額",
           "amount": 401,
-          "color": "#b1dd8c"
+          "color": "#9929bd"
         }
       ],
       "last4": "",
@@ -155,7 +155,7 @@
           "id": "mowta3z63r8ij",
           "label": "活用金額",
           "amount": 0,
-          "color": "#00BCD4"
+          "color": "#9929bd"
         }
       ],
       "last4": "",
@@ -173,13 +173,13 @@
           "id": "mowtbbfi5phoq",
           "label": "繳卡費用",
           "amount": 55,
-          "color": "#ff8c82"
+          "color": "#53d5fd"
         },
         {
           "id": "mowtbwjxy16mt",
           "label": "活用金額",
           "amount": 4,
-          "color": "#ff4013"
+          "color": "#9929bd"
         }
       ],
       "last4": "",
@@ -201,7 +201,7 @@
           "id": "mowtd8jpngynv",
           "label": "活用金額",
           "amount": 24,
-          "color": "#b51a00"
+          "color": "#9929bd"
         }
       ]
     },
