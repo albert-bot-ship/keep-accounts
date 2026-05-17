@@ -1635,7 +1635,7 @@ function renderSettings() {
   }
 
   wrap.innerHTML = `<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
-    ${colSection('💸 支出類別','var(--m-red)',   expCats,  'addCat')}
+    ${colSection('💸 支出類別','var(--m-red)',   expCats,  'addExpCat')}
     ${colSection('💰 收入類別','var(--tx-green)',incCats,  'addIncCat')}
   </div>
   ${bothCats.length ? `<div style="margin-top:18px">
@@ -1771,8 +1771,35 @@ function switchSettingsTab(tab) {
   }
 }
 
-function addIncCat() {
-  openModal('addCat', null, null, null, 'income');
+function addExpCat() { _openAddCatModal('expense'); }
+function addIncCat() { _openAddCatModal('income'); }
+function _openAddCatModal(forType) {
+  modalType='addCat'; editTarget=null;
+  const overlay=document.getElementById('modalOverlay');
+  document.getElementById('modalBox').className='modal';
+  const label = forType==='income' ? '新增收入類別' : '新增支出類別';
+  document.getElementById('modalTitle').textContent = label;
+  document.getElementById('modalBody').innerHTML = `
+    <div style="display:flex;gap:14px;align-items:flex-start">
+      <div>
+        ${iconUpload('catIcon','')}
+        <div style="text-align:center;margin-top:6px">
+          <div class="form-label" style="margin-bottom:4px">Emoji 圖示</div>
+          <input class="form-input" id="catEmoji" value="" placeholder="e.g. 🍔" style="width:64px;text-align:center;font-size:18px">
+        </div>
+      </div>
+      <div style="flex:1">
+        <input type="hidden" id="catForType" value="${forType}">
+        <div class="form-group"><label class="form-label">類別名稱</label><input class="form-input" id="catN" value="" placeholder="e.g. 旅遊"></div>
+        <div class="form-group" style="margin-top:10px"><label class="form-label">消費額度上限（0=不設限）</label><input class="form-input" id="catB" type="number" value="0" placeholder="0"></div>
+        <div class="form-group" style="margin-top:10px"><label class="form-label" style="margin-bottom:6px">類別顏色</label>${colorPicker('catC','#0057B8')}</div>
+      </div>
+    </div>`;
+  document.getElementById('modalFooter').innerHTML =
+    `<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCat()">儲存</button>`;
+  overlay.style.display='flex';
+  setTimeout(()=>overlay.classList.add('active'),10);
+  document.getElementById('catN')?.focus();
 }
 function deleteCat(id) {
   if (!confirm('確定刪除？')) return;
@@ -2132,12 +2159,11 @@ function openModal(type,id,preCard,preAcc,extraId) {
     const fixedType = !cat && extraId ? extraId : null; // 新增時由extraId鎖定forType
     const currentType = cat?.forType || fixedType || 'expense';
     const forTypeField = fixedType
-      ? `<input type="hidden" id="catForType" value="${fixedType}">`  // 新增時隱藏，直接帶值
+      ? `<input type="hidden" id="catForType" value="${fixedType}">`
       : `<div class="form-group" style="margin:0"><label class="form-label">適用類型</label>
           <select class="form-select" id="catForType">
             <option value="expense"${currentType==='expense'?' selected':''}>💸 支出</option>
             <option value="income"${currentType==='income'?' selected':''}>📥 收入</option>
-            <option value="both"${currentType==='both'?' selected':''}>⇄ 兩者</option>
           </select>
         </div>`;
     b=`<div style="display:flex;gap:14px;align-items:flex-start">
