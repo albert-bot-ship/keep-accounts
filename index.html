@@ -240,9 +240,7 @@
     <section class="page-section" id="page-settings">
       <div class="page-header">
         <div class="page-title">設定</div>
-        <div id="settingsAddBtn">
-          <button class="btn btn-primary" onclick="openModal('addCat')">＋ 新增類別</button>
-        </div>
+        <div id="settingsAddBtn"></div>
       </div>
 
       <!-- ── Tab 切換列 ── -->
@@ -269,7 +267,10 @@
 
       <!-- ── 標籤 Tab ── -->
       <div class="settings-tab-panel" id="spanel-tag">
-        <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:14px">自訂標籤可在新增消費時多選，方便跨類別篩選（如 #出差、#家用）。</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <p style="color:var(--tx-secondary);font-size:12px;margin:0">自訂標籤可在新增消費時多選，方便跨類別篩選（如 #出差、#家用）。</p>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addTag')">🏷 新增標籤</button>
+        </div>
         <div id="tagList"></div>
       </div>
 
@@ -1623,17 +1624,26 @@ function renderSettings() {
   const incCats  = DB.categories.map((c,i)=>({c,i})).filter(({c})=>c.forType==='income');
   const bothCats = DB.categories.map((c,i)=>({c,i})).filter(({c})=>c.forType==='both');
 
-  function section(label, color, items) {
-    if (!items.length) return '';
-    return `<div class="cat-section-header" style="border-left:3px solid ${color}">
-      <span>${label}</span><span class="cat-section-count">${items.length} 個類別</span>
-    </div>` + items.map(({c,i}, si)=>buildCatRow(c, i, si, items.length)).join('');
+  function colSection(label, color, items, addType) {
+    return `<div style="flex:1;min-width:280px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid ${color}">
+        <span style="font-weight:700;color:${color};font-family:var(--ff-display)">${label} <span style="font-size:11px;font-weight:400;color:var(--tx-muted)">${items.length} 個</span></span>
+        <button class="btn btn-sm btn-primary" onclick="openModal('${addType}')">＋ 新增</button>
+      </div>
+      <div>${items.length ? items.map(({c,i}, si)=>buildCatRow(c, i, si, items.length)).join('') : '<div style="font-size:12px;color:var(--tx-muted);padding:8px 0">尚無類別</div>'}</div>
+    </div>`;
   }
 
-  wrap.innerHTML =
-    section('💸 支出類別', 'var(--m-red)',    expCats) +
-    section('📥 收入類別', 'var(--tx-green)',  incCats) +
-    section('⇄ 兩者通用', 'var(--m-blue)',    bothCats);
+  wrap.innerHTML = `<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+    ${colSection('💸 支出類別','var(--m-red)',   expCats,  'addCat')}
+    ${colSection('💰 收入類別','var(--tx-green)',incCats,  'addIncCat')}
+  </div>
+  ${bothCats.length ? `<div style="margin-top:18px">
+    <div class="cat-section-header" style="border-left:3px solid var(--m-blue)">
+      <span>⇄ 兩者通用</span><span class="cat-section-count">${bothCats.length} 個類別</span>
+    </div>
+    ${bothCats.map(({c,i},si)=>buildCatRow(c,i,si,bothCats.length)).join('')}
+  </div>` : ''}`;
 
   // ── Tag list ──
   const tagListEl = document.getElementById('tagList');
@@ -1753,7 +1763,7 @@ function switchSettingsTab(tab) {
   const addBtn = document.getElementById('settingsAddBtn');
   if (!addBtn) return;
   if (tab === 'cat') {
-    addBtn.innerHTML = `<button class="btn btn-primary" onclick="openModal('addCat')">＋ 新增類別</button>`;
+    addBtn.innerHTML = ''; // 左右欄各自有新增按鈕
   } else if (tab === 'tag') {
     addBtn.innerHTML = `<button class="btn btn-primary" onclick="openModal('addTag')">🏷 新增標籤</button>`;
   } else {
@@ -1761,7 +1771,14 @@ function switchSettingsTab(tab) {
   }
 }
 
-function deleteCat(id) {
+function addIncCat() {
+  openModal('addCat');
+  // 等 modal 渲染後預設選收入
+  setTimeout(() => {
+    const sel = document.getElementById('catForType');
+    if (sel) { sel.value = 'income'; }
+  }, 50);
+}
   if (!confirm('確定刪除？')) return;
   DB.categories=DB.categories.filter(c=>c.id!==id);
   saveDB(); renderSettings(); toast('類別已刪除','danger');
