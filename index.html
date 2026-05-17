@@ -1773,12 +1773,12 @@ function switchSettingsTab(tab) {
 
 function addIncCat() {
   openModal('addCat');
-  // 等 modal 渲染後預設選收入
   setTimeout(() => {
     const sel = document.getElementById('catForType');
     if (sel) { sel.value = 'income'; }
   }, 50);
 }
+function deleteCat(id) {
   if (!confirm('確定刪除？')) return;
   DB.categories=DB.categories.filter(c=>c.id!==id);
   saveDB(); renderSettings(); toast('類別已刪除','danger');
