@@ -498,6 +498,45 @@
       "fixedId": "mp8pqqbj8s0wl",
       "fee": 2,
       "layerId": "mowvgma9od1k8"
+    },
+    {
+      "id": "mp9mxqm23l2to",
+      "date": "2026-05-17",
+      "amount": -1000,
+      "desc": "轉帳 → 國泰主帳戶",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3"
+    },
+    {
+      "id": "mp9mxqm288bmw",
+      "date": "2026-05-17",
+      "amount": 1000,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt8rfv4npge"
+    },
+    {
+      "id": "mp9mylgxy8akl",
+      "date": "2026-05-17",
+      "amount": -1000,
+      "desc": "提款",
+      "category": "mowt158jjsaq7",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt8rfv4npge",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [
