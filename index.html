@@ -285,6 +285,7 @@
           <button class="btn btn-ghost" onclick="exportData()">📤 匯出備份 (.json)</button>
           <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">📥 匯入備份</button>
           <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+          <button class="btn btn-ghost" onclick="repairTransferPairs()">🔗 修復舊轉帳配對</button>
           <button class="btn btn-danger" onclick="confirmClearAll()">🗑 清除所有資料</button>
         </div>
         <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--bdr-subtle)">
@@ -1427,8 +1428,11 @@ function copyLastTxn() {
 }
 function deleteTxn(id) {
   if (!confirm('確定刪除？')) return;
-  DB.transactions=DB.transactions.filter(t=>t.id!==id);
-  saveDB(); renderTxns(); toast('記錄已刪除','danger');
+  const txn = DB.transactions.find(t=>t.id===id);
+  const pairId = txn?.isTransfer ? txn.transferPairTxnId : null;
+  DB.transactions = DB.transactions.filter(t=>t.id!==id);
+  if(pairId) DB.transactions = DB.transactions.filter(t=>t.id!==pairId);
+  saveDB(); renderTxns(); toast('記錄已刪除'+(pairId?'（對應轉帳記錄一併刪除）':''),'danger');
 }
 function exportExcel() {
   const from=v('filterFrom'), to=v('filterTo');
@@ -1778,6 +1782,30 @@ function deleteCat(id) {
   if (!confirm('確定刪除？')) return;
   DB.categories=DB.categories.filter(c=>c.id!==id);
   saveDB(); renderSettings(); toast('類別已刪除','danger');
+}
+function repairTransferPairs() {
+  const unpaired = DB.transactions.filter(t => t.isTransfer && !t.transferPairTxnId);
+  if (!unpaired.length) { toast('所有轉帳記錄已有配對，無需修復', 'success'); return; }
+  let fixed = 0;
+  const used = new Set();
+  unpaired.forEach(t => {
+    if (used.has(t.id)) return;
+    const pair = unpaired.find(p =>
+      p.id !== t.id && !used.has(p.id) &&
+      p.date === t.date &&
+      Math.abs(p.amount) === Math.abs(t.amount) &&
+      Math.sign(p.amount) !== Math.sign(t.amount)
+    );
+    if (pair) {
+      const pairId = uid();
+      t.transferPairId = pairId; t.transferPairTxnId = pair.id;
+      pair.transferPairId = pairId; pair.transferPairTxnId = t.id;
+      used.add(t.id); used.add(pair.id);
+      fixed++;
+    }
+  });
+  if (fixed) { saveDB(); toast(`✅ 已修復 ${fixed} 組轉帳配對`, 'success'); }
+  else toast('找不到可配對的舊轉帳記錄（需同日期、金額相反）', 'warning');
 }
 function exportData() {
   const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
@@ -2275,7 +2303,18 @@ function saveTxn() {
   const amount = type==='income'||isRed ? Math.abs(amt) : -Math.abs(amt);
   const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,tags,fee:fee||0};
   if(modalType==='editTxn'){
-    Object.assign(DB.transactions.find(t=>t.id===editTarget), txnObj);
+    const thisTxn = DB.transactions.find(t=>t.id===editTarget);
+    Object.assign(thisTxn, txnObj);
+    // 若是轉帳記錄，同步對應那筆
+    if(thisTxn.isTransfer && thisTxn.transferPairTxnId) {
+      const pair = DB.transactions.find(t=>t.id===thisTxn.transferPairTxnId);
+      if(pair) {
+        pair.date  = txnObj.date;
+        pair.notes = txnObj.notes;
+        // 金額反向同步（出帳→入帳，入帳→出帳）
+        pair.amount = -txnObj.amount;
+      }
+    }
     toast('記錄已更新','success');
   } else {
     DB.transactions.push({id:uid(),...txnObj,isFixed:false});
@@ -2324,8 +2363,10 @@ function doTransfer() {
   if(fromId===toId){toast('不能轉帳到相同帳戶','danger');return;}
   const from=getAcc(fromId),to=getAcc(toId);
   const lastCat=DB.categories[DB.categories.length-1]?.id||'';
-  DB.transactions.push({id:uid(),date,amount:-Math.abs(amt),desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true,layerId:fromLayerId});
-  DB.transactions.push({id:uid(),date,amount:+Math.abs(amt),desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true,layerId:toLayerId});
+  const pairId=uid(); // 兩筆轉帳共用同一個pairId互相連結
+  const outId=uid(), inId=uid();
+  DB.transactions.push({id:outId,date,amount:-Math.abs(amt),desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true,layerId:fromLayerId,transferPairId:pairId,transferPairTxnId:inId});
+  DB.transactions.push({id:inId,date,amount:+Math.abs(amt),desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true,layerId:toLayerId,transferPairId:pairId,transferPairTxnId:outId});
   saveDB();closeModal();renderAccounts();toast('轉帳成功！','success');
 }
 // ════════════════════════════════════════════════════════════════
