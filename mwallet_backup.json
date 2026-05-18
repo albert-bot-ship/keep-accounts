@@ -627,26 +627,32 @@
     {
       "id": "mpaqnwhkha4rh",
       "date": "2026-05-18",
-      "amount": -99,
+      "amount": -100,
       "desc": "轉帳 → Line Pay",
       "category": "mov4018zygeiv",
       "sourceId": "mov76o8qoesbi",
       "sourceType": "account",
       "notes": "",
       "isTransfer": true,
-      "layerId": null
+      "layerId": null,
+      "isRedemption": false,
+      "tags": [],
+      "fee": 0
     },
     {
       "id": "mpaqnwhkrkez8",
       "date": "2026-05-18",
-      "amount": 99,
+      "amount": 100,
       "desc": "轉入 ← Line Bank",
-      "category": "mov4018zygeiv",
+      "category": "mp9mrsge4di8n",
       "sourceId": "mov77cse8fhx0",
       "sourceType": "account",
       "notes": "",
       "isTransfer": true,
-      "layerId": "mov8xjzx4jqk4"
+      "layerId": "mov8xjzx4jqk4",
+      "isRedemption": false,
+      "tags": [],
+      "fee": 0
     },
     {
       "id": "mpaqochk83emk",
