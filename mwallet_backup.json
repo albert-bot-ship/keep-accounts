@@ -573,17 +573,14 @@
     {
       "id": "mpaobgrmrlnz3",
       "date": "2026-05-18",
-      "amount": -473,
+      "amount": -472,
       "desc": "轉帳 → Line Bank",
       "category": "mov4018zygeiv",
       "sourceId": "mov4r1sf9uw5u",
       "sourceType": "account",
       "notes": "",
       "isTransfer": true,
-      "layerId": "mowt3b5ret5t3",
-      "isRedemption": false,
-      "tags": [],
-      "fee": 0
+      "layerId": "mowt3b5ret5t3"
     },
     {
       "id": "mpaobgrmo8xpe",
@@ -596,6 +593,69 @@
       "notes": "",
       "isTransfer": true,
       "layerId": null
+    },
+    {
+      "id": "mpaqnlq2t1rez",
+      "date": "2026-05-18",
+      "amount": -73,
+      "desc": "轉帳 → Line Pay",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov76o8qoesbi",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null
+    },
+    {
+      "id": "mpaqnlq2thx85",
+      "date": "2026-05-18",
+      "amount": 73,
+      "desc": "轉入 ← Line Bank",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov77cse8fhx0",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mov8xjzx4jqk4"
+    },
+    {
+      "id": "mpaqnwhkha4rh",
+      "date": "2026-05-18",
+      "amount": -99,
+      "desc": "轉帳 → Line Pay",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov76o8qoesbi",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null
+    },
+    {
+      "id": "mpaqnwhkrkez8",
+      "date": "2026-05-18",
+      "amount": 99,
+      "desc": "轉入 ← Line Bank",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov77cse8fhx0",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mov8xjzx4jqk4"
+    },
+    {
+      "id": "mpaqochk83emk",
+      "date": "2026-05-18",
+      "amount": -70,
+      "desc": "全家",
+      "category": "mov4018zwuesg",
+      "sourceId": "mov77cse8fhx0",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mov8xjzx4jqk4",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [
