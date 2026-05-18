@@ -486,20 +486,6 @@
       "isFixed": false
     },
     {
-      "id": "mp8tc19himasf",
-      "date": "2026-05-01",
-      "amount": -165,
-      "desc": "Apple Music（固定）",
-      "category": "mov4018zsf3sq",
-      "sourceId": "mov4et7fpt7kr",
-      "sourceType": "card",
-      "notes": "",
-      "isFixed": true,
-      "fixedId": "mp8pqqbj8s0wl",
-      "fee": 2,
-      "layerId": "mowvgma9od1k8"
-    },
-    {
       "id": "mp9mxqm23l2to",
       "date": "2026-05-17",
       "amount": -1000,
