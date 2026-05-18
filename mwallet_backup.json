@@ -732,7 +732,7 @@
   ],
   "fixedExpenses": [
     {
-      "id": "mp8pqqbj8s0wl",
+      "id": "mpbac78lkow7a",
       "day": 1,
       "amount": 165,
       "desc": "Apple Music",
@@ -751,8 +751,8 @@
       "fee": 2
     },
     {
-      "id": "mp8prfljkwqsm",
-      "day": 24,
+      "id": "mpbacrohkh6jf",
+      "day": 1,
       "amount": 90,
       "desc": "iCloud+",
       "category": "mov4018zsf3sq",
@@ -777,7 +777,8 @@
       "mowy73nno13b3",
       "mp8hjphcke43x",
       "mp8pqqbj8s0wl"
-    ]
+    ],
+    "card_mov4et7fpt7kr_2026-05-10": []
   },
   "categories": [
     {
