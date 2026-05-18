@@ -573,14 +573,17 @@
     {
       "id": "mpaobgrmrlnz3",
       "date": "2026-05-18",
-      "amount": -472,
+      "amount": -473,
       "desc": "轉帳 → Line Bank",
       "category": "mov4018zygeiv",
       "sourceId": "mov4r1sf9uw5u",
       "sourceType": "account",
       "notes": "",
       "isTransfer": true,
-      "layerId": "mowt3b5ret5t3"
+      "layerId": "mowt3b5ret5t3",
+      "isRedemption": false,
+      "tags": [],
+      "fee": 0
     },
     {
       "id": "mpaobgrmo8xpe",
