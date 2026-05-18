@@ -585,14 +585,17 @@
     {
       "id": "mpaobgrmo8xpe",
       "date": "2026-05-18",
-      "amount": 472,
+      "amount": 473,
       "desc": "轉入 ← 台灣銀行",
-      "category": "mov4018zygeiv",
+      "category": "mp9mrsge4di8n",
       "sourceId": "mov76o8qoesbi",
       "sourceType": "account",
       "notes": "",
       "isTransfer": true,
-      "layerId": null
+      "layerId": null,
+      "isRedemption": false,
+      "tags": [],
+      "fee": 0
     },
     {
       "id": "mpaqnlq2t1rez",
