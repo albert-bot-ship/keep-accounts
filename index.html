@@ -423,6 +423,27 @@
           </div>
         </div>
         <div id="themeModeStatus" style="margin-top:14px;font-size:12px;color:var(--tx-secondary)"></div>
+
+        <!-- 主題色選擇 -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--bdr-subtle)">
+          <div style="font-size:12px;font-weight:600;color:var(--tx-primary);margin-bottom:12px">🎨 主題色</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap" id="accentColorPicker">
+            ${[
+              {key:'blue',  label:'M 藍',  c1:'#0057B8', c2:'#6F2CA7'},
+              {key:'green', label:'翠綠',  c1:'#00897B', c2:'#00695C'},
+              {key:'gold',  label:'琥珀',  c1:'#C07A00', c2:'#E65100'},
+              {key:'pink',  label:'玫瑰',  c1:'#AD1457', c2:'#6A1B9A'},
+              {key:'cyber', label:'電藍',  c1:'#00B4D8', c2:'#7B2FBE'},
+            ].map(a=>`<div onclick="setAccentColor('${a.key}')" id="accent-${a.key}"
+              style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer">
+              <div style="width:44px;height:44px;border-radius:50%;
+                background:linear-gradient(135deg,${a.c1},${a.c2});
+                border:3px solid transparent;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.3)"
+                class="accent-swatch"></div>
+              <span style="font-size:10px;color:var(--tx-secondary);font-family:var(--ff-display);letter-spacing:1px">${a.label}</span>
+            </div>`).join('')}
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -890,13 +911,30 @@ function generateFixed() {
 // ════════════════════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════════════════════
+const PAGE_ORDER = ['dashboard','cards','accounts','txns','fixed','install','analytics','settings'];
+let currentPage = 'dashboard';
+
 function nav(el, page) {
   document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
   el.classList.add('active');
-  document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('page-'+page).classList.add('active');
+  navigateTo(page);
   document.getElementById('sidebar').classList.remove('open');
+}
+function navigateTo(page) {
+  const fromIdx = PAGE_ORDER.indexOf(currentPage);
+  const toIdx   = PAGE_ORDER.indexOf(page);
+  const dir = toIdx > fromIdx ? 'slide-left' : toIdx < fromIdx ? 'slide-right' : '';
+  document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active','slide-left','slide-right'));
+  const target = document.getElementById('page-'+page);
+  if (!target) return;
+  if (dir) target.classList.add(dir);
+  target.classList.add('active');
+  currentPage = page;
   renderPage(page);
+  // 同步底部導覽
+  document.querySelectorAll('.mbn-item').forEach(i=>i.classList.remove('active'));
+  const mbn = document.getElementById('mbn-'+page);
+  if (mbn) mbn.classList.add('active');
 }
 function renderPage(page) {
   const fn={dashboard:renderDashboard,cards:renderCards,accounts:renderAccounts,
@@ -963,6 +1001,117 @@ function showLastCatHint(catId) {
   if (!last) { hint.style.display='none'; return; }
   hint.style.display = '';
   hint.innerHTML = `💡 上次同類：<span style="color:var(--tx-primary)">${escHtml(last.desc)}</span>　<span style="color:var(--tx-red)">${fmt(last.amount)}</span>　<span style="color:var(--tx-muted)">${last.date.slice(5)}</span>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// SWIPE TO NAVIGATE
+// ════════════════════════════════════════════════════════════════
+(function(){
+  let sx=0, sy=0;
+  const THRESHOLD=60, RATIO=1.8;
+  document.addEventListener('touchstart',e=>{
+    if(e.target.closest('.modal-overlay,.table-container,.dash-filter-bar')) return;
+    sx=e.touches[0].clientX; sy=e.touches[0].clientY;
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-sx;
+    const dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)<THRESHOLD||Math.abs(dy)*RATIO>Math.abs(dx)) return;
+    const idx=PAGE_ORDER.indexOf(currentPage);
+    if(dx<0 && idx<PAGE_ORDER.length-1) navigateTo(PAGE_ORDER[idx+1]);
+    else if(dx>0 && idx>0) navigateTo(PAGE_ORDER[idx-1]);
+  },{passive:true});
+})();
+
+// ════════════════════════════════════════════════════════════════
+// BIG AMOUNT INPUT
+// ════════════════════════════════════════════════════════════════
+function openBigAmt(inputId, label) {
+  const src = document.getElementById(inputId);
+  if (!src) return;
+  let val = src.value || '';
+  const overlay = document.createElement('div');
+  overlay.className = 'big-amt-overlay';
+  overlay.id = 'bigAmtOverlay';
+  const updateDisplay = () => {
+    const n = parseFloat(val)||0;
+    let cls = n<500?'':'n<2000?\'amt-sm\':n<5000?\'amt-md\':n<10000?\'amt-lg\':\'amt-xl\'';
+    disp.textContent = val ? 'NT$ '+Number(val).toLocaleString() : 'NT$ 0';
+    disp.style.color = n>=10000?'var(--tx-red)':n>=5000?'rgba(255,77,106,.9)':n>=2000?'rgba(255,77,106,.75)':'var(--tx-primary)';
+  };
+  overlay.innerHTML = `
+    <div class="big-amt-label">${label||'輸入金額'}</div>
+    <div class="big-amt-display" id="bigAmtDisp">NT$ 0</div>
+    <div style="font-size:13px;color:var(--tx-muted);margin-top:8px">直接輸入數字</div>
+    <input type="number" id="bigAmtHidden" style="position:absolute;opacity:0;width:1px;height:1px" inputmode="decimal" autofocus>
+    <button class="big-amt-confirm" onclick="confirmBigAmt('${inputId}')">確認</button>
+    <button onclick="document.getElementById('bigAmtOverlay').remove()" style="margin-top:12px;background:transparent;border:none;color:var(--tx-muted);font-size:13px;cursor:pointer">取消</button>`;
+  document.body.appendChild(overlay);
+  const disp = document.getElementById('bigAmtDisp');
+  const hidden = document.getElementById('bigAmtHidden');
+  hidden.value = val;
+  updateDisplay();
+  hidden.addEventListener('input',()=>{ val=hidden.value; updateDisplay(); });
+  hidden.addEventListener('keydown',e=>{ if(e.key==='Enter') confirmBigAmt(inputId); });
+  setTimeout(()=>hidden.focus(),100);
+}
+function confirmBigAmt(inputId) {
+  const hidden = document.getElementById('bigAmtHidden');
+  const src = document.getElementById(inputId);
+  if (src && hidden) { src.value = hidden.value; src.dispatchEvent(new Event('input')); }
+  document.getElementById('bigAmtOverlay')?.remove();
+}
+
+// ════════════════════════════════════════════════════════════════
+// ACCENT COLOR
+// ════════════════════════════════════════════════════════════════
+function setAccentColor(key) {
+  const body = document.getElementById('appBody');
+  ['blue','green','gold','pink','cyber'].forEach(k=>body.classList.remove('accent-'+k));
+  body.classList.add('accent-'+key);
+  localStorage.setItem('mwallet_accent', key);
+  updateAccentUI(key);
+  toast('主題色已更新','success');
+}
+function updateAccentUI(key) {
+  document.querySelectorAll('.accent-swatch').forEach((el,i)=>{
+    const keys=['blue','green','gold','pink','cyber'];
+    el.style.border = keys[i]===key ? '3px solid #fff' : '3px solid transparent';
+    el.style.boxShadow = keys[i]===key ? '0 0 12px rgba(255,255,255,0.4)' : '0 2px 8px rgba(0,0,0,.3)';
+  });
+}
+function initAccentColor() {
+  const saved = localStorage.getItem('mwallet_accent')||'blue';
+  const body = document.getElementById('appBody');
+  body.classList.add('accent-'+saved);
+  setTimeout(()=>updateAccentUI(saved),200);
+}
+
+// ════════════════════════════════════════════════════════════════
+// SKELETON SCREENS
+// ════════════════════════════════════════════════════════════════
+function showSkeleton(containerId, type) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (type==='cards') {
+    el.innerHTML = [1,2,3].map(()=>`<div class="skeleton skel-card"></div>`).join('');
+  } else if (type==='stats') {
+    el.innerHTML = `<div class="stats-grid">${[1,2,3,4].map(()=>`<div class="skeleton skel-stat"></div>`).join('')}</div>`;
+  } else if (type==='rows') {
+    el.innerHTML = `<div class="skeleton skel-title"></div>${[1,2,3,4,5].map(()=>`<div class="skeleton skel-row"></div>`).join('')}`;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// AMOUNT COLOR GRADIENT
+// ════════════════════════════════════════════════════════════════
+function amtClass(amount) {
+  const n = Math.abs(amount);
+  if (n >= 10000) return 'amt-xl';
+  if (n >= 5000)  return 'amt-lg';
+  if (n >= 2000)  return 'amt-md';
+  if (n >= 500)   return 'amt-sm';
+  return '';
 }
 
 function toggleTxnFilter() {
@@ -1675,7 +1824,7 @@ function txnTable(txns, withActions) {
     const cat    = getCat(t.category);
     const spent  = cat.budget>0?catMonthSpend(t.category):0;
     const isOver = cat.budget>0&&spent>cat.budget&&t.amount<0;
-    const amtCls = t.amount>0?'a-pos':isOver?'a-over':'a-neg';
+    const amtCls = t.amount>0?'a-pos':isOver?'a-over':('a-neg '+amtClass(t.amount));
     const sign   = t.amount>0?'+':'−';
     const sysTags = (t.isFixed?'<span class="badge badge-violet" style="margin-left:4px">固定</span>':'')
                  + (t.isPayment?'<span class="badge badge-green" style="margin-left:4px">繳款</span>':'')
@@ -2598,7 +2747,12 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="tAmt" type="number" value="${txn?Math.abs(txn.amount):''}" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">金額（NT$）</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="form-input" id="tAmt" type="number" value="${txn?Math.abs(txn.amount):''}" placeholder="0" style="flex:1">
+          <button type="button" class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:16px;padding:6px 10px" onclick="openBigAmt('tAmt','輸入金額')" title="大字輸入">⌨</button>
+        </div>
+      </div>
       <div class="form-group"><label class="form-label">類別</label>
         <select class="form-select" id="tCat" onchange="showLastCatHint(this.value)">${catOpts(txn?.category||DB.categories.find(c=>(c.forType||'expense')==='expense')?.id||'', txn?(txn.amount>0?'income':'expense'):undefined)}</select>
         <div id="lastCatHint" style="font-size:11px;color:var(--tx-muted);margin-top:4px;display:none"></div>
@@ -3280,14 +3434,12 @@ function saveCat() {
 function mbnNav(el, page) {
   document.querySelectorAll('.mbn-item').forEach(i=>i.classList.remove('active'));
   el.classList.add('active');
-  // 同步側欄高亮
   const sideEl = document.querySelector(`[data-page="${page}"]`);
-  if (sideEl) nav(sideEl, page);
-  else {
-    document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
-    document.getElementById('page-'+page)?.classList.add('active');
-    renderPage(page);
+  if (sideEl) {
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    sideEl.classList.add('active');
   }
+  navigateTo(page);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -4200,6 +4352,7 @@ async function init() {
 
   // 1. 推播通知
   requestNotifyPermission();
+  initAccentColor();
   setTimeout(checkDueNotifications, 2000);
 
   // 3. 匯率
