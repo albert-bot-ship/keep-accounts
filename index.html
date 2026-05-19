@@ -24,6 +24,8 @@
       z-index: 1000 !important; 
     }
   </style>
+  <link rel="icon" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
 </head>
 <body id="appBody">
 
@@ -372,7 +374,8 @@ function defaultDB() {
       { id: uid(), name: '出差',   color: '#e67e22' },
       { id: uid(), name: '家用',   color: '#27ae60' },
       { id: uid(), name: '個人',   color: '#9b59b6' },
-    ]
+    ],
+    settings: { appIcon: '' }
   };
 }
 function loadDB() {
