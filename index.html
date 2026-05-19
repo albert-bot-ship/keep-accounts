@@ -540,15 +540,17 @@ function cardBalance(id) {
     .reduce((s,t)=>s+t.amount-(t.fee||0), 0);
 }
 
-// 計算信用卡分層的即時未還淨額（已扣繳款、折抵比例）
+// 計算信用卡分層的即時未還淨額（只計算當期帳單週期，繳款後自動歸零）
 function cardLayerOutstanding(cardId, layerId) {
   const card = getCard(cardId); if (!card) return 0;
   const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
   const nowDay = new Date().getDate();
   const cardLayerIds    = new Set((card.layers||[]).map(l=>l.id));
   const cardLayerLabels = new Set((card.layers||[]).map(l=>l.label.trim()));
+  // 取得當期帳單週期
+  const { periodStart, periodEnd } = card.billingDay ? cardBillingPeriod(card) : { periodStart: nowYM()+'-01', periodEnd: nowYM()+'-31' };
 
-  // 計算整張卡的 totalSpend（與 renderCards 同邏輯）
+  // 整張卡當期 totalSpend
   const layerTotal = (card.layers||[]).reduce((s,l)=>{
     const fe = DB.fixedExpenses
       .filter(fe=>fe.sourceType==='card'&&fe.sourceId===cardId&&(fe.day||1)<=nowDay)
@@ -556,12 +558,12 @@ function cardLayerOutstanding(cardId, layerId) {
       .filter(fl=>fl.layerId?fl.layerId===l.id:fl.label.trim()===l.label.trim())
       .reduce((ss,fl)=>ss+(+fl.amount||0),0);
     const tx = DB.transactions
-      .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
+      .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((ss,t)=>ss+Math.abs(t.amount)+(t.fee||0),0)
       + DB.transactions
-      .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerAmounts&&t.amount<0&&!t.isPayment)
+      .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerAmounts&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((ss,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===l.id);return ss+(la?Math.abs(la.amount):0);},0);
-    return s+(l.amount||0)+fe+tx;
+    return s+fe+tx; // 不含 layer.amount
   },0);
   const feUnmapped = DB.fixedExpenses
     .filter(fe=>fe.sourceType==='card'&&fe.sourceId===cardId&&(fe.day||1)<=nowDay)
@@ -569,31 +571,36 @@ function cardLayerOutstanding(cardId, layerId) {
     .filter(fl=>fl.layerId?!cardLayerIds.has(fl.layerId):!cardLayerLabels.has(fl.label.trim()))
     .reduce((s,fl)=>s+(+fl.amount||0),0);
   const unlayered = DB.transactions
-    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.amount<0&&!t.layerId&&!t.isPayment)
+    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.amount<0&&!t.layerId&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>s+Math.abs(t.amount),0);
-  const fees = DB.transactions
-    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&!t.isPayment&&!t.isRedemption)
-    .reduce((s,t)=>s+(t.fee||0),0);
-  const totalSpend = layerTotal + feUnmapped + unlayered + fees;
-  const netOutstanding = Math.max(0, -cardBalance(cardId));
-  const paidRatio = totalSpend>0 ? Math.min(1,Math.max(0,(totalSpend-netOutstanding)/totalSpend)) : 0;
+  const totalSpend = layerTotal + feUnmapped + unlayered;
 
-  // 計算此分層的原始消費額
+  // 當期繳款+折抵
+  const periodPaid = DB.transactions
+    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.isPayment&&t.amount>0&&t.date>=periodStart)
+    .reduce((s,t)=>s+t.amount,0);
+  const periodRedeem = DB.transactions
+    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.isRedemption&&t.amount>0&&t.date>=periodStart&&t.date<=periodEnd)
+    .reduce((s,t)=>s+t.amount,0);
+  const netOutstanding = Math.max(0, -cardBalance(cardId));
+  const paidRatio = totalSpend>0 ? Math.min(1,(periodPaid+periodRedeem)/totalSpend) : (netOutstanding===0?1:0);
+
+  // 此分層當期消費
   const feLayerAmt = DB.fixedExpenses
     .filter(fe=>fe.sourceType==='card'&&fe.sourceId===cardId&&(fe.day||1)<=nowDay)
     .flatMap(fe=>(fe.layers||[]))
     .filter(fl=>fl.layerId?fl.layerId===layerId:fl.label.trim()===layer.label.trim())
     .reduce((s,fl)=>s+(+fl.amount||0),0);
   const txLayerAmt = DB.transactions
-    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===layerId&&t.amount<0&&!t.isPayment)
+    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===layerId&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0)
     + DB.transactions
-    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerAmounts&&t.amount<0&&!t.isPayment)
+    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerAmounts&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===layerId);return s+(la?Math.abs(la.amount):0);},0);
   const redeemAmt = DB.transactions
-    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===layerId&&t.isRedemption&&t.amount>0)
+    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===layerId&&t.isRedemption&&t.amount>0&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>s+t.amount,0);
-  const totalLayerAmt = (layer.amount||0) + feLayerAmt + txLayerAmt;
+  const totalLayerAmt = feLayerAmt + txLayerAmt;
 
   return Math.max(0, Math.round((totalLayerAmt - redeemAmt) * (1-paidRatio)));
 }
@@ -1156,23 +1163,24 @@ function renderCards() {
         .flatMap(fe=>(fe.layers||[]))
         .filter(fl=>fl.layerId?fl.layerId===l.id:fl.label.trim()===l.label.trim())
         .reduce((s,fl)=>s+(+fl.amount||0),0);
+      // 只計算當期帳單週期內的交易
       const txLayerAmt = DB.transactions
-        .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
+        .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
         .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0)
         + DB.transactions
-        .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerAmounts&&t.amount<0&&!t.isPayment)
+        .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerAmounts&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
         .reduce((s,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===l.id);return s+(la?Math.abs(la.amount):0);},0);
-      // 折抵（點數/回饋）歸屬此分層
+      // 只計算當期折抵
       const redeemLayerAmt = DB.transactions
-        .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.isRedemption&&t.amount>0)
+        .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.isRedemption&&t.amount>0&&t.date>=periodStart&&t.date<=periodEnd)
         .reduce((s,t)=>s+t.amount,0);
-      const totalLayerAmt = layerAmt + feLayerAmt + txLayerAmt;
+      const totalLayerAmt = feLayerAmt + txLayerAmt; // 不含靜態 layer.amount，避免跨期累加
       const hasDetail = feLayerAmt>0||txLayerAmt>0||redeemLayerAmt>0;
       const hasMonthly = l.monthlyAmt!=null&&l.monthlyAmt!=='';
       return {l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly};
     });
 
-    // ── STEP 2：計算整張卡的 totalSpend、已繳、未還 ────────────
+    // ── STEP 2：計算整張卡的 totalSpend、已繳、未還（當期範圍）────────────
     const layerTotal = layerDataArr.reduce((s,d)=>s+d.totalLayerAmt,0);
     const feUnmappedAmt = DB.fixedExpenses
       .filter(fe=>fe.sourceType==='card'&&fe.sourceId===c.id&&(fe.day||1)<=nowDay)
@@ -1180,27 +1188,28 @@ function renderCards() {
       .filter(fl=>fl.layerId?!cardLayerIds.has(fl.layerId):!cardLayerLabels.has(fl.label.trim()))
       .reduce((s,fl)=>s+(+fl.amount||0),0);
     const unlayeredSpend = DB.transactions
-      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.layerId&&!t.isPayment)
+      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.layerId&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((s,t)=>s+Math.abs(t.amount),0);
     const totalCardFees = DB.transactions
-      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&!t.isPayment&&!t.isRedemption)
+      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&!t.isPayment&&!t.isRedemption&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((s,t)=>s+(t.fee||0),0);
     const totalSpend = layerTotal + feUnmappedAmt + unlayeredSpend + totalCardFees;
 
-    // 已繳款金額（銀行帳戶繳款到這張卡的正向記錄）
+    // 已繳款：本期開始後的所有繳款記錄
     const totalPaid = DB.transactions
-      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.isPayment&&t.amount>0)
+      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.isPayment&&t.amount>0&&t.date>=periodStart)
       .reduce((s,t)=>s+t.amount,0);
-    // 無分層折抵（整張卡的折抵，未指定分層）
+    // 無分層折抵（本期內）
     const unlayeredRedeem = DB.transactions
-      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.isRedemption&&t.amount>0&&!t.layerId)
+      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.isRedemption&&t.amount>0&&!t.layerId&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((s,t)=>s+t.amount,0);
-    // 各分層折抵合計
+    // 各分層折抵合計（已是當期）
     const layerRedeemTotal = layerDataArr.reduce((s,d)=>s+d.redeemLayerAmt,0);
-    // 未還款淨額 = 使用 cardBalance（已正確加減所有交易）
+    // 未還款淨額：用全期 cardBalance 保持帳務正確
     const netOutstanding = Math.max(0, -bal);
-    // 已還比例（用於分攤各分層的未還狀態）
-    const paidRatio = totalSpend>0 ? Math.min(1, Math.max(0,(totalSpend-netOutstanding)/totalSpend)) : 0;
+    // 當期已還比例（當期消費 vs 本期繳款+折抵）
+    const periodTotalPaid = totalPaid + unlayeredRedeem + layerRedeemTotal;
+    const paidRatio = totalSpend>0 ? Math.min(1, periodTotalPaid/totalSpend) : (netOutstanding===0?1:0);
 
     // ── STEP 3：渲染各分層 HTML（含未還比例顯示）───────────────
     const layersHtml = layerDataArr.map(({l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly})=>{
