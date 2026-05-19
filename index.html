@@ -258,11 +258,13 @@
         <!-- 浮動批量操作列 -->
         <div id="batchActionBar" style="display:none;position:sticky;bottom:0;z-index:200;
           background:var(--bg-primary);border-top:2px solid var(--m-blue);
-          padding:10px 16px;display:none;align-items:center;gap:12px;
+          padding:10px 16px;display:none;align-items:center;gap:8px;flex-wrap:wrap;
           box-shadow:0 -4px 20px rgba(0,0,0,.3)">
           <input type="checkbox" id="chkAll" onchange="toggleAllChk(this)" style="width:16px;height:16px;cursor:pointer">
           <span id="batchCountLabel" style="font-size:13px;color:var(--tx-secondary)">已選 <strong id="batchCount" style="color:var(--tx-primary)">0</strong> 筆</span>
           <span style="flex:1"></span>
+          <button class="btn btn-ghost btn-sm" onclick="batchEditCat()">🏷 改類別</button>
+          <button class="btn btn-ghost btn-sm" onclick="batchEditSrc()">🏦 改帳戶</button>
           <button class="btn btn-ghost btn-sm" onclick="exitBatchMode()">取消</button>
           <button class="btn btn-danger btn-sm" id="batchDelBtn" disabled onclick="batchDelete()">🗑 刪除已選</button>
         </div>
@@ -365,6 +367,28 @@
           <button class="btn btn-ghost" onclick="repairTransferPairs()">🔗 修復舊轉帳配對</button>
           <button class="btn btn-danger" onclick="confirmClearAll()">🗑 清除所有資料</button>
         </div>
+
+        <!-- 備份提醒週期設定 -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--bdr-subtle)">
+          <div style="font-size:12px;font-weight:600;color:var(--tx-primary);margin-bottom:10px">⏰ 備份提醒週期</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${[1,3,7,14,30].map(d=>`<button class="btn btn-sm ${parseInt(localStorage.getItem('mwallet_backup_interval')||'30')===d?'btn-primary':'btn-ghost'}"
+              onclick="setBackupInterval(${d})">${d===1?'每天':d===30?'每月':d+'天'}</button>`).join('')}
+          </div>
+          <div style="font-size:11px;color:var(--tx-muted);margin-top:6px" id="backupIntervalNote"></div>
+        </div>
+
+        <!-- 繳款通知提前天數 -->
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bdr-subtle)">
+          <div style="font-size:12px;font-weight:600;color:var(--tx-primary);margin-bottom:6px">🔔 信用卡繳款通知</div>
+          <div style="font-size:11px;color:var(--tx-secondary);margin-bottom:10px">提前幾天發送繳款提醒通知</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            ${[1,3,5,7].map(d=>`<button class="btn btn-sm ${parseInt(localStorage.getItem('mwallet_notify_days')||'5')===d?'btn-primary':'btn-ghost'}"
+              onclick="setNotifyDays(${d})">提前 ${d} 天</button>`).join('')}
+            <button class="btn btn-sm btn-ghost" onclick="requestNotifyPermission()" id="notifyPermBtn"></button>
+          </div>
+        </div>
+
         <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--bdr-subtle)">
           <div style="font-size:12px;color:var(--tx-secondary);margin-bottom:8px">📦 本機儲存空間使用量</div>
           <div id="storageBar" style="height:8px;background:var(--bg-secondary);border-radius:8px;overflow:hidden;margin-bottom:6px">
@@ -923,6 +947,18 @@ function setQuickDateFilter(range) {
   if (elFrom) elFrom.value = from;
   if (elTo)   elTo.value   = to;
   updateFilterBtn(); renderTxns();
+}
+
+function showLastCatHint(catId) {
+  const hint = document.getElementById('lastCatHint');
+  if (!hint) return;
+  if (!catId) { hint.style.display='none'; return; }
+  const last = [...DB.transactions]
+    .filter(t=>t.category===catId&&t.amount<0&&!t.isPayment&&!t.isFixed)
+    .sort((a,b)=>b.date.localeCompare(a.date))[0];
+  if (!last) { hint.style.display='none'; return; }
+  hint.style.display = '';
+  hint.innerHTML = `💡 上次同類：<span style="color:var(--tx-primary)">${escHtml(last.desc)}</span>　<span style="color:var(--tx-red)">${fmt(last.amount)}</span>　<span style="color:var(--tx-muted)">${last.date.slice(5)}</span>`;
 }
 
 function toggleTxnFilter() {
@@ -1495,9 +1531,15 @@ function renderAccounts() {
         })()}
         ${isLow?`<div style="font-size:11px;color:var(--warn);margin-top:4px">⚠ 低於最低餘額警示 ${fmt(a.minBalance)}</div>`:''}
         ${salaryDynamic!==null?`<div style="font-size:11px;color:var(--tx-secondary);margin-top:6px">薪水剩餘生活費：<span style="color:${salaryDynamic<0?'var(--tx-red)':'var(--tx-green)'};font-weight:700">${fmt(salaryDynamic)}</span></div>`:''}
-        <div style="display:flex;gap:16px;margin-top:8px">
-          <div style="font-size:11px;color:var(--tx-secondary)">本月流出：<span style="color:var(--tx-red)">${fmt(-mthOut)}</span></div>
-          <div style="font-size:11px;color:var(--tx-secondary)">本月流入：<span style="color:var(--tx-green)">+${fmt(mthIn)}</span></div>
+        <div style="display:flex;gap:0;margin-top:8px;background:var(--bg-secondary);border-radius:var(--r);overflow:hidden">
+          <div style="flex:1;padding:7px 10px;text-align:center;border-right:1px solid var(--bdr-subtle)">
+            <div style="font-size:9px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:2px">本月流出</div>
+            <div style="font-family:var(--ff-display);font-size:14px;font-weight:700;color:var(--tx-red);white-space:nowrap">−${fmt(mthOut)}</div>
+          </div>
+          <div style="flex:1;padding:7px 10px;text-align:center">
+            <div style="font-size:9px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:2px">本月流入</div>
+            <div style="font-family:var(--ff-display);font-size:14px;font-weight:700;color:var(--tx-green);white-space:nowrap">+${fmt(mthIn)}</div>
+          </div>
         </div>
         ${a.notes?`<div style="font-size:11px;color:var(--tx-muted);margin-top:4px;font-style:italic">${escHtml(a.notes)}</div>`:''}
         ${renderStockHoldings(a)}
@@ -1740,6 +1782,55 @@ function toggleRowSelect(row) {
   cb.checked = !cb.checked;
   updateBatchUI();
 }
+function batchEditCat() {
+  const ids = [...document.querySelectorAll('.txn-chk:checked')].map(c=>c.dataset.id);
+  if (!ids.length) { toast('請先勾選記錄','info'); return; }
+  const opts = DB.categories.map(c=>`<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+  openModal('_batchCat');
+  document.getElementById('modalTitle').textContent = `🏷 批量改類別（${ids.length} 筆）`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label class="form-label">改為類別</label>
+      <select class="form-select" id="batchCatSel">${opts}</select>
+    </div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="doBatchCat(${JSON.stringify(ids)})">確認修改</button>`;
+  document.getElementById('modalOverlay').style.display='flex';
+}
+function doBatchCat(ids) {
+  const catId = document.getElementById('batchCatSel')?.value;
+  if (!catId) return;
+  ids.forEach(id => { const t=DB.transactions.find(x=>x.id===id); if(t) t.category=catId; });
+  saveDB(); closeModal(); renderTxns();
+  toast(`已將 ${ids.length} 筆改為「${getCat(catId).name}」`,'success');
+}
+function batchEditSrc() {
+  const ids = [...document.querySelectorAll('.txn-chk:checked')].map(c=>c.dataset.id);
+  if (!ids.length) { toast('請先勾選記錄','info'); return; }
+  openModal('_batchSrc');
+  document.getElementById('modalTitle').textContent = `🏦 批量改帳戶（${ids.length} 筆）`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label class="form-label">改為帳戶／卡片</label>
+      <select class="form-select" id="batchSrcSel"><option value="">請選擇</option>${srcOpts('both')}</select>
+    </div>
+    <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">⚠ 分層設定將被清除</div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="doBatchSrc(${JSON.stringify(ids)})">確認修改</button>`;
+  document.getElementById('modalOverlay').style.display='flex';
+}
+function doBatchSrc(ids) {
+  const srcVal = document.getElementById('batchSrcSel')?.value;
+  if (!srcVal) { toast('請選擇帳戶','info'); return; }
+  const [sType, sId] = srcVal.split('_');
+  ids.forEach(id => {
+    const t = DB.transactions.find(x=>x.id===id);
+    if (t) { t.sourceType=sType; t.sourceId=sId; t.layerId=null; t.layerAmounts=undefined; }
+  });
+  saveDB(); closeModal(); renderTxns();
+  toast(`已將 ${ids.length} 筆改為指定帳戶`,'success');
+}
+
 function batchDelete() {
   const ids = [...document.querySelectorAll('.txn-chk:checked')].map(c=>c.dataset.id);
   if (!ids.length) return;
@@ -2020,6 +2111,18 @@ function renderAnalytics() {
 function renderSettings() {
   const wrap = document.getElementById('catList');
   if (!DB.categories.length) { wrap.innerHTML=emptyState('🏷','尚無類別'); return; }
+
+  // 通知權限按鈕狀態
+  setTimeout(()=>{
+    const btn = document.getElementById('notifyPermBtn');
+    if (!btn) return;
+    if (!('Notification' in window)) { btn.style.display='none'; return; }
+    const p = Notification.permission;
+    btn.style.display = '';
+    btn.className = `btn btn-sm ${p==='granted'?'btn-success':'btn-ghost'}`;
+    btn.textContent = p==='granted'?'🔔 通知已開啟':p==='denied'?'🚫 通知已封鎖':'🔔 開啟通知';
+    btn.disabled = p==='denied';
+  }, 100);
 
   // sectionIdx = 在本區的第幾個, sectionLen = 本區總數
   function buildCatRow(c, i, sectionIdx, sectionLen) {
@@ -2443,7 +2546,10 @@ function openModal(type,id,preCard,preAcc,extraId) {
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="tAmt" type="number" value="${txn?Math.abs(txn.amount):''}" placeholder="0"></div>
-      <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="tCat">${catOpts(txn?.category||DB.categories.find(c=>(c.forType||'expense')==='expense')?.id||'', txn?(txn.amount>0?'income':'expense'):undefined)}</select></div>
+      <div class="form-group"><label class="form-label">類別</label>
+        <select class="form-select" id="tCat" onchange="showLastCatHint(this.value)">${catOpts(txn?.category||DB.categories.find(c=>(c.forType||'expense')==='expense')?.id||'', txn?(txn.amount>0?'income':'expense'):undefined)}</select>
+        <div id="lastCatHint" style="font-size:11px;color:var(--tx-muted);margin-top:4px;display:none"></div>
+      </div>
     </div>
     <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="tDesc" value="${escAttr(txn?.desc||'')}" placeholder="e.g. 全聯購物"></div>
     <div class="form-group"><label class="form-label">帳戶 / 卡片</label>
@@ -2494,6 +2600,9 @@ function openModal(type,id,preCard,preAcc,extraId) {
         const preML = txn?.layerAmounts?.length > 0;
         onTxnSrcChange(preSrc, txn?.layerId||'', preML, txn?.layerAmounts||[]);
       }
+      // 觸發上次同類提示
+      const catEl = document.getElementById('tCat');
+      if (catEl && catEl.value) showLastCatHint(catEl.value);
     },60);
   }
 
@@ -3287,15 +3396,15 @@ function requestNotifyPermission() {
 
 function checkDueNotifications() {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  const now = new Date();
+  const advDays = parseInt(localStorage.getItem('mwallet_notify_days') || '5');
   DB.creditCards.forEach(card => {
     if (!card.dueDay) return;
     const days = daysUntilDue(card);
     if (days === null) return;
-    const notifyKey = 'mwallet_notified_' + card.id + '_' + nowYM();
-    if (days <= 5 && days >= 0 && !sessionStorage.getItem(notifyKey)) {
+    const notifyKey = 'mwallet_notified_' + card.id + '_' + today();
+    if (days <= advDays && days >= 0 && !sessionStorage.getItem(notifyKey)) {
       const msg = days === 0
-        ? `${card.name} 今日繳款截止！`
+        ? `${card.name} 今日繳款截止！欠款 ${fmt(Math.abs(cardBalance(card.id)))}`
         : `${card.name} 還有 ${days} 天到繳款截止日，欠款 ${fmt(Math.abs(cardBalance(card.id)))}`;
       new Notification('M WALLET 繳款提醒', {
         body: msg,
@@ -3525,13 +3634,31 @@ function fmtFX(amount, currency) {
 // ════════════════════════════════════════════════════════════════
 // 4. 定期備份提醒
 // ════════════════════════════════════════════════════════════════
+function setBackupInterval(days) {
+  localStorage.setItem('mwallet_backup_interval', days.toString());
+  renderSettings();
+  toast(`備份提醒已設為每 ${days===1?'天':days+'天'} 提醒一次`,'success');
+}
+function setNotifyDays(days) {
+  localStorage.setItem('mwallet_notify_days', days.toString());
+  renderSettings();
+  toast(`繳款通知將提前 ${days} 天發送`,'success');
+}
+function requestNotifyPermission() {
+  if (!('Notification' in window)) { toast('此裝置不支援通知','info'); return; }
+  Notification.requestPermission().then(p => {
+    toast(p==='granted'?'✅ 通知已開啟':'通知未開啟，請至系統設定允許','info');
+    renderSettings();
+  });
+}
+
 function checkBackupReminder() {
   const last = parseInt(localStorage.getItem('mwallet_last_backup') || '0');
+  const interval = parseInt(localStorage.getItem('mwallet_backup_interval') || '30');
   const daysSince = (Date.now() - last) / 86400000;
   const banner = document.getElementById('backupBanner');
   if (!banner) return;
-  // show if never backed up (last=0 means > 30 days trivially) or > 30 days
-  if (last === 0 || daysSince > 30) {
+  if (last === 0 || daysSince > interval) {
     banner.style.display = 'flex';
   }
 }
