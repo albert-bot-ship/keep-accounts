@@ -89,8 +89,8 @@
       <div class="page-header">
         <div class="page-title">儀表板</div>
         <div class="dash-filter-bar">
-          <button class="dash-filter-btn active" data-range="month" onclick="setDashRange(this,'month')">本月</button>
-          <button class="dash-filter-btn" data-range="salary" onclick="setDashRange(this,'salary')">本期(25日~隔月24日)</button>
+          <button class="dash-filter-btn" data-range="month" onclick="setDashRange(this,'month')">本月</button>
+          <button class="dash-filter-btn active" data-range="salary" onclick="setDashRange(this,'salary')">本期</button>
           <button class="dash-filter-btn" data-range="30" onclick="setDashRange(this,'30')">近30天</button>
           <button class="dash-filter-btn" data-range="7" onclick="setDashRange(this,'7')">近7天</button>
           <button class="dash-filter-btn" data-range="today" onclick="setDashRange(this,'today')">今天</button>
@@ -155,28 +155,35 @@
       </div>
       <div class="table-container">
         <div class="table-toolbar" style="flex-wrap:wrap;gap:6px">
-          <input type="text" class="form-input" id="txnSearch" placeholder="🔍 搜尋內容/備註..." style="width:180px" oninput="renderTxns()">
-          <input type="date" class="form-input" id="filterFrom" style="width:135px">
-          <span style="color:var(--tx-muted)">—</span>
-          <input type="date" class="form-input" id="filterTo" style="width:135px">
-          <select class="form-select" id="filterSource" style="width:145px" onchange="renderTxns()">
-            <option value="">全部帳戶/卡片</option>
-          </select>
-          <select class="form-select" id="filterCat" style="width:110px" onchange="renderTxns()">
-            <option value="">全部類別</option>
-          </select>
-          <select class="form-select" id="filterType" style="width:95px" onchange="renderTxns()">
-            <option value="">全部</option>
-            <option value="expense">支出</option>
-            <option value="income">收入</option>
-          </select>
-          <select class="form-select" id="filterTag" style="width:100px" onchange="renderTxns()">
-            <option value="">全部標籤</option>
-          </select>
-          <button class="btn btn-ghost btn-sm" onclick="renderTxns()">篩選</button>
-          <div class="table-toolbar-right">
-            <button class="btn btn-ghost btn-sm" id="batchModeBtn" onclick="enterBatchMode()">☑ 批量刪除</button>
-            <button class="btn btn-success btn-sm" onclick="exportExcel()">📥 匯出 Excel</button>
+          <!-- 固定列：搜尋 + 篩選toggle + 功能按鈕 -->
+          <div style="display:flex;gap:6px;width:100%;align-items:center;flex-wrap:wrap">
+            <input type="text" class="form-input" id="txnSearch" placeholder="🔍 搜尋內容/備註..." style="flex:1;min-width:120px" oninput="renderTxns()">
+            <button class="btn btn-ghost btn-sm filter-toggle-btn" id="filterToggleBtn" onclick="toggleTxnFilter()">篩選 ▾</button>
+            <div class="table-toolbar-right" style="margin-left:0">
+              <button class="btn btn-ghost btn-sm" id="batchModeBtn" onclick="enterBatchMode()">☑ 批量刪除</button>
+              <button class="btn btn-success btn-sm" onclick="exportExcel()">📥 匯出 Excel</button>
+            </div>
+          </div>
+          <!-- 可收合篩選面板 -->
+          <div id="txnFilterPanel" class="txn-filter-panel">
+            <input type="date" class="form-input" id="filterFrom" style="width:135px" onchange="updateFilterBtn();renderTxns()">
+            <span style="color:var(--tx-muted);align-self:center">—</span>
+            <input type="date" class="form-input" id="filterTo" style="width:135px" onchange="updateFilterBtn();renderTxns()">
+            <select class="form-select" id="filterSource" style="width:145px" onchange="updateFilterBtn();renderTxns()">
+              <option value="">全部帳戶/卡片</option>
+            </select>
+            <select class="form-select" id="filterCat" style="width:110px" onchange="updateFilterBtn();renderTxns()">
+              <option value="">全部類別</option>
+            </select>
+            <select class="form-select" id="filterType" style="width:95px" onchange="updateFilterBtn();renderTxns()">
+              <option value="">全部</option>
+              <option value="expense">支出</option>
+              <option value="income">收入</option>
+            </select>
+            <select class="form-select" id="filterTag" style="width:100px" onchange="updateFilterBtn();renderTxns()">
+              <option value="">全部標籤</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="clearTxnFilters()">✕ 清除篩選</button>
           </div>
         </div>
         <div id="txnTableWrap"></div>
@@ -348,7 +355,8 @@ const SK = 'mwallet_v2';
 let DB = defaultDB();
 let charts = {};
 let modalType = null, editTarget = null;
-let dashRange = 'month';
+let dashRange = 'salary';
+let dashRecentLimit = 5;
 let selectedTxns = new Set();
 let _readOnlyMode = true; // GitHub Pages 唯讀模式
 let selectedCCLayers  = new Set(); // 剩餘生活費勾選的信用卡分層
@@ -745,10 +753,38 @@ function navToItem(page, elementId) {
 }
 
 // ════════════════════════════════════════════════════════════════
+// TXN FILTER TOGGLE
+// ════════════════════════════════════════════════════════════════
+function toggleTxnFilter() {
+  const panel = document.getElementById('txnFilterPanel');
+  const btn = document.getElementById('filterToggleBtn');
+  if (!panel || !btn) return;
+  const isOpen = panel.classList.toggle('open');
+  updateFilterBtn(isOpen);
+}
+function updateFilterBtn(forceOpen) {
+  const panel = document.getElementById('txnFilterPanel');
+  const btn = document.getElementById('filterToggleBtn');
+  if (!btn || !panel) return;
+  const isOpen = forceOpen !== undefined ? forceOpen : panel.classList.contains('open');
+  const hasFilter = ['filterFrom','filterTo','filterSource','filterCat','filterType','filterTag']
+    .some(id => { const el=document.getElementById(id); return el && el.value; });
+  btn.textContent = isOpen ? '篩選 ▴' : (hasFilter ? '篩選 ●' : '篩選 ▾');
+  btn.classList.toggle('has-filter', hasFilter && !isOpen);
+}
+function clearTxnFilters() {
+  ['filterFrom','filterTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['filterSource','filterCat','filterType','filterTag'].forEach(id=>{const el=document.getElementById(id);if(el)el.selectedIndex=0;});
+  updateFilterBtn();
+  renderTxns();
+}
+
+// ════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ════════════════════════════════════════════════════════════════
 function setDashRange(el, range) {
   dashRange = range;
+  dashRecentLimit = 5;
   document.querySelectorAll('.dash-filter-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   renderDashboard();
@@ -956,11 +992,19 @@ function renderDashboard() {
 
   const rangeLabel = {month:'最近消費',salary:'本期(25日~隔月24日)消費',30:'近30天消費',7:'近7天消費',today:'今天消費',all:'全部消費'};
   document.getElementById('dashRecentLabel').textContent = rangeLabel[dashRange]||'最近消費';
-  const recent = [...rtx].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
-  document.getElementById('dashRecent').innerHTML = txnTable(recent, false);
+  const sorted = [...rtx].sort((a,b)=>b.date.localeCompare(a.date));
+  const recent = sorted.slice(0, dashRecentLimit);
+  const remaining = sorted.length - dashRecentLimit;
+  document.getElementById('dashRecent').innerHTML =
+    txnTable(recent, false) +
+    (remaining > 0
+      ? `<div style="text-align:center;padding:12px 0"><button class="btn btn-ghost btn-sm" onclick="dashRecentLimit+=5;renderDashboard()">顯示更多（還有 ${remaining} 筆）</button></div>`
+      : (sorted.length > 5 ? `<div style="text-align:center;padding:8px 0;font-size:11px;color:var(--tx-muted)">已顯示全部 ${sorted.length} 筆</div>` : ''));
 }
 function statCard(label,val,cls,sub,icon) {
-  return `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value ${cls}">${val}</div>${sub?`<div class="stat-sub">${sub}</div>`:''}<div class="stat-icon">${icon}</div></div>`;
+  const borderMap = {danger:'var(--m-red)',success:'var(--tx-green)',blue:'var(--m-blue)',warning:'var(--tx-warning)'};
+  const bc = borderMap[cls] || 'var(--bdr-normal)';
+  return `<div class="stat-card" style="border-left:3px solid ${bc}"><div class="stat-label">${label}</div><div class="stat-value ${cls}">${val}</div>${sub?`<div class="stat-sub">${sub}</div>`:''}<div class="stat-icon">${icon}</div></div>`;
 }
 
 // ════════════════════════════════════════════════════════════════
