@@ -1438,32 +1438,35 @@ function renderAccounts() {
 
   // 資產圓餅圖
   const pieWrap = document.getElementById('accountPieWrap');
-  if (!pieWrap || !DB.bankAccounts.length) { if(pieWrap) pieWrap.innerHTML=''; return; }
+  if (!pieWrap) return;
+  if (!DB.bankAccounts.length) { pieWrap.innerHTML=''; return; }
   const pieBals = DB.bankAccounts.map(a=>({name:a.name,color:a.color,bal:Math.max(0,accountBalance(a.id))})).filter(x=>x.bal>0);
   const pieTotal = pieBals.reduce((s,x)=>s+x.bal,0);
   if (!pieTotal) { pieWrap.innerHTML=''; return; }
-  if (!pieWrap.querySelector('canvas')) {
-    pieWrap.innerHTML=`<div class="chart-box" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:14px 18px">
-      <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);text-transform:uppercase;font-family:var(--ff-display);width:100%;margin-bottom:4px">資產總覽</div>
-      <div style="position:relative;width:130px;height:130px;flex-shrink:0"><canvas id="accountPieChart" width="130" height="130"></canvas></div>
-      <div id="accountPieLegend" style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:160px"></div>
-    </div>`;
-  }
-  const legendEl = document.getElementById('accountPieLegend');
-  if (legendEl) legendEl.innerHTML = pieBals.map(x=>`
-    <div style="display:flex;align-items:center;gap:8px;font-size:12px">
-      <div style="width:10px;height:10px;border-radius:50%;background:${x.color};flex-shrink:0"></div>
-      <span style="flex:1;color:var(--tx-secondary)">${escHtml(x.name)}</span>
-      <span style="font-family:var(--ff-display);color:var(--tx-primary)">${fmt(x.bal)}</span>
-      <span style="font-size:10px;color:var(--tx-muted)">${Math.round(x.bal/pieTotal*100)}%</span>
-    </div>`).join('');
-  if (charts.accountPie) charts.accountPie.destroy();
-  const ctx = document.getElementById('accountPieChart')?.getContext('2d');
-  if (ctx) charts.accountPie = new Chart(ctx, {
-    type:'doughnut',
-    data:{labels:pieBals.map(x=>x.name),datasets:[{data:pieBals.map(x=>x.bal),backgroundColor:pieBals.map(x=>x.color),borderWidth:2,borderColor:'#1A1A2E'}]},
-    options:{responsive:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx2=>`NT$${ctx2.raw.toLocaleString()}`}}},cutout:'65%'}
-  });
+
+  // 每次都重建 HTML，確保 canvas 是全新的
+  try { if (charts.accountPie) { charts.accountPie.destroy(); charts.accountPie=null; } } catch(e){}
+  pieWrap.innerHTML=`<div class="chart-box" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:14px 18px">
+    <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);text-transform:uppercase;font-family:var(--ff-display);width:100%;margin-bottom:4px">資產總覽</div>
+    <div style="position:relative;width:130px;height:130px;flex-shrink:0"><canvas id="accountPieChart" width="130" height="130"></canvas></div>
+    <div id="accountPieLegend" style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:160px">
+      ${pieBals.map(x=>`
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+        <div style="width:10px;height:10px;border-radius:50%;background:${x.color};flex-shrink:0"></div>
+        <span style="flex:1;color:var(--tx-secondary)">${escHtml(x.name)}</span>
+        <span style="font-family:var(--ff-display);color:var(--tx-primary)">${fmt(x.bal)}</span>
+        <span style="font-size:10px;color:var(--tx-muted)">${Math.round(x.bal/pieTotal*100)}%</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+  try {
+    const ctx = document.getElementById('accountPieChart')?.getContext('2d');
+    if (ctx) charts.accountPie = new Chart(ctx, {
+      type:'doughnut',
+      data:{labels:pieBals.map(x=>x.name),datasets:[{data:pieBals.map(x=>x.bal),backgroundColor:pieBals.map(x=>x.color),borderWidth:2,borderColor:'#1A1A2E'}]},
+      options:{responsive:false,animation:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`NT$${c.raw.toLocaleString()}`}}},cutout:'65%'}
+    });
+  } catch(e) { console.warn('圓餅圖渲染失敗',e); }
 }
 function delCardLayer(cardId, layerId) {
   if (!confirm('確定刪除此分層？')) return;
