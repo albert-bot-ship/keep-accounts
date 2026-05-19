@@ -711,19 +711,19 @@ function cardBillingPeriod(card) {
   const now = new Date();
   const today = now.getDate();
   const billingDay = card.billingDay || 1;
+  const localDate = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  };
   let periodStart, periodEnd;
   if (today <= billingDay) {
-    // 今天還沒到結帳日，本期是上月billingDay+1 ～ 本月billingDay
-    const startDate = new Date(now.getFullYear(), now.getMonth()-1, billingDay+1);
-    const endDate   = new Date(now.getFullYear(), now.getMonth(), billingDay);
-    periodStart = startDate.toISOString().slice(0,10);
-    periodEnd   = endDate.toISOString().slice(0,10);
+    periodStart = localDate(new Date(now.getFullYear(), now.getMonth()-1, billingDay+1));
+    periodEnd   = localDate(new Date(now.getFullYear(), now.getMonth(), billingDay));
   } else {
-    // 今天已過結帳日，本期是本月billingDay+1 ～ 下月billingDay
-    const startDate = new Date(now.getFullYear(), now.getMonth(), billingDay+1);
-    const endDate   = new Date(now.getFullYear(), now.getMonth()+1, billingDay);
-    periodStart = startDate.toISOString().slice(0,10);
-    periodEnd   = endDate.toISOString().slice(0,10);
+    periodStart = localDate(new Date(now.getFullYear(), now.getMonth(), billingDay+1));
+    periodEnd   = localDate(new Date(now.getFullYear(), now.getMonth()+1, billingDay));
   }
   return { periodStart, periodEnd };
 }
