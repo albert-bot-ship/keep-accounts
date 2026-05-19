@@ -23,11 +23,64 @@
       right: 0 !important; 
       z-index: 1000 !important; 
     }
+
+  /* ── PULL TO REFRESH ── */
+  #ptr-indicator {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    z-index: 1999;
+    background: var(--bg-card);
+    border: 1px solid var(--bdr-normal);
+    border-radius: 99px;
+    padding: 8px 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--tx-secondary);
+    font-family: var(--ff-display);
+    letter-spacing: 1px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.3);
+    transition: transform .25s cubic-bezier(.34,1.4,.64,1), opacity .2s;
+    opacity: 0;
+    pointer-events: none;
+  }
+  #ptr-indicator.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  #ptr-indicator.releasing {
+    border-color: var(--m-blue);
+    color: var(--tx-blue);
+  }
+  #ptr-spinner {
+    width: 14px; height: 14px;
+    border: 2px solid var(--bdr-normal);
+    border-top-color: var(--m-blue);
+    border-radius: 50%;
+    animation: ptrSpin .7s linear infinite;
+    display: none;
+  }
+  #ptr-indicator.loading #ptr-spinner { display: block; }
+  #ptr-indicator.loading #ptr-arrow { display: none; }
+  @keyframes ptrSpin { to { transform: rotate(360deg); } }
+  #ptr-arrow {
+    font-size: 14px;
+    transition: transform .2s;
+  }
+  #ptr-indicator.releasing #ptr-arrow { transform: rotate(180deg); }
   </style>
   <link rel="icon" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
 </head>
 <body id="appBody">
+<div id="ptr-indicator">
+  <span id="ptr-spinner"></span>
+  <span id="ptr-arrow">↓</span>
+  <span id="ptr-text">下拉重新整理</span>
+</div>
 
 <!-- ══ TOP NAV ══════════════════════════════════════════════ -->
 <header class="topnav">
@@ -1236,7 +1289,7 @@ function renderCards() {
         </div>
         <div style="text-align:right;flex-shrink:0">
           ${hasPaidOffset?`<div style="font-size:10px;color:var(--tx-muted);text-decoration:line-through">−${fmt(totalLayerAmt)}</div>`:''}
-          <span class="layer-amt" style="color:${layerOutstanding>0?'var(--tx-red)':'var(--tx-muted)'};font-weight:700">${layerOutstanding>0?'未還 −'+fmt(layerOutstanding):'−0'}</span>
+          <span class="layer-amt" style="color:${layerOutstanding>0?'var(--tx-red)':'var(--tx-muted)'};font-weight:700">${layerOutstanding>0?'−'+fmt(layerOutstanding):'−0'}</span>
         </div>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCardLayer','${c.id}',null,null,'${l.id}')">✏️</button>
         <button class="btn btn-danger btn-icon btn-sm" onclick="delCardLayer('${c.id}','${l.id}')">✕</button>
@@ -3933,7 +3986,58 @@ async function init() {
   // 7. 股票
   fetchStockPrices();
 }
-document.addEventListener('DOMContentLoaded',init);
+document.addEventListener('DOMContentLoaded', init);
+
+// ── PULL TO REFRESH ──────────────────────────────────────────
+(function() {
+  const PTR_THRESHOLD = 80; // px，觸發距離
+  let startY = 0, pulling = false, dist = 0, triggered = false;
+  const ind = () => document.getElementById('ptr-indicator');
+  const txt = () => document.getElementById('ptr-text');
+
+  document.addEventListener('touchstart', e => {
+    // 只在頁面頂部時啟動
+    if (window.scrollY === 0 && e.touches.length === 1) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+      triggered = false;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    dist = e.touches[0].clientY - startY;
+    if (dist <= 0) { pulling = false; return; }
+    const el = ind();
+    if (!el) return;
+    el.classList.add('visible');
+    if (dist >= PTR_THRESHOLD) {
+      el.classList.add('releasing');
+      if (txt()) txt().textContent = '放開重新整理';
+    } else {
+      el.classList.remove('releasing');
+      if (txt()) txt().textContent = '下拉重新整理';
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!pulling) return;
+    pulling = false;
+    const el = ind();
+    if (!el) return;
+    if (dist >= PTR_THRESHOLD && !triggered) {
+      triggered = true;
+      el.classList.add('loading');
+      el.classList.remove('releasing');
+      if (txt()) txt().textContent = '更新中…';
+      setTimeout(() => location.reload(true), 600);
+    } else {
+      el.classList.remove('visible', 'releasing');
+      if (txt()) txt().textContent = '下拉重新整理';
+    }
+    dist = 0;
+  }, { passive: true });
+})();
 </script>
 
 <!-- ══ MOBILE BOTTOM NAV ══════════════════════════════════════ -->
