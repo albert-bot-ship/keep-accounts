@@ -313,6 +313,10 @@
         <div class="chart-title">各類別年度累計</div>
         <canvas id="catBarChart" height="120"></canvas>
       </div>
+      <div class="chart-box mt-4" id="spendPatternBox">
+        <div class="chart-title">消費週期分析</div>
+        <div id="spendPatternContent"></div>
+      </div>
     </section>
 
     <!-- ─── SETTINGS ───────────────────────────── -->
@@ -2103,6 +2107,55 @@ function renderAnalytics() {
     type:'bar',data:{labels:DB.categories.map(c=>c.name),datasets:[{label:'年度支出',data:catYr,backgroundColor:DB.categories.map(c=>c.color+'cc'),borderRadius:5}]},
     options:{responsive:true,plugins:{legend:{labels:{color:'#8080A8'}}},scales:{x:{ticks:{color:'#8080A8'},grid:{display:false}},y:{ticks:{color:'#8080A8',callback:v2=>'NT$'+v2.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}}}
   });
+
+  // ── 消費週期分析熱力圖 ──────────────────────────────────────
+  const ytxnSpend = DB.transactions.filter(t=>t.date.startsWith(year)&&t.amount<0&&!t.isPayment&&!t.isTransfer);
+  // 星期統計
+  const wdNames = ['日','一','二','三','四','五','六'];
+  const wdTotals = Array(7).fill(0), wdCounts = Array(7).fill(0);
+  ytxnSpend.forEach(t => {
+    const wd = new Date(t.date+'T00:00:00').getDay();
+    wdTotals[wd] += Math.abs(t.amount);
+    wdCounts[wd]++;
+  });
+  const wdMax = Math.max(...wdTotals, 1);
+
+  // 日期統計（1~31）
+  const dayTotals = Array(31).fill(0);
+  ytxnSpend.forEach(t => {
+    const d = parseInt(t.date.slice(8)) - 1;
+    dayTotals[d] += Math.abs(t.amount);
+  });
+  const dayMax = Math.max(...dayTotals, 1);
+
+  const heatCell = (val, max, label, sub) => {
+    const ratio = val / max;
+    const alpha = ratio < 0.05 ? 0.06 : 0.1 + ratio * 0.75;
+    const textColor = ratio > 0.6 ? '#fff' : 'var(--tx-secondary)';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0">
+      <div style="width:100%;aspect-ratio:1;border-radius:6px;background:rgba(0,87,184,${alpha.toFixed(2)});
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        border:1px solid rgba(0,87,184,${(alpha*0.6).toFixed(2)});padding:2px">
+        <span style="font-family:var(--ff-display);font-size:clamp(9px,2vw,12px);color:${textColor};font-weight:700;white-space:nowrap">${val>0?'NT$'+Math.round(val/1000)+'K':''}</span>
+      </div>
+      <span style="font-size:10px;color:var(--tx-muted);font-family:var(--ff-display)">${label}</span>
+      ${sub?`<span style="font-size:9px;color:var(--tx-muted)">${sub}</span>`:''}
+    </div>`;
+  };
+
+  const patBox = document.getElementById('spendPatternContent');
+  if (patBox) patBox.innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:8px">星期消費分布</div>
+      <div style="display:flex;gap:4px">${wdTotals.map((v,i)=>heatCell(v,wdMax,'週'+wdNames[i],wdCounts[i]+'筆')).join('')}</div>
+    </div>
+    <div>
+      <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:8px">日期消費分布（1～31日）</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
+        ${dayTotals.map((v,i)=>heatCell(v,dayMax,i+1+'日','')).join('')}
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--tx-muted);margin-top:10px;text-align:right">顏色越深代表消費金額越高　年度：${year}</div>`;
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2910,12 +2963,54 @@ function saveTxn() {
       if(pair) { pair.date=txnObj.date; pair.notes=txnObj.notes; pair.amount=-txnObj.amount; }
     }
     toast('記錄已更新','success');
+    saveDB();closeModal();renderTxns();
   } else {
+    // 重複消費偵測：7天內相同金額 + 相近描述
+    if (amount < 0 && !isRed) {
+      const dateObj = new Date(date+'T00:00:00');
+      const dupCandidates = DB.transactions.filter(t => {
+        if (t.isPayment||t.isTransfer||t.amount>=0) return false;
+        if (t.amount !== amount) return false;
+        const td = new Date(t.date+'T00:00:00');
+        const diff = Math.abs(dateObj - td) / 86400000;
+        if (diff > 7 || diff === 0) return false;
+        // 描述相似度：去空白小寫後包含關係
+        const a = desc.replace(/\s/g,'').toLowerCase();
+        const b = t.desc.replace(/\s/g,'').toLowerCase();
+        return a===b || a.includes(b) || b.includes(a);
+      });
+      if (dupCandidates.length > 0) {
+        const dup = dupCandidates[0];
+        // 跳出確認對話，用自訂 modal
+        openModal('_dupConfirm');
+        document.getElementById('modalTitle').textContent = '⚠ 可能重複的記錄';
+        document.getElementById('modalBody').innerHTML = `
+          <div style="font-size:13px;color:var(--tx-secondary);margin-bottom:12px">偵測到 7 天內有相似記錄：</div>
+          <div style="background:var(--bg-secondary);border-radius:var(--r);padding:10px 14px;margin-bottom:14px;font-size:13px">
+            <div style="color:var(--tx-primary);font-weight:600">${escHtml(dup.desc)}</div>
+            <div style="color:var(--tx-muted);font-size:11px;margin-top:4px">${dup.date}　${fmt(dup.amount)}　${getCat(dup.category).name}</div>
+          </div>
+          <div style="font-size:12px;color:var(--tx-secondary)">確定要新增這筆記錄嗎？</div>`;
+        document.getElementById('modalFooter').innerHTML = `
+          <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="confirmSaveTxn(${JSON.stringify(txnObj).replace(/"/g,'&quot;')})">確定新增</button>`;
+        document.getElementById('modalOverlay').classList.add('active');
+        return;
+      }
+    }
     DB.transactions.push({id:uid(),...txnObj,isFixed:false});
     const cat=getCat(catId);
     if(cat.budget>0&&amount<0&&catMonthSpend(catId)>cat.budget)toast('⚠ 類別「'+cat.name+'」已超過本月額度！','danger');
     else toast('記錄新增成功','success');
+    saveDB();closeModal();renderTxns();
   }
+}
+function confirmSaveTxn(txnObj) {
+  DB.transactions.push({id:uid(),...txnObj,isFixed:false});
+  const cat=getCat(txnObj.category);
+  if(cat.budget>0&&txnObj.amount<0&&catMonthSpend(txnObj.category)>cat.budget)
+    toast('⚠ 類別「'+cat.name+'」已超過本月額度！','danger');
+  else toast('記錄新增成功','success');
   saveDB();closeModal();renderTxns();
 }
 // 填充分層選單通用函數
