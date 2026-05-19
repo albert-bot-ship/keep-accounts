@@ -551,10 +551,18 @@ function accountBalance(id) {
 function layerDynamicBalance(accId, layerId) {
   const acc   = getAcc(accId); if (!acc) return 0;
   const layer = (acc.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
+  // 單分層交易
   const txSum = DB.transactions
     .filter(t=>t.layerId===layerId)
     .reduce((s,t)=>s+t.amount, 0);
-  return (layer.amount||0) + txSum;
+  // 多分層交易（layerAmounts）
+  const mlSum = DB.transactions
+    .filter(t=>t.sourceType==='account'&&t.sourceId===accId&&t.layerAmounts)
+    .reduce((s,t)=>{
+      const la=(t.layerAmounts||[]).find(la=>la.layerId===layerId);
+      return s+(la?la.amount:0);
+    },0);
+  return (layer.amount||0) + txSum + mlSum;
 }
 function rangedTxns() {
   const now = new Date();
@@ -1062,7 +1070,10 @@ function renderCards() {
         .reduce((s,fl)=>s+(+fl.amount||0),0);
       const txLayerAmt = DB.transactions
         .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
-        .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
+        .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0)
+        + DB.transactions
+        .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerAmounts&&t.amount<0&&!t.isPayment)
+        .reduce((s,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===l.id);return s+(la?Math.abs(la.amount):0);},0);
       // 折抵（點數/回饋）歸屬此分層
       const redeemLayerAmt = DB.transactions
         .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.isRedemption&&t.amount>0)
@@ -1420,6 +1431,22 @@ function txnTable(txns, withActions) {
     }).join('');
     const feeBadge = (t.fee&&t.fee>0) ? `<span class="badge" style="margin-left:4px;background:#e6780022;color:#e67800;border:1px solid #e6780055;font-size:9px">手續費 +${fmt(t.fee)}</span>` : '';
     const tags = sysTags + feeBadge + userTagBadges;
+    const hasML = t.layerAmounts?.length > 0;
+    const mlBadge = hasML ? `<span class="badge badge-violet" style="margin-left:4px;cursor:pointer" onclick="event.stopPropagation();toggleMLDetail('${t.id}')">▶ ${t.layerAmounts.length}分層</span>` : '';
+    const mlDetailRow = hasML ? `<tr id="mldetail_${t.id}" style="display:none;background:var(--bg-secondary)">
+      <td colspan="${withActions?7:5}" style="padding:6px 16px 10px 40px">
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${t.layerAmounts.map(la=>{
+            const src = t.sourceType==='card' ? getCard(t.sourceId) : getAcc(t.sourceId);
+            const layer = (src?.layers||[]).find(l=>l.id===la.layerId);
+            return layer ? `<span style="font-size:12px;background:${layer.color||'#888'}22;color:${layer.color||'#888'};border:1px solid ${layer.color||'#888'}55;border-radius:12px;padding:2px 10px">
+              ${escHtml(layer.label)}　${la.amount<0?'−':'+'}${fmt(Math.abs(la.amount))}
+            </span>` : '';
+          }).join('')}
+        </div>
+      </td>
+    </tr>` : '';
+
     const chk = (withActions && batchMode)
       ? `<td style="width:36px;padding:0 8px"><input type="checkbox" class="txn-chk" data-id="${t.id}" onchange="updateBatchUI()" style="width:16px;height:16px;cursor:pointer" onclick="event.stopPropagation()"></td>`
       : (withActions ? '<td style="width:36px"></td>' : '');
@@ -1433,13 +1460,13 @@ function txnTable(txns, withActions) {
     return `<tr class="txn-row" ${rowClick}>
       ${chk}
       <td style="white-space:nowrap">${t.date}</td>
-      <td>${escHtml(t.desc)}${sysTags}${feeBadge}${userTagBadges}</td>
+      <td>${escHtml(t.desc)}${sysTags}${mlBadge}${feeBadge}${userTagBadges}</td>
       <td><span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span></td>
       <td style="white-space:nowrap">${sourceName(t)}</td>
       <td class="${amtCls}" style="white-space:nowrap">${sign}${fmt(Math.abs(t.amount))}</td>
       <td style="color:var(--tx-secondary);font-size:12px">${escHtml(t.notes||'—')}</td>
       ${act}
-    </tr>`;
+    </tr>${mlDetailRow}`;
   }).join('');
   const total = txns.reduce((s,t)=>s+t.amount,0);
   const cols  = withActions ? 7 : 5;
@@ -2121,11 +2148,23 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <select class="form-select" id="tSrc" onchange="onTxnSrcChange(this.value)"><option value="">請選擇</option>${srcOpts('both')}</select>
     </div>
     <div class="form-group" id="tLayerGroup" style="display:none">
-      <label class="form-label">扣款分層（選填）</label>
-      <select class="form-select" id="tLayer">
-        <option value="">不指定分層</option>
-      </select>
-      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 選擇後可追蹤每筆消費從哪個分層支出</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <label class="form-label" style="margin:0">分層設定</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx-secondary);cursor:pointer">
+          <input type="checkbox" id="tMultiLayerToggle" onchange="toggleMultiLayer(this.checked)">
+          多分層模式
+        </label>
+      </div>
+      <div id="tSingleLayerDiv">
+        <select class="form-select" id="tLayer">
+          <option value="">不指定分層</option>
+        </select>
+        <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 選擇後可追蹤每筆消費從哪個分層支出</div>
+      </div>
+      <div id="tMultiLayerDiv" style="display:none">
+        <div id="tMultiLayerList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
+        <div style="font-size:11px;color:var(--tx-secondary)">💡 勾選分層並填入各自金額，總計自動帶入上方金額欄</div>
+      </div>
     </div>
     <div class="form-group"><label class="form-label">標籤（選填，可多選）</label>
       <div class="tag-picker" id="tTagPicker">
@@ -2143,7 +2182,11 @@ function openModal(type,id,preCard,preAcc,extraId) {
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveTxn()">儲存</button>`;
     setTimeout(()=>{
       const el=document.getElementById('tSrc');
-      if(el&&preSrc){ el.value=preSrc; onTxnSrcChange(preSrc, txn?.layerId||''); }
+      if(el&&preSrc){
+        el.value=preSrc;
+        const preML = txn?.layerAmounts?.length > 0;
+        onTxnSrcChange(preSrc, txn?.layerId||'', preML, txn?.layerAmounts||[]);
+      }
     },60);
   }
 
@@ -2396,26 +2439,38 @@ function saveTxn() {
   const date=v('tDate'),type=v('tType'),amt=+v('tAmt'),
         desc=document.getElementById('tDesc').value.trim(),
         catId=v('tCat'),srcVal=v('tSrc'),notes=v('tNotes'),
-        layerId=v('tLayer')||null,
         tags=JSON.parse(v('tTagsVal')||'[]'),
         fee=+(document.getElementById('tFee')?.value)||0;
   if(!date||!amt||!desc||!srcVal){toast('請填寫完整資訊','danger');return;}
   const [sType,sId]=srcVal.split('_');
   const isRed = type==='redemption';
   const amount = type==='income'||isRed ? Math.abs(amt) : -Math.abs(amt);
-  const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,tags,fee:fee||0};
+
+  // 多分層 vs 單分層
+  const isMulti = document.getElementById('tMultiLayerToggle')?.checked;
+  let layerId = null;
+  let layerAmounts = null;
+  if (isMulti) {
+    const list = document.getElementById('tMultiLayerList');
+    if (list) {
+      const entries = [...list.querySelectorAll('input[type="checkbox"]:checked')].map(chk=>{
+        const lid = chk.id.replace('mlchk_','');
+        const a = +(document.getElementById('mlamt_'+lid)?.value)||0;
+        return {layerId: lid, amount: (isRed||type==='income') ? a : -a};
+      }).filter(e=>e.amount!==0);
+      if (entries.length>0) layerAmounts = entries;
+    }
+  } else {
+    layerId = v('tLayer')||null;
+  }
+
+  const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0};
   if(modalType==='editTxn'){
     const thisTxn = DB.transactions.find(t=>t.id===editTarget);
     Object.assign(thisTxn, txnObj);
-    // 若是轉帳記錄，同步對應那筆
     if(thisTxn.isTransfer && thisTxn.transferPairTxnId) {
       const pair = DB.transactions.find(t=>t.id===thisTxn.transferPairTxnId);
-      if(pair) {
-        pair.date  = txnObj.date;
-        pair.notes = txnObj.notes;
-        // 金額反向同步（出帳→入帳，入帳→出帳）
-        pair.amount = -txnObj.amount;
-      }
+      if(pair) { pair.date=txnObj.date; pair.notes=txnObj.notes; pair.amount=-txnObj.amount; }
     }
     toast('記錄已更新','success');
   } else {
@@ -2667,15 +2722,13 @@ function toggleCustomDays(period) {
 }
 
 // 帳戶來源切換時，動態顯示分層選單
-function onTxnSrcChange(srcVal, preLayerId) {
+function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
   const group = document.getElementById('tLayerGroup');
   const sel   = document.getElementById('tLayer');
   const feeGroup = document.getElementById('tFeeGroup');
   if (!group || !sel) return;
 
-  // 手續費欄位：只在信用卡來源時顯示
   if (feeGroup) feeGroup.style.display = srcVal.startsWith('card_') ? '' : 'none';
-
   if (!srcVal) { group.style.display='none'; return; }
 
   let layers = [];
@@ -2686,8 +2739,9 @@ function onTxnSrcChange(srcVal, preLayerId) {
     const cardId = srcVal.split('_')[1];
     layers = getCard(cardId)?.layers || [];
   }
-
   if (!layers.length) { group.style.display='none'; return; }
+
+  // 填充單選分層
   sel.innerHTML = '<option value="">不指定分層</option>' +
     layers.map(l => {
       let display;
@@ -2704,8 +2758,86 @@ function onTxnSrcChange(srcVal, preLayerId) {
       return `<option value="${l.id}"${l.id===preLayerId?' selected':''}>${l.label}（${display}）</option>`;
     }).join('');
   if (preLayerId) sel.value = preLayerId;
+
+  // 若是編輯多分層記錄，切換到多分層模式
+  const toggle = document.getElementById('tMultiLayerToggle');
+  if (preMulti && preLayerAmounts?.length > 0) {
+    if (toggle) toggle.checked = true;
+    toggleMultiLayer(true, srcVal, preLayerAmounts);
+  } else {
+    if (toggle) toggle.checked = false;
+    toggleMultiLayer(false, srcVal, []);
+  }
   group.style.display = '';
 }
+
+function toggleMultiLayer(isMulti, srcValOverride, preLayerAmounts) {
+  const singleDiv = document.getElementById('tSingleLayerDiv');
+  const multiDiv  = document.getElementById('tMultiLayerDiv');
+  if (!singleDiv || !multiDiv) return;
+  singleDiv.style.display = isMulti ? 'none' : '';
+  multiDiv.style.display  = isMulti ? '' : 'none';
+  if (isMulti) {
+    const srcVal = srcValOverride || document.getElementById('tSrc')?.value || '';
+    renderMultiLayerInputs(srcVal, preLayerAmounts||[]);
+  }
+}
+
+function renderMultiLayerInputs(srcVal, preLayerAmounts) {
+  const list = document.getElementById('tMultiLayerList');
+  if (!list) return;
+  let layers = [];
+  if (srcVal.startsWith('account_')) {
+    const accId = srcVal.split('_')[1];
+    layers = (getAcc(accId)?.layers||[]).map(l=>({...l, bal: layerDynamicBalance(accId, l.id)}));
+  } else if (srcVal.startsWith('card_')) {
+    const cardId = srcVal.split('_')[1];
+    layers = (getCard(cardId)?.layers||[]).map(l=>({...l, bal: null}));
+  }
+  list.innerHTML = layers.map(l => {
+    const pre = (preLayerAmounts||[]).find(la=>la.layerId===l.id);
+    const isChecked = !!pre;
+    const preAmt = pre ? Math.abs(pre.amount) : '';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-secondary);border-radius:var(--r);border:1px solid var(--bdr-subtle)">
+      <input type="checkbox" id="mlchk_${l.id}" ${isChecked?'checked':''} onchange="onMultiLayerChk('${l.id}')" style="width:16px;height:16px;flex-shrink:0;cursor:pointer">
+      <div style="width:8px;height:8px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
+      <span style="flex:1;font-size:13px">${escHtml(l.label)}${l.bal!==null?`<span style="font-size:10px;color:var(--tx-muted);margin-left:4px">(${fmt(l.bal)})</span>`:''}</span>
+      <input type="number" id="mlamt_${l.id}" class="form-input" placeholder="0" min="0" step="any"
+        style="width:100px;${isChecked?'':'display:none'}" value="${preAmt}" oninput="recalcMultiLayerTotal()">
+    </div>`;
+  }).join('');
+  recalcMultiLayerTotal();
+}
+
+function onMultiLayerChk(layerId) {
+  const chk = document.getElementById('mlchk_'+layerId);
+  const amt = document.getElementById('mlamt_'+layerId);
+  if (!amt) return;
+  amt.style.display = chk.checked ? '' : 'none';
+  if (chk.checked) { amt.value=''; amt.focus(); }
+  recalcMultiLayerTotal();
+}
+
+function recalcMultiLayerTotal() {
+  const list = document.getElementById('tMultiLayerList');
+  if (!list) return;
+  const total = [...list.querySelectorAll('input[type="checkbox"]:checked')].reduce((s,chk)=>{
+    const lid = chk.id.replace('mlchk_','');
+    return s+(+(document.getElementById('mlamt_'+lid)?.value)||0);
+  },0);
+  const amtEl = document.getElementById('tAmt');
+  if (amtEl && total>0) amtEl.value = total;
+}
+function toggleMLDetail(txnId) {
+  const row = document.getElementById('mldetail_'+txnId);
+  if (!row) return;
+  const isHidden = row.style.display === 'none';
+  row.style.display = isHidden ? '' : 'none';
+  // 更新badge箭頭
+  const badge = document.querySelector(`[onclick*="toggleMLDetail('${txnId}')"]`);
+  if (badge) badge.textContent = badge.textContent.replace(isHidden?'▶':'▼', isHidden?'▼':'▶');
+}
+
 function toggleCurrencyField(accType) {
   const el = document.getElementById('currencyGroup');
   if (el) el.style.display = accType === '外幣' ? '' : 'none';
