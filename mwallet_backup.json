@@ -714,6 +714,21 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mpc66tzkk1ot6",
+      "date": "2026-05-19",
+      "amount": -75,
+      "desc": "紅柚翡翠",
+      "category": "mov4018zwuesg",
+      "sourceId": "mov76o8qoesbi",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": null,
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [
