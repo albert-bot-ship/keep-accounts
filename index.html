@@ -2807,6 +2807,7 @@ function renderTfMultiLayerInputs(side, accId) {
       <span style="flex:1;font-size:13px">${escHtml(l.label)}<span style="font-size:10px;color:var(--tx-muted);margin-left:4px">(${fmt(bal)})</span></span>
       <input type="number" id="tf${side}amt_${l.id}" class="form-input" placeholder="0" min="0" step="any"
         style="width:100px;display:none" oninput="recalcTfMultiTotal('${side}')">
+    </div>`;
   }).join('');
 }
 
