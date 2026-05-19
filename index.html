@@ -544,6 +544,8 @@ function cardBalance(id) {
 function cardLayerOutstanding(cardId, layerId) {
   const card = getCard(cardId); if (!card) return 0;
   const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
+  // 有分期金額的分層：直接回傳 layer.amount 總額
+  if (layer.monthlyAmt!=null && layer.monthlyAmt!=='') return layer.amount||0;
   const nowDay = new Date().getDate();
   const cardLayerIds    = new Set((card.layers||[]).map(l=>l.id));
   const cardLayerLabels = new Set((card.layers||[]).map(l=>l.label.trim()));
@@ -1158,6 +1160,11 @@ function renderCards() {
 
     const layerDataArr = (c.layers||[]).map(l=>{
       const layerAmt = l.amount||0;
+      const hasMonthly = l.monthlyAmt!=null&&l.monthlyAmt!=='';
+      // 有分期金額的分層：直接用 layer.amount 作為總額顯示，不套用帳期交易計算
+      if (hasMonthly) {
+        return {l, layerAmt, feLayerAmt:0, txLayerAmt:0, redeemLayerAmt:0, totalLayerAmt:layerAmt, hasDetail:false, hasMonthly, isMonthlyFixed:true};
+      }
       const feLayerAmt = DB.fixedExpenses
         .filter(fe=>fe.sourceType==='card'&&fe.sourceId===c.id&&(fe.day||1)<=nowDay)
         .flatMap(fe=>(fe.layers||[]))
@@ -1174,10 +1181,9 @@ function renderCards() {
       const redeemLayerAmt = DB.transactions
         .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.isRedemption&&t.amount>0&&t.date>=periodStart&&t.date<=periodEnd)
         .reduce((s,t)=>s+t.amount,0);
-      const totalLayerAmt = feLayerAmt + txLayerAmt; // 不含靜態 layer.amount，避免跨期累加
+      const totalLayerAmt = feLayerAmt + txLayerAmt;
       const hasDetail = feLayerAmt>0||txLayerAmt>0||redeemLayerAmt>0;
-      const hasMonthly = l.monthlyAmt!=null&&l.monthlyAmt!=='';
-      return {l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly};
+      return {l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed:false};
     });
 
     // ── STEP 2：計算整張卡的 totalSpend、已繳、未還（當期範圍）────────────
@@ -1212,10 +1218,16 @@ function renderCards() {
     const paidRatio = totalSpend>0 ? Math.min(1, periodTotalPaid/totalSpend) : (netOutstanding===0?1:0);
 
     // ── STEP 3：渲染各分層 HTML（含未還比例顯示）───────────────
-    const layersHtml = layerDataArr.map(({l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly})=>{
-      // 此分層按比例估算未還額
-      const layerOutstanding = Math.max(0, Math.round((totalLayerAmt - redeemLayerAmt) * (1 - paidRatio)));
-      const hasPaidOffset = (totalPaid+unlayeredRedeem+layerRedeemTotal)>0 && totalLayerAmt>0;
+    const layersHtml = layerDataArr.map(({l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed})=>{
+      // 有分期金額的分層：直接顯示 layer.amount 總額，不走 paidRatio
+      let layerOutstanding, hasPaidOffset;
+      if (isMonthlyFixed) {
+        layerOutstanding = layerAmt;
+        hasPaidOffset = false;
+      } else {
+        layerOutstanding = Math.max(0, Math.round((totalLayerAmt - redeemLayerAmt) * (1 - paidRatio)));
+        hasPaidOffset = (totalPaid+unlayeredRedeem+layerRedeemTotal)>0 && totalLayerAmt>0;
+      }
       return `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||c.color}"></div>
         <div style="flex:1;min-width:0">
