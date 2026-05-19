@@ -2220,21 +2220,42 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <select class="form-select" id="tfFrom" onchange="onTfAccChange('from',this.value)">${accOpts}</select>
     </div>
     <div class="form-group" id="tfFromLayerGroup" style="display:none">
-      <label class="form-label">從哪個分層扣款（選填）</label>
-      <select class="form-select" id="tfFromLayer"><option value="">不指定分層</option></select>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <label class="form-label" style="margin:0">扣款分層</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx-secondary);cursor:pointer">
+          <input type="checkbox" id="tfFromMultiToggle" onchange="toggleTfMultiLayer('from',this.checked)"> 多分層
+        </label>
+      </div>
+      <div id="tfFromSingleDiv">
+        <select class="form-select" id="tfFromLayer"><option value="">不指定分層</option></select>
+      </div>
+      <div id="tfFromMultiDiv" style="display:none">
+        <div id="tfFromMultiList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
+        <div style="font-size:11px;color:var(--tx-secondary)">💡 勾選分層並填入各自金額，總計自動帶入金額欄</div>
+      </div>
     </div>
     <div class="form-group"><label class="form-label">到帳戶</label>
       <select class="form-select" id="tfTo" onchange="onTfAccChange('to',this.value)">${accOpts}</select>
     </div>
     <div class="form-group" id="tfToLayerGroup" style="display:none">
-      <label class="form-label">存入哪個分層（選填）</label>
-      <select class="form-select" id="tfToLayer"><option value="">不指定分層</option></select>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <label class="form-label" style="margin:0">存入分層</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx-secondary);cursor:pointer">
+          <input type="checkbox" id="tfToMultiToggle" onchange="toggleTfMultiLayer('to',this.checked)"> 多分層
+        </label>
+      </div>
+      <div id="tfToSingleDiv">
+        <select class="form-select" id="tfToLayer"><option value="">不指定分層</option></select>
+      </div>
+      <div id="tfToMultiDiv" style="display:none">
+        <div id="tfToMultiList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
+        <div style="font-size:11px;color:var(--tx-secondary)">💡 勾選要存入的分層並填入各自金額</div>
+      </div>
     </div>
     <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="tfAmt" type="number" placeholder="0"></div>
     <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tfDate" type="date" value="${today()}"></div>
     <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tfNotes"></div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-violet" onclick="doTransfer()">🔄 確認轉帳</button>`;
-    // 初始化預選帳戶的分層
     setTimeout(()=>{
       onTfAccChange('from', id||DB.bankAccounts[0]?.id||'');
       const toId = DB.bankAccounts.find(a=>a.id!==id)?.id||'';
@@ -2500,8 +2521,27 @@ function onPayAccChange(srcVal) {
   fillLayerSel('pyLayer','pyLayerGroup', accId);
 }
 function onTfAccChange(side, accId) {
-  if (side==='from') fillLayerSel('tfFromLayer','tfFromLayerGroup', accId);
-  else               fillLayerSel('tfToLayer',  'tfToLayerGroup',   accId);
+  const groupId   = side==='from' ? 'tfFromLayerGroup' : 'tfToLayerGroup';
+  const singleId  = side==='from' ? 'tfFromSingleDiv'  : 'tfToSingleDiv';
+  const multiId   = side==='from' ? 'tfFromMultiDiv'   : 'tfToMultiDiv';
+  const selId     = side==='from' ? 'tfFromLayer'       : 'tfToLayer';
+  const grp = document.getElementById(groupId);
+  const sel = document.getElementById(selId);
+  if (!grp || !sel) return;
+
+  const layers = getAcc(accId)?.layers || [];
+  if (!layers.length) { grp.style.display='none'; return; }
+
+  sel.innerHTML = '<option value="">不指定分層</option>' +
+    layers.map(l=>{
+      const bal = layerDynamicBalance(accId, l.id);
+      return `<option value="${l.id}">${escHtml(l.label)}（${fmt(bal)}）</option>`;
+    }).join('');
+  grp.style.display = '';
+
+  // 若多分層模式已開，重新渲染分層輸入列表
+  const toggle = document.getElementById(side==='from'?'tfFromMultiToggle':'tfToMultiToggle');
+  if (toggle?.checked) renderTfMultiLayerInputs(side, accId);
 }
 
 function doPayment() {
@@ -2515,18 +2555,102 @@ function doPayment() {
   DB.transactions.push({id:uid(),date,amount:+Math.abs(amt),desc:'繳款入帳 — '+(card?.name||''),category:lastCat,sourceId:cardId,sourceType:'card',notes,isPayment:true});
   saveDB();closeModal();renderCards();toast('繳款成功！','success');
 }
+function toggleTfMultiLayer(side, isMulti) {
+  const singleDiv = document.getElementById(side==='from'?'tfFromSingleDiv':'tfToSingleDiv');
+  const multiDiv  = document.getElementById(side==='from'?'tfFromMultiDiv' :'tfToMultiDiv');
+  if (!singleDiv||!multiDiv) return;
+  singleDiv.style.display = isMulti ? 'none' : '';
+  multiDiv.style.display  = isMulti ? '' : 'none';
+  if (isMulti) {
+    const accId = document.getElementById(side==='from'?'tfFrom':'tfTo')?.value;
+    if (accId) renderTfMultiLayerInputs(side, accId);
+  }
+}
+
+function renderTfMultiLayerInputs(side, accId) {
+  const listId = side==='from' ? 'tfFromMultiList' : 'tfToMultiList';
+  const list = document.getElementById(listId);
+  if (!list) return;
+  const layers = getAcc(accId)?.layers || [];
+  list.innerHTML = layers.map(l=>{
+    const bal = layerDynamicBalance(accId, l.id);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-secondary);border-radius:var(--r);border:1px solid var(--bdr-subtle)">
+      <input type="checkbox" id="tf${side}chk_${l.id}" onchange="onTfMultiChk('${side}','${l.id}')" style="width:16px;height:16px;flex-shrink:0;cursor:pointer">
+      <div style="width:8px;height:8px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
+      <span style="flex:1;font-size:13px">${escHtml(l.label)}<span style="font-size:10px;color:var(--tx-muted);margin-left:4px">(${fmt(bal)})</span></span>
+      <input type="number" id="tf${side}amt_${l.id}" class="form-input" placeholder="0" min="0" step="any"
+        style="width:100px;display:none" oninput="recalcTfMultiTotal('${side}')">
+  }).join('');
+}
+
+function onTfMultiChk(side, layerId) {
+  const chk = document.getElementById(`tf${side}chk_${layerId}`);
+  const amt = document.getElementById(`tf${side}amt_${layerId}`);
+  if (!amt) return;
+  amt.style.display = chk.checked ? '' : 'none';
+  if (chk.checked) { amt.value=''; amt.focus(); }
+  recalcTfMultiTotal(side);
+}
+
+function recalcTfMultiTotal(side) {
+  if (side !== 'from') return;
+  const list = document.getElementById('tfFromMultiList');
+  if (!list) return;
+  const total = [...list.querySelectorAll('input[type="checkbox"]:checked')].reduce((s,chk)=>{
+    // id 格式：tffromchk_{layerId}
+    const layerId = chk.id.slice('tffromchk_'.length);
+    const a = +(document.getElementById(`tffromamt_${layerId}`)?.value)||0;
+    return s+a;
+  },0);
+  const amtEl = document.getElementById('tfAmt');
+  if (amtEl && total>0) amtEl.value = total;
+}
+
 function doTransfer() {
   const fromId=v('tfFrom'),toId=v('tfTo'),amt=+v('tfAmt'),date=v('tfDate'),notes=v('tfNotes');
-  const fromLayerId = v('tfFromLayer')||null;
-  const toLayerId   = v('tfToLayer')||null;
   if(!fromId||!toId||!amt){toast('請填寫完整資訊','danger');return;}
   if(fromId===toId){toast('不能轉帳到相同帳戶','danger');return;}
   const from=getAcc(fromId),to=getAcc(toId);
   const lastCat=DB.categories[DB.categories.length-1]?.id||'';
-  const pairId=uid(); // 兩筆轉帳共用同一個pairId互相連結
+  const pairId=uid();
   const outId=uid(), inId=uid();
-  DB.transactions.push({id:outId,date,amount:-Math.abs(amt),desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true,layerId:fromLayerId,transferPairId:pairId,transferPairTxnId:inId});
-  DB.transactions.push({id:inId,date,amount:+Math.abs(amt),desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true,layerId:toLayerId,transferPairId:pairId,transferPairTxnId:outId});
+
+  // 從帳戶分層（單選/多選）
+  const fromMulti = document.getElementById('tfFromMultiToggle')?.checked;
+  let fromLayerId = null, fromLayerAmounts = null;
+  if (fromMulti) {
+    const list = document.getElementById('tfFromMultiList');
+    if (list) {
+      const entries = [...list.querySelectorAll('input[type="checkbox"]:checked')].map(chk=>{
+        const lid = chk.id.replace(`tffromchk_`,'');
+        const a = +(document.getElementById(`tffromamt_${lid}`)?.value)||0;
+        return {layerId:lid, amount:-a};
+      }).filter(e=>e.amount!==0);
+      if (entries.length>0) fromLayerAmounts = entries;
+    }
+  } else {
+    fromLayerId = v('tfFromLayer')||null;
+  }
+
+  // 到帳戶分層（單選/多選）
+  const toMulti = document.getElementById('tfToMultiToggle')?.checked;
+  let toLayerId = null, toLayerAmounts = null;
+  if (toMulti) {
+    const list = document.getElementById('tfToMultiList');
+    if (list) {
+      const entries = [...list.querySelectorAll('input[type="checkbox"]:checked')].map(chk=>{
+        const lid = chk.id.replace(`tftochk_`,'');
+        const a = +(document.getElementById(`tftoamt_${lid}`)?.value)||0;
+        return {layerId:lid, amount:+a};
+      }).filter(e=>e.amount!==0);
+      if (entries.length>0) toLayerAmounts = entries;
+    }
+  } else {
+    toLayerId = v('tfToLayer')||null;
+  }
+
+  DB.transactions.push({id:outId,date,amount:-Math.abs(amt),desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true,layerId:fromLayerId,layerAmounts:fromLayerAmounts||undefined,transferPairId:pairId,transferPairTxnId:inId});
+  DB.transactions.push({id:inId,date,amount:+Math.abs(amt),desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true,layerId:toLayerId,layerAmounts:toLayerAmounts||undefined,transferPairId:pairId,transferPairTxnId:outId});
   saveDB();closeModal();renderAccounts();toast('轉帳成功！','success');
 }
 // ════════════════════════════════════════════════════════════════
