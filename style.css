@@ -1408,12 +1408,14 @@ body.light-theme .account-card:hover{
 }
 
 /* ══ THEME TRANSITION ════════════════════════════════════════ */
-body, body *{
-  transition:background-color .3s ease, border-color .2s ease, color .2s ease !important;
+.stat-card, .account-card, .account-card-header, .account-card-body,
+.account-card-footer, .layer-bar, .fe-item, .install-item,
+.topnav, .sidebar, .main-content, .modal, .modal-header,
+.page-section, .chart-box, .table-container, .cat-row,
+.form-input, .form-select, .btn, .badge, .mobile-bottom-nav,
+.mbn-item, .settings-tab, .due-badge, .billing-badge {
+  transition: background-color .3s ease, border-color .25s ease, color .25s ease, box-shadow .25s ease !important;
 }
-/* 排除動畫類、轉場動畫本身不受 transition 影響 */
-body [class*="blink"], body [class*="pulse"], body [class*="sweep"],
-body [class*="glow"], body canvas { transition:none !important; }
 
 /* ══ DATE GROUP HEADER ═══════════════════════════════════════ */
 .txn-date-group-row td{
