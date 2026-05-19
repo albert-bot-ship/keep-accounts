@@ -848,6 +848,21 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mpcpm39hws5e9",
+      "date": "2026-05-19",
+      "amount": -1831,
+      "desc": "鼎泰豐",
+      "category": "mov4018zwuesg",
+      "sourceId": "mov4j2lhbf7rv",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mp77k85foggtg",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [
