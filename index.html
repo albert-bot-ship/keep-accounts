@@ -2361,7 +2361,10 @@ function fillLayerSel(selId, groupId, accId) {
   const layers = getAcc(accId)?.layers || [];
   if (!layers.length) { grp.style.display='none'; return; }
   sel.innerHTML = '<option value="">不指定分層</option>' +
-    layers.map(l=>`<option value="${l.id}">${escHtml(l.label)}（${fmt(l.amount)}）</option>`).join('');
+    layers.map(l=>{
+      const bal = layerDynamicBalance(accId, l.id);
+      return `<option value="${l.id}">${escHtml(l.label)}（${fmt(bal)}）</option>`;
+    }).join('');
   grp.style.display = '';
 }
 function onPayAccChange(srcVal) {
@@ -2613,9 +2616,20 @@ function onTxnSrcChange(srcVal, preLayerId) {
 
   if (!layers.length) { group.style.display='none'; return; }
   sel.innerHTML = '<option value="">不指定分層</option>' +
-    layers.map(l =>
-      `<option value="${l.id}"${l.id===preLayerId?' selected':''}>${l.label}${l.amount?'（'+fmt(l.amount)+'）':''}</option>`
-    ).join('');
+    layers.map(l => {
+      let display;
+      if (srcVal.startsWith('account_')) {
+        const accId = srcVal.split('_')[1];
+        display = fmt(layerDynamicBalance(accId, l.id));
+      } else {
+        const cardId = srcVal.split('_')[1];
+        const txAmt = DB.transactions
+          .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
+          .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
+        display = fmt((l.amount||0) + txAmt);
+      }
+      return `<option value="${l.id}"${l.id===preLayerId?' selected':''}>${l.label}（${display}）</option>`;
+    }).join('');
   if (preLayerId) sel.value = preLayerId;
   group.style.display = '';
 }
@@ -2753,7 +2767,20 @@ function onQaSrcChange(srcVal) {
 
   if (!layers.length) { group.style.display = 'none'; return; }
   sel.innerHTML = '<option value="">不指定分層</option>' +
-    layers.map(l => `<option value="${l.id}">${escHtml(l.label)}${l.amount?'（'+fmt(l.amount)+'）':''}</option>`).join('');
+    layers.map(l => {
+      let display;
+      if (srcVal.startsWith('account_')) {
+        const accId = srcVal.split('_')[1];
+        display = fmt(layerDynamicBalance(accId, l.id));
+      } else {
+        const cardId = srcVal.split('_')[1];
+        const txAmt = DB.transactions
+          .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
+          .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
+        display = fmt((l.amount||0) + txAmt);
+      }
+      return `<option value="${l.id}">${escHtml(l.label)}（${display}）</option>`;
+    }).join('');
   group.style.display = '';
 }
 
