@@ -759,14 +759,18 @@
     },
     {
       "id": "mpc7h81xp4wtw",
-      "date": "2026-05-19",
+      "date": "2026-05-18",
       "amount": 934,
       "desc": "繳款入帳 — 兆豐-嘎嘎龍",
-      "category": "mov4018zygeiv",
+      "category": "mp9mrsge4di8n",
       "sourceId": "mov4hexngandg",
       "sourceType": "card",
       "notes": "",
-      "isPayment": true
+      "isPayment": true,
+      "isRedemption": false,
+      "layerId": null,
+      "tags": [],
+      "fee": 0
     }
   ],
   "fixedExpenses": [
