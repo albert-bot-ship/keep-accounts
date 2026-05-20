@@ -1287,8 +1287,9 @@ function exportPDF() {
     </div>`;
   }).join('');
 
-  const {score, label:hlabel} = (() => {
-    const h = calcHealthScore(); return {score:h.score, label:h.score>=80?'優秀':h.score>=60?'良好':h.score>=40?'尚可':'需改善'};
+  const {score, label} = (() => {
+    const h = calcHealthScore();
+    return {score:h.score, label:h.score>=80?'優秀':h.score>=60?'良好':h.score>=40?'尚可':'需改善'};
   })();
 
   const pdfStyle = [
@@ -1305,7 +1306,7 @@ function exportPDF() {
     'td{padding:7px 10px;border-bottom:1px solid #f0f0f0}',
     'tr:last-child td{border-bottom:none}',
     `.score-badge{display:inline-block;padding:4px 14px;border-radius:20px;font-weight:700;font-size:14px;background:${score>=80?'#e8f5e9':score>=60?'#e3f2fd':score>=40?'#fff8e1':'#ffebee'};color:${score>=80?'#2e7d32':score>=60?'#1565c0':score>=40?'#f57f17':'#c62828'}}`,
-    '.print-btn{display:block;margin:24px auto 0;padding:10px 32px;background:#0057B8;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}',
+    '.print-btn{display:block;margin:24px auto 0;padding:10px 32px;background:#0057B8;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;letter-spacing:1px}',
     '@media print{.print-btn{display:none}body{padding:16px}}'
   ].join('\n');
 
@@ -1335,11 +1336,17 @@ function exportPDF() {
   <div style="text-align:center;margin-top:16px;font-size:11px;color:#bbb">M WALLET by Claude</div>
   </body></html>`;
 
+  // 下載 HTML 檔案（iOS Safari 不支援 window.open Blob URL，改用 <a> download）
   const blob = new Blob([html], {type:'text/html;charset=utf-8'});
   const url  = URL.createObjectURL(blob);
-  const win  = window.open(url,'_blank');
-  if (!win) toast('請允許彈出視窗以開啟 PDF 報告','info');
-  else setTimeout(()=>URL.revokeObjectURL(url), 10000);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'MWallet_Report_' + (from||'all') + '_' + (to||'all') + '.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  toast('📄 報告已下載，用瀏覽器開啟後點「🖨 列印」可存 PDF','success');
 }
 
 function toggleTxnFilter() {
