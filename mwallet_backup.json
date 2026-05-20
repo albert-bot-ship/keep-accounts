@@ -134,7 +134,8 @@
           "id": "mowt7wruf1yp4",
           "label": "繳卡費用",
           "amount": 0,
-          "color": "#53d5fd"
+          "color": "#0400fa",
+          "goal": null
         },
         {
           "id": "mowt8rfv4npge",
@@ -182,7 +183,8 @@
           "id": "mowtbbfi5phoq",
           "label": "繳卡費用",
           "amount": 55,
-          "color": "#53d5fd"
+          "color": "#1100ff",
+          "goal": null
         },
         {
           "id": "mowtbwjxy16mt",
