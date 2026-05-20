@@ -388,9 +388,7 @@
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bdr-subtle)">
           <div style="font-size:12px;font-weight:600;color:var(--tx-primary);margin-bottom:6px">🔔 信用卡繳款通知</div>
           <div style="font-size:11px;color:var(--tx-secondary);margin-bottom:10px">提前幾天發送繳款提醒通知</div>
-          <div id="notifyDaysBtns" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <button class="btn btn-sm btn-ghost" onclick="requestNotifyPermission()" id="notifyPermBtn"></button>
-          </div>
+          <div id="notifyDaysBtns" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
         </div>
 
         <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--bdr-subtle)">
@@ -2406,25 +2404,24 @@ function renderSettings() {
         `<button class="btn btn-sm ${curInterval===d?'btn-primary':'btn-ghost'}" onclick="setBackupInterval(${d})">${d===1?'每天':d===30?'每月':d+'天'}</button>`
       ).join('');
     }
-    // 通知天數按鈕
+    // 通知天數按鈕（先清空再重建，避免重複）
     const notifyBtns = document.getElementById('notifyDaysBtns');
     if (notifyBtns) {
       const curDays = parseInt(localStorage.getItem('mwallet_notify_days')||'5');
-      const permBtn = document.getElementById('notifyPermBtn');
-      const btnHtml = [1,3,5,7].map(d=>
-        `<button class="btn btn-sm ${curDays===d?'btn-primary':'btn-ghost'}" onclick="setNotifyDays(${d})">提前 ${d} 天</button>`
-      ).join('');
-      if (permBtn) notifyBtns.insertAdjacentHTML('afterbegin', btnHtml);
+      const notifyEnabled = localStorage.getItem('mwallet_notify_enabled') !== 'false';
+      const hasNotify = ('Notification' in window) && Notification.permission === 'granted';
+      const toggleCls = hasNotify && notifyEnabled ? 'btn-success' : 'btn-ghost';
+      const toggleTxt = !('Notification' in window) ? '不支援通知'
+        : Notification.permission === 'denied' ? '🚫 通知已封鎖'
+        : hasNotify && notifyEnabled ? '🔔 通知已開啟（點擊關閉）'
+        : '🔕 開啟通知';
+      const dayBtns = hasNotify && notifyEnabled
+        ? [1,3,5,7].map(d=>`<button class="btn btn-sm ${curDays===d?'btn-primary':'btn-ghost'}" onclick="setNotifyDays(${d})">提前 ${d} 天</button>`).join('')
+        : '';
+      notifyBtns.innerHTML = `
+        <button class="btn btn-sm ${toggleCls}" onclick="requestNotifyPermission()" id="notifyPermBtn">${toggleTxt}</button>
+        ${dayBtns}`;
     }
-    // 通知權限按鈕
-    const btn = document.getElementById('notifyPermBtn');
-    if (!btn) return;
-    if (!('Notification' in window)) { btn.style.display='none'; return; }
-    const p = Notification.permission;
-    btn.style.display = '';
-    btn.className = `btn btn-sm ${p==='granted'?'btn-success':'btn-ghost'}`;
-    btn.textContent = p==='granted'?'🔔 通知已開啟':p==='denied'?'🚫 通知已封鎖':'🔔 開啟通知';
-    btn.disabled = p==='denied';
   }, 100);
 
   // sectionIdx = 在本區的第幾個, sectionLen = 本區總數
@@ -3733,17 +3730,16 @@ function toggleCurrencyField(accType) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// 1. 繳款提醒推播
+// 繳款提醒推播
 // ════════════════════════════════════════════════════════════════
-function requestNotifyPermission() {
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'default') {
-    Notification.requestPermission();
-  }
+function initNotifyState() {
+  // 靜默初始化：只記錄狀態，不請求權限、不跳 toast
+  // 使用者需主動到設定頁開啟
 }
 
 function checkDueNotifications() {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (localStorage.getItem('mwallet_notify_enabled') === 'false') return;
   const advDays = parseInt(localStorage.getItem('mwallet_notify_days') || '5');
   DB.creditCards.forEach(card => {
     if (!card.dueDay) return;
@@ -4008,10 +4004,32 @@ function setNotifyDays(days) {
 }
 function requestNotifyPermission() {
   if (!('Notification' in window)) { toast('此裝置不支援通知','info'); return; }
-  Notification.requestPermission().then(p => {
-    toast(p==='granted'?'✅ 通知已開啟':'通知未開啟，請至系統設定允許','info');
+  const enabled = localStorage.getItem('mwallet_notify_enabled') !== 'false';
+  if (enabled) {
+    // 目前開啟 → 關閉
+    localStorage.setItem('mwallet_notify_enabled', 'false');
+    toast('🔕 繳款通知已關閉','info');
     renderSettings();
-  });
+  } else {
+    // 目前關閉 → 嘗試開啟
+    if (Notification.permission === 'granted') {
+      localStorage.setItem('mwallet_notify_enabled', 'true');
+      toast('🔔 繳款通知已開啟','success');
+      renderSettings();
+    } else if (Notification.permission === 'denied') {
+      toast('🚫 通知已被封鎖，請至系統設定 → Safari → 通知 → 允許','info');
+    } else {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') {
+          localStorage.setItem('mwallet_notify_enabled', 'true');
+          toast('🔔 繳款通知已開啟','success');
+        } else {
+          toast('通知未允許，請至系統設定開啟','info');
+        }
+        renderSettings();
+      });
+    }
+  }
 }
 
 function checkBackupReminder() {
@@ -4465,8 +4483,8 @@ async function init() {
   generateFixed();
   renderDashboard();
 
-  // 1. 推播通知
-  requestNotifyPermission();
+  // 通知：靜默初始化，不跳toast，不打擾使用者
+  initNotifyState();
   initAccentColor();
   setTimeout(checkDueNotifications, 2000);
 
