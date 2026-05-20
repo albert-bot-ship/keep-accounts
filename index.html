@@ -1384,8 +1384,10 @@ function renderWalletCarousel() {
   const wrap = document.getElementById('walletCarousel');
   const grid = document.getElementById('cardsGrid');
   if (!wrap) return;
-  if (!DB.creditCards.length) { wrap.innerHTML=''; if(grid) grid.style.display=''; return; }
-  if (grid) grid.style.display='none';
+  if (!DB.creditCards.length) { wrap.innerHTML=''; return; }
+  // cardsGrid 始終顯示，輪播只是額外的快速導覽
+  if (grid) grid.style.display='';
+
   const cards = DB.creditCards;
   walletIdx = Math.min(walletIdx, cards.length-1);
   const stackItems = cards.map((c,i) => {
@@ -1419,12 +1421,11 @@ function renderWalletCarousel() {
 
 function walletCardClick(idx) {
   if (idx !== walletIdx) { walletGoto(idx); return; }
-  // 點擊當前卡片：滾動到對應詳細內容
-  const grid = document.getElementById('cardsGrid');
-  if (grid) {
-    grid.style.display = '';
-    const cardEl = document.getElementById('card-'+DB.creditCards[idx]?.id);
-    if (cardEl) setTimeout(()=>cardEl.scrollIntoView({behavior:'smooth',block:'start'}), 100);
+  // 點擊當前卡片：滾動到對應詳細卡片
+  const cardId = DB.creditCards[idx]?.id;
+  if (cardId) {
+    const cardEl = document.getElementById('card-'+cardId);
+    if (cardEl) cardEl.scrollIntoView({behavior:'smooth', block:'center'});
   }
 }
 function walletGoto(idx) { walletIdx=idx; renderWalletCarousel(); }
@@ -1621,6 +1622,8 @@ function renderCards() {
   }).join('');
   html += `<div class="add-card-btn" onclick="openModal('addCard')"><div class="add-card-icon">＋</div><div class="add-card-label">新增信用卡</div></div>`;
   document.getElementById('cardsGrid').innerHTML = html;
+  // 渲染 Apple Wallet 輪播（會把 cardsGrid 移到輪播下方）
+  renderWalletCarousel();
 }
 
 function deleteCard(id) {
