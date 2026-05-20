@@ -202,6 +202,7 @@
         <button class="btn btn-primary" onclick="openModal('addAccount')">＋ 新增帳戶</button>
       </div>
       <div id="accountPieWrap" style="margin-bottom:20px"></div>
+      <div id="accountFlowWrap" style="margin-bottom:20px"></div>
       <div class="cards-grid" id="accountsGrid"></div>
     </section>
 
@@ -1518,8 +1519,28 @@ function renderDashboard() {
   const labels = {month:'本月',salary:'本期(25日~隔月24日)',30:'近30天',7:'近7天',today:'今天',all:'全部'};
   const lbl = labels[dashRange]||'';
 
+  // 計算已過天數（用於日均）
+  const now3 = new Date();
+  let daysElapsed = 1;
+  if (dashRange==='salary') {
+    const { from: sf, to: st } = getSalaryCycle();
+    daysElapsed = Math.max(1, Math.round((now3 - new Date(sf+'T00:00:00')) / 86400000) + 1);
+  } else if (dashRange==='month') {
+    daysElapsed = Math.max(1, now3.getDate());
+  } else if (dashRange==='30') {
+    daysElapsed = 30;
+  } else if (dashRange==='7') {
+    daysElapsed = 7;
+  } else if (dashRange==='today') {
+    daysElapsed = 1;
+  } else {
+    daysElapsed = Math.max(1, Math.round((now3 - new Date(DB.transactions.reduce((m,t)=>t.date<m?t.date:m, now3.toISOString().slice(0,10))+'T00:00:00')) / 86400000) + 1);
+  }
+  const dailyAvgSpend = spend > 0 ? Math.round(spend / daysElapsed) : 0;
+  const dailySub = spend > 0 ? `日均 ${fmt(dailyAvgSpend)}（已過 ${daysElapsed} 天）` : '';
+
   document.getElementById('dashStats').innerHTML =
-    statCard(lbl+'消費', fmt(-spend), spend>0?'danger':'', '', '💸') +
+    statCard(lbl+'消費', fmt(-spend), spend>0?'danger':'', dailySub, '💸') +
     statCard(lbl+'收入', fmt(income), income>0?'success':'', '', '📥') +
     statCard('信用卡未償還', fmt(-totalDebt), totalDebt>0?'danger':'success', '所有卡片累積', '💳') +
     statCard('銀行總資產', fmt(totalBank), 'blue', '所有帳戶餘額', '🏦') +
@@ -1744,6 +1765,26 @@ function renderCards() {
           ${c.cashbackRate>0?`<div style="font-size:11px;color:var(--tx-secondary)">本月回饋：<span style="color:var(--tx-green)">+${fmt(-cashback)}</span><span style="font-size:10px;color:var(--tx-muted)">（${c.cashbackRate}%）</span></div>`:''}
         </div>
         ${c.limit>0?`<div class="prog-wrap mt-2"><div class="prog-bar" style="width:${used}%;background:${barColor}"></div></div><div style="font-size:10px;color:var(--tx-muted);margin-top:3px">已用 ${used.toFixed(0)}%</div>`:''}
+        ${(()=>{
+          if (!c.billingDay) return '';
+          const now2 = new Date();
+          const bilDay = c.billingDay;
+          // 本期已消費
+          const periodSpend = totalSpend;
+          // 距結帳日剩餘天數
+          const today2 = now2.getDate();
+          const daysToEnd = bilDay >= today2 ? bilDay - today2 : (new Date(now2.getFullYear(), now2.getMonth()+1, bilDay) - now2) / 86400000;
+          const daysInPeriod = 30;
+          const daysElapsed = daysInPeriod - Math.ceil(daysToEnd);
+          if (daysElapsed <= 0 || periodSpend <= 0) return '';
+          const dailyAvg = periodSpend / Math.max(1, daysElapsed);
+          const forecast = Math.round(periodSpend + dailyAvg * Math.ceil(daysToEnd));
+          return `<div style="margin-top:6px;padding:6px 10px;background:rgba(0,87,184,0.08);border-radius:var(--r);border:1px solid rgba(0,87,184,0.15)">
+            <span style="font-size:10px;color:var(--tx-muted)">📊 預估結帳金額：</span>
+            <span style="font-family:var(--ff-display);font-size:13px;font-weight:700;color:var(--tx-blue)">−${fmt(forecast)}</span>
+            <span style="font-size:10px;color:var(--tx-muted);margin-left:4px">（日均 ${fmt(Math.round(dailyAvg))}）</span>
+          </div>`;
+        })()}
         <div class="m-stripe mt-3"></div>
         <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);text-transform:uppercase;font-family:var(--ff-display);margin-bottom:6px">消費分層</div>
         ${layersHtml||'<div style="font-size:12px;color:var(--tx-muted)">尚無分層</div>'}
@@ -1970,6 +2011,58 @@ function renderAccounts() {
       options:{responsive:false,animation:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`NT$${c.raw.toLocaleString()}`}}},cutout:'65%'}
     });
   } catch(e) { console.warn('圓餅圖渲染失敗',e); }
+
+  // 資金流向圖
+  renderAccountFlow();
+}
+
+function renderAccountFlow() {
+  const wrap = document.getElementById('accountFlowWrap');
+  if (!wrap || DB.bankAccounts.length < 2) { if(wrap) wrap.innerHTML=''; return; }
+
+  // 取本月帳戶間轉帳記錄
+  const curYM = nowYM();
+  const transfers = DB.transactions.filter(t=>
+    t.isTransfer && t.amount < 0 && ym(t.date)===curYM
+  );
+  if (!transfers.length) { wrap.innerHTML=''; return; }
+
+  // 統計各帳戶對之間的流向金額
+  const flowMap = {};
+  transfers.forEach(t => {
+    const pair = DB.transactions.find(p=>p.id===t.transferPairTxnId);
+    if (!pair) return;
+    const fromName = getAcc(t.sourceId)?.name || '未知';
+    const toName   = getAcc(pair.sourceId)?.name || '未知';
+    const key = fromName+'→'+toName;
+    flowMap[key] = (flowMap[key]||0) + Math.abs(t.amount);
+  });
+
+  const flows = Object.entries(flowMap).sort((a,b)=>b[1]-a[1]);
+  if (!flows.length) { wrap.innerHTML=''; return; }
+
+  const maxAmt = flows[0][1];
+  const rows = flows.map(([key, amt]) => {
+    const [from, to] = key.split('→');
+    const fromAcc = DB.bankAccounts.find(a=>a.name===from);
+    const toAcc   = DB.bankAccounts.find(a=>a.name===to);
+    const barW = Math.round(amt/maxAmt*100);
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="flex:0 0 90px;text-align:right;font-size:12px;color:var(--tx-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(from)}</div>
+      <div style="flex:0 0 16px;height:16px;border-radius:50%;background:${fromAcc?.color||'#888'};flex-shrink:0"></div>
+      <div style="flex:1;position:relative;height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden">
+        <div style="position:absolute;left:0;top:0;height:100%;width:${barW}%;background:linear-gradient(90deg,${fromAcc?.color||'#0057B8'},${toAcc?.color||'#6F2CA7'});border-radius:3px;transition:width .6s ease"></div>
+      </div>
+      <div style="flex:0 0 16px;height:16px;border-radius:50%;background:${toAcc?.color||'#888'};flex-shrink:0"></div>
+      <div style="flex:0 0 90px;font-size:12px;color:var(--tx-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(to)}</div>
+      <div style="flex:0 0 80px;text-align:right;font-family:var(--ff-display);font-size:13px;color:var(--tx-blue);font-weight:700">${fmt(amt)}</div>
+    </div>`;
+  }).join('');
+
+  wrap.innerHTML = `<div class="chart-box" style="padding:14px 18px">
+    <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:12px">本月資金流向</div>
+    ${rows}
+  </div>`;
 }
 function delCardLayer(cardId, layerId) {
   if (!confirm('確定刪除此分層？')) return;
@@ -2419,6 +2512,11 @@ function renderFixed() {
       const src=fe.sourceType==='card'?getCard(fe.sourceId):getAcc(fe.sourceId);
       const layers=fe.layers||[];
       const nowDay = new Date().getDate();
+      const nowDayNum = nowDay;
+      const daysLeft = fe.day >= nowDayNum ? fe.day - nowDayNum : (new Date(new Date().getFullYear(), new Date().getMonth()+1, fe.day) - new Date()) / 86400000;
+      const daysLeftInt = Math.ceil(fe.day >= nowDayNum ? fe.day - nowDayNum : (new Date(new Date().getFullYear(), new Date().getMonth()+1, fe.day) - new Date(new Date().setHours(0,0,0,0))) / 86400000);
+      const countdownCls = daysLeftInt<=0?'a-over':daysLeftInt<=3?'a-neg':daysLeftInt<=7?'badge-warn':'badge-gray';
+      const countdownTxt = daysLeftInt<=0?'今日扣款':daysLeftInt+'天後扣款';
       const layersHtml = layers.length ? `
         <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr-subtle);display:flex;flex-direction:column;gap:4px">
           ${layers.map(l=>{
@@ -2463,6 +2561,7 @@ function renderFixed() {
             </div>
           </div>
           <span style="font-family:var(--ff-display);font-weight:700;color:var(--tx-red);margin-right:8px">−${fmt(fe.amount)}</span>
+          <span class="badge ${countdownCls}" style="font-size:11px">${countdownTxt}</span>
           <span class="badge ${gen?'badge-green':'badge-gray'}">${gen?'✓ 已生成':'待生成'}</span>
           <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editFixed','${fe.id}')">✏️</button>
           <button class="btn btn-danger btn-icon btn-sm" onclick="deleteFixed('${fe.id}')">🗑</button>
