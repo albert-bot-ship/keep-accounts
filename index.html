@@ -268,6 +268,7 @@
           <span style="flex:1"></span>
           <button class="btn btn-ghost btn-sm" onclick="batchEditCat()">🏷 改類別</button>
           <button class="btn btn-ghost btn-sm" onclick="batchEditSrc()">🏦 改帳戶</button>
+          <button class="btn btn-ghost btn-sm" onclick="batchEditLayer()">🗂 指定分層</button>
           <button class="btn btn-ghost btn-sm" onclick="exitBatchMode()">取消</button>
           <button class="btn btn-danger btn-sm" id="batchDelBtn" disabled onclick="batchDelete()">🗑 刪除已選</button>
         </div>
@@ -1012,26 +1013,6 @@ function showLastCatHint(catId) {
   hint.style.display = '';
   hint.innerHTML = `💡 上次同類：<span style="color:var(--tx-primary)">${escHtml(last.desc)}</span>　<span style="color:var(--tx-red)">${fmt(last.amount)}</span>　<span style="color:var(--tx-muted)">${last.date.slice(5)}</span>`;
 }
-
-// ════════════════════════════════════════════════════════════════
-// SWIPE TO NAVIGATE
-// ════════════════════════════════════════════════════════════════
-(function(){
-  let sx=0, sy=0;
-  const THRESHOLD=60, RATIO=1.8;
-  document.addEventListener('touchstart',e=>{
-    if(e.target.closest('.modal-overlay,.table-container,.dash-filter-bar')) return;
-    sx=e.touches[0].clientX; sy=e.touches[0].clientY;
-  },{passive:true});
-  document.addEventListener('touchend',e=>{
-    const dx=e.changedTouches[0].clientX-sx;
-    const dy=e.changedTouches[0].clientY-sy;
-    if(Math.abs(dx)<THRESHOLD||Math.abs(dy)*RATIO>Math.abs(dx)) return;
-    const idx=PAGE_ORDER.indexOf(currentPage);
-    if(dx<0 && idx<PAGE_ORDER.length-1) navigateTo(PAGE_ORDER[idx+1]);
-    else if(dx>0 && idx>0) navigateTo(PAGE_ORDER[idx-1]);
-  },{passive:true});
-})();
 
 // ════════════════════════════════════════════════════════════════
 // BIG AMOUNT INPUT
@@ -2229,6 +2210,105 @@ function doBatchSrc(ids) {
   });
   saveDB(); closeModal(); renderTxns();
   toast(`已將 ${ids.length} 筆改為指定帳戶`,'success');
+}
+
+function batchEditLayer() {
+  const ids = [...document.querySelectorAll('.txn-chk:checked')].map(c=>c.dataset.id);
+  if (!ids.length) { toast('請先勾選記錄','info'); return; }
+
+  // 收集勾選記錄的所有來源帳戶/卡片
+  const srcSet = new Set();
+  ids.forEach(id => {
+    const t = DB.transactions.find(x=>x.id===id);
+    if (t) srcSet.add(t.sourceType+'_'+t.sourceId);
+  });
+
+  // 建立帳戶/卡片選項
+  const srcOpts = [...srcSet].map(sv => {
+    const [sType, sId] = sv.split('_');
+    const name = sType==='card' ? getCard(sId)?.name : getAcc(sId)?.name;
+    return name ? `<option value="${sv}">${escHtml(name)}</option>` : '';
+  }).filter(Boolean).join('');
+
+  openModal('_batchLayer');
+  document.getElementById('modalTitle').textContent = `🗂 批量指定分層（${ids.length} 筆）`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group">
+      <label class="form-label">選擇帳戶／卡片</label>
+      <select class="form-select" id="batchLayerSrc" onchange="renderBatchLayerOptions(this.value)">
+        <option value="">請選擇</option>${srcOpts}
+      </select>
+    </div>
+    <div class="form-group" id="batchLayerSelGroup" style="display:none">
+      <label class="form-label">選擇分層</label>
+      <select class="form-select" id="batchLayerSel">
+        <option value="">不指定分層（清除）</option>
+      </select>
+    </div>
+    <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">
+      ⚠ 只會對「來源與所選帳戶相符」的記錄套用分層，其他記錄略過。
+    </div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="doBatchLayer(${JSON.stringify(ids)})">確認套用</button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+
+  // 若所有勾選的記錄來源相同，自動預選
+  if (srcSet.size === 1) {
+    const sv = [...srcSet][0];
+    setTimeout(() => {
+      const sel = document.getElementById('batchLayerSrc');
+      if (sel) { sel.value = sv; renderBatchLayerOptions(sv); }
+    }, 80);
+  }
+}
+
+function renderBatchLayerOptions(srcVal) {
+  const group = document.getElementById('batchLayerSelGroup');
+  const sel   = document.getElementById('batchLayerSel');
+  if (!group || !sel) return;
+  if (!srcVal) { group.style.display='none'; return; }
+
+  const [sType, sId] = srcVal.split('_');
+  const layers = sType==='card' ? (getCard(sId)?.layers||[]) : (getAcc(sId)?.layers||[]);
+
+  if (!layers.length) {
+    group.style.display = 'none';
+    toast('此帳戶／卡片尚無分層','info');
+    return;
+  }
+
+  sel.innerHTML = '<option value="">不指定分層（清除）</option>'
+    + layers.map(l => {
+        const bal = sType==='account' ? fmt(layerDynamicBalance(sId, l.id)) : fmt(l.amount||0);
+        return `<option value="${l.id}">${escHtml(l.label)}（${bal}）</option>`;
+      }).join('');
+  group.style.display = '';
+}
+
+function doBatchLayer(ids) {
+  const srcVal  = document.getElementById('batchLayerSrc')?.value;
+  const layerId = document.getElementById('batchLayerSel')?.value || null;
+
+  if (!srcVal) { toast('請選擇帳戶／卡片','info'); return; }
+
+  const [sType, sId] = srcVal.split('_');
+  let count = 0;
+  ids.forEach(id => {
+    const t = DB.transactions.find(x=>x.id===id);
+    if (!t) return;
+    // 只對來源相符的記錄套用
+    if (t.sourceType !== sType || t.sourceId !== sId) return;
+    t.layerId = layerId;
+    t.layerAmounts = undefined; // 清除多分層設定
+    count++;
+  });
+
+  saveDB(); closeModal(); renderTxns();
+  const layerName = layerId
+    ? (sType==='card' ? getCard(sId) : getAcc(sId))?.layers?.find(l=>l.id===layerId)?.label || '指定分層'
+    : '無分層';
+  toast(`已將 ${count} 筆指定至「${layerName}」${ids.length-count>0?'，略過 '+(ids.length-count)+' 筆來源不符的記錄':''}`, 'success');
 }
 
 function batchDelete() {
