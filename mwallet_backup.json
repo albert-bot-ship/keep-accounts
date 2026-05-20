@@ -36,7 +36,15 @@
       "dueDay": 4,
       "cashbackRate": 0,
       "pointRate": 0,
-      "layers": []
+      "layers": [
+        {
+          "id": "mpdhyksqitpev",
+          "label": "生活消費",
+          "amount": 0,
+          "color": "#FF8F00",
+          "monthlyAmt": null
+        }
+      ]
     },
     {
       "id": "mov4i6w2jfqzb",
@@ -48,7 +56,15 @@
       "dueDay": 6,
       "cashbackRate": 0,
       "pointRate": 0,
-      "layers": []
+      "layers": [
+        {
+          "id": "mpdhyv2w54gxb",
+          "label": "生活消費",
+          "amount": 0,
+          "color": "#FF8F00",
+          "monthlyAmt": null
+        }
+      ]
     },
     {
       "id": "mov4j2lhbf7rv",
@@ -60,7 +76,15 @@
       "dueDay": 24,
       "cashbackRate": 0,
       "pointRate": 0,
-      "layers": []
+      "layers": [
+        {
+          "id": "mpdhz2emh2a28",
+          "label": "生活消費",
+          "amount": 0,
+          "color": "#FF8F00",
+          "monthlyAmt": null
+        }
+      ]
     }
   ],
   "bankAccounts": [
