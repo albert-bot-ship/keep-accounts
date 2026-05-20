@@ -534,23 +534,6 @@
       "isFixed": false
     },
     {
-      "id": "mp9rjyxuh1zn6",
-      "date": "2026-05-17",
-      "amount": -500,
-      "desc": "Vios加油",
-      "category": "mov4018zwuesg",
-      "sourceId": "mov4j2lhbf7rv",
-      "sourceType": "card",
-      "notes": "",
-      "isRedemption": false,
-      "layerId": "mp77k85foggtg",
-      "tags": [
-        "movot6k4x720r"
-      ],
-      "fee": 0,
-      "isFixed": false
-    },
-    {
       "id": "mpakjmlor7k7q",
       "date": "2026-05-18",
       "amount": -1040,
@@ -858,6 +841,21 @@
       "amount": -1831,
       "desc": "鼎泰豐",
       "category": "mov4018zwuesg",
+      "sourceId": "mov4j2lhbf7rv",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mpdhz2emh2a28",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
+    },
+    {
+      "id": "mpdm0u0ajbf8a",
+      "date": "2026-05-17",
+      "amount": -500,
+      "desc": "Vios",
+      "category": "mov787fj4o49i",
       "sourceId": "mov4j2lhbf7rv",
       "sourceType": "card",
       "notes": "",
