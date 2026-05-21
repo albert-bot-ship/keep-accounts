@@ -2291,17 +2291,13 @@ body.light-theme {
   border-bottom: 1px solid var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
 }
-/* Liquid Glass — 底部 Tab Bar 懸浮 */
+/* Liquid Glass — 底部 Tab Bar */
 .mobile-bottom-nav {
   background: var(--glass-bg) !important;
   backdrop-filter: var(--glass-blur) !important;
   -webkit-backdrop-filter: var(--glass-blur) !important;
-  border: 1px solid var(--glass-border) !important;
-  box-shadow: var(--glass-shadow) !important;
-  margin: 0 12px !important;
-  border-radius: 24px !important;
-  bottom: calc(env(safe-area-inset-bottom) + 10px) !important;
-  left: 0 !important; right: 0 !important; width: auto !important;
+  border-top: 1px solid var(--glass-border) !important;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.1) !important;
 }
 /* Liquid Glass — 卡片 */
 .account-card {
