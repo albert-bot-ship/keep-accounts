@@ -2689,70 +2689,96 @@ function sendMonthlyReport() {
 // ════════════════════════════════════════════════════════════════
 // 拖曳多選 — 桌面（mousedown）+ 手機（touchstart）
 // ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+// 拖曳多選 — 桌面（mouse）+ 手機（touch）
+// 往下拖 = 選取，往上拖 = 取消選取
+// 手機版阻止頁面捲動，底部近邊緣自動往下滾
+// ════════════════════════════════════════════════════════════════
 (function initDragSelect() {
-  let dragging = false;
-  let lastToggled = null;
+  let dragging    = false;
+  let selectMode  = true;   // true=勾選, false=取消勾選
+  let lastY       = 0;
+  let lastRow     = null;
+  let autoScrollT = null;
 
   function getRow(el) {
     return el?.closest('tr.txn-row, .txn-card-mobile');
   }
-  function getChk(row) {
-    return row?.querySelector('.txn-chk');
-  }
-  function trySelect(el) {
+  function processEl(el, clientY) {
     const row = getRow(el);
-    if (!row || row === lastToggled) return;
-    const chk = getChk(row);
+    if (!row || row === lastRow) return;
+    const chk = row.querySelector('.txn-chk');
     if (!chk) return;
-    chk.checked = true;
-    lastToggled = row;
-    row.classList.add('drag-hover');
+    // 方向決定選取或取消
+    const goingDown = clientY >= lastY;
+    selectMode = goingDown;
+    chk.checked = selectMode;
+    row.classList.toggle('drag-hover', selectMode);
+    lastRow = row;
+    lastY   = clientY;
     updateBatchUI();
   }
+  function autoScroll(clientY) {
+    clearInterval(autoScrollT);
+    const main = document.querySelector('.main-content') || document.documentElement;
+    const ZONE = 100, SPEED = 10;
+    autoScrollT = setInterval(() => {
+      const vh = window.innerHeight;
+      if (clientY > vh - ZONE)      main.scrollTop += SPEED;
+      else if (clientY < ZONE + 60) main.scrollTop -= SPEED;
+      else clearInterval(autoScrollT);
+    }, 16);
+  }
 
-  // ── 桌面 mouse ──────────────────────────────
+  // ── 桌面 mouse ──────────────────────────────────────────────
   document.addEventListener('mousedown', e => {
     if (!batchMode) return;
     const row = getRow(e.target);
     if (!row) return;
-    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
-    dragging = true;
-    lastToggled = null;
+    if (e.target.closest('button, input')) return;
+    dragging = true; lastRow = null; lastY = e.clientY; selectMode = true;
     document.body.classList.add('drag-selecting');
-    trySelect(e.target);
+    processEl(e.target, e.clientY);
   });
   document.addEventListener('mousemove', e => {
     if (!dragging || !batchMode) return;
-    trySelect(document.elementFromPoint(e.clientX, e.clientY));
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (el) processEl(el, e.clientY);
   });
   document.addEventListener('mouseup', () => {
     if (!dragging) return;
     dragging = false;
     document.body.classList.remove('drag-selecting');
-    document.querySelectorAll('.drag-hover').forEach(r=>r.classList.remove('drag-hover'));
+    document.querySelectorAll('.drag-hover').forEach(r => r.classList.remove('drag-hover'));
   });
 
-  // ── 手機 touch ──────────────────────────────
+  // ── 手機 touch ──────────────────────────────────────────────
+  // touchstart 用 passive，touchmove 用 non-passive（才能 preventDefault）
   document.addEventListener('touchstart', e => {
     if (!batchMode) return;
     const row = getRow(e.target);
     if (!row) return;
-    if (e.target.tagName === 'BUTTON') return;
-    dragging = true;
-    lastToggled = null;
-    trySelect(e.target);
-  }, {passive:true});
+    if (e.target.closest('button')) return;
+    dragging = true; lastRow = null;
+    lastY = e.touches[0].clientY; selectMode = true;
+    processEl(e.target, lastY);
+  }, { passive: true });
+
   document.addEventListener('touchmove', e => {
     if (!dragging || !batchMode) return;
+    e.preventDefault(); // 阻止頁面捲動
     const touch = e.touches[0];
     const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    trySelect(el);
-  }, {passive:true});
+    if (el) processEl(el, touch.clientY);
+    autoScroll(touch.clientY);
+  }, { passive: false }); // 必須 non-passive 才能 preventDefault
+
   document.addEventListener('touchend', () => {
     if (!dragging) return;
     dragging = false;
-    document.querySelectorAll('.drag-hover').forEach(r=>r.classList.remove('drag-hover'));
-  }, {passive:true});
+    clearInterval(autoScrollT);
+    document.querySelectorAll('.drag-hover').forEach(r => r.classList.remove('drag-hover'));
+  }, { passive: true });
 })();
 
 function toggleTxnFilter() {
