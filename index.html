@@ -166,6 +166,12 @@
   <div class="nav-item" data-page="analytics" onclick="nav(this,'analytics')">
     <span class="nav-icon">📈</span><span>趨勢分析</span>
   </div>
+  <div class="nav-item" data-page="subscriptions" onclick="nav(this,'subscriptions')">
+    <span class="nav-icon">🔄</span><span>訂閱管理</span>
+  </div>
+  <div class="nav-item" data-page="exchange" onclick="nav(this,'exchange')">
+    <span class="nav-icon">💱</span><span>匯率換算</span>
+  </div>
   <div class="sidebar-label">系統</div>
   <div class="nav-item" data-page="settings" onclick="nav(this,'settings')">
     <span class="nav-icon">⚙️</span><span>設定 / 類別</span>
@@ -371,6 +377,24 @@
       </div>
     </section>
 
+    <!-- ─── SUBSCRIPTIONS ─────────────────────── -->
+    <section class="page-section" id="page-subscriptions">
+      <div class="page-header">
+        <div class="page-title">訂閱管理</div>
+        <button class="btn btn-primary" onclick="openModal('addSub')">＋ 新增訂閱</button>
+      </div>
+      <div class="stats-grid" id="subStats"></div>
+      <div id="subList"></div>
+    </section>
+
+    <!-- ─── EXCHANGE ───────────────────────────── -->
+    <section class="page-section" id="page-exchange">
+      <div class="page-header">
+        <div class="page-title">匯率換算</div>
+      </div>
+      <div id="exchangeContent"></div>
+    </section>
+
     <!-- ─── SETTINGS ───────────────────────────── -->
     <section class="page-section" id="page-settings">
       <div class="page-header">
@@ -391,6 +415,9 @@
         </button>
         <button class="settings-tab" id="stab-theme" onclick="switchSettingsTab('theme')">
           <span class="stab-icon">🎨</span> 外觀主題
+        </button>
+        <button class="settings-tab" id="stab-rules" onclick="switchSettingsTab('rules')">
+          <span class="stab-icon">⚡</span> 自動分類
         </button>
       </div>
 
@@ -613,6 +640,24 @@
         </div>
 
       </div>
+
+      <!-- ── 自動分類規則 Tab ── -->
+      <div class="settings-tab-panel" id="spanel-rules">
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <div class="settings-section-icon" style="background:rgba(255,179,0,.12)">⚡</div>
+            <div style="flex:1">
+              <div class="settings-section-title">自動分類規則</div>
+              <div class="settings-section-desc">輸入關鍵字，新增消費時自動帶入對應類別</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('addRule')">＋ 新增規則</button>
+          </div>
+          <div class="settings-section-body" style="padding:12px 18px">
+            <div id="ruleList"></div>
+          </div>
+        </div>
+      </div>
+
     </section>
   </main>
 </div>
@@ -665,6 +710,8 @@ function defaultDB() {
   return {
     creditCards: [], bankAccounts: [], transactions: [],
     fixedExpenses: [], generatedFixed: {}, installments: [],
+    autoRules: [],
+    subscriptions: [],
     categories: [
       { id: uid(), name: '餐飲',   color: '#e31836', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
       { id: uid(), name: '交通',   color: '#1c69d4', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
@@ -707,6 +754,8 @@ async function loadFromGitHub() {
     if (!DB.fixedExpenses)  DB.fixedExpenses = [];
     if (!DB.generatedFixed) DB.generatedFixed = {};
     if (!DB.installments)   DB.installments = [];
+    if (!DB.autoRules)      DB.autoRules = [];
+    if (!DB.subscriptions)  DB.subscriptions = [];
     toast('✅ 資料已從 GitHub 載入','success');
   } catch (err) {
     console.warn('[mwallet] 載入 mwallet_backup.json 失敗:', err.message);
@@ -1141,7 +1190,7 @@ function generateFixed() {
 // ════════════════════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════════════════════
-const PAGE_ORDER = ['dashboard','cards','accounts','txns','fixed','install','analytics','settings'];
+const PAGE_ORDER = ['dashboard','cards','accounts','txns','fixed','install','analytics','subscriptions','exchange','settings'];
 let currentPage = 'dashboard';
 
 function nav(el, page) {
@@ -1170,7 +1219,8 @@ function navigateTo(page) {
 }
 function renderPage(page) {
   const fn={dashboard:renderDashboard,cards:renderCards,accounts:renderAccounts,
-    txns:renderTxns,fixed:renderFixed,install:renderInstall,analytics:renderAnalytics,settings:renderSettings};
+    txns:renderTxns,fixed:renderFixed,install:renderInstall,analytics:renderAnalytics,
+    settings:renderSettings,subscriptions:renderSubscriptions,exchange:renderExchange};
   if (fn[page]) fn[page]();
 }
 
@@ -1221,6 +1271,20 @@ function setQuickDateFilter(range) {
   if (elFrom) elFrom.value = from;
   if (elTo)   elTo.value   = to;
   updateFilterBtn(); renderTxns();
+}
+
+function autoApplyRule(desc) {
+  const catId = applyAutoRules(desc);
+  if (!catId) return;
+  const sel = document.getElementById('tCat');
+  if (sel && sel.value !== catId) {
+    sel.value = catId;
+    showLastCatHint(catId);
+    // 閃爍提示已自動套用
+    sel.style.transition = 'box-shadow .3s';
+    sel.style.boxShadow = '0 0 0 2px var(--m-blue)';
+    setTimeout(()=>{ sel.style.boxShadow = ''; }, 1200);
+  }
 }
 
 function showLastCatHint(catId) {
@@ -2406,6 +2470,196 @@ function fixInputModes() {
   document.querySelectorAll('input[type="number"]').forEach(el => {
     if (!el.hasAttribute('inputmode')) el.setAttribute('inputmode','decimal');
   });
+}
+
+// ════════════════════════════════════════════════════════════════
+// 自動分類規則
+// ════════════════════════════════════════════════════════════════
+function applyAutoRules(desc) {
+  if (!desc || !DB.autoRules?.length) return null;
+  const d = desc.toLowerCase();
+  for (const r of DB.autoRules) {
+    const keywords = r.keywords.split(/[,，\s]+/).map(k=>k.trim().toLowerCase()).filter(Boolean);
+    if (keywords.some(k => k && d.includes(k))) return r.catId;
+  }
+  return null;
+}
+function renderRuleList() {
+  const wrap = document.getElementById('ruleList');
+  if (!wrap) return;
+  if (!DB.autoRules.length) {
+    wrap.innerHTML = emptyState('⚡','尚無自動分類規則','新增關鍵字規則，記帳時自動帶入類別');
+    return;
+  }
+  wrap.innerHTML = DB.autoRules.map(r => {
+    const cat = getCat(r.catId);
+    return `<div class="settings-row">
+      <div class="settings-row-label">
+        <div style="font-weight:600">${escHtml(r.keywords)}</div>
+        <div class="settings-row-desc" style="margin-top:2px">
+          → <span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="openModal('editRule','${r.id}')">✏️</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteRule('${r.id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+function deleteRule(id) {
+  DB.autoRules = DB.autoRules.filter(r=>r.id!==id);
+  saveDB(); renderRuleList();
+  toast('規則已刪除','info');
+}
+
+// ════════════════════════════════════════════════════════════════
+// 訂閱服務管理
+// ════════════════════════════════════════════════════════════════
+function renderSubscriptions() {
+  // Stats
+  const statsEl = document.getElementById('subStats');
+  const listEl  = document.getElementById('subList');
+  if (!statsEl || !listEl) return;
+  const subs = DB.subscriptions || [];
+  const monthlyTotal = subs.reduce((s,sub) => {
+    if (sub.cycle==='year') return s + (sub.amount||0)/12;
+    return s + (sub.amount||0);
+  }, 0);
+  const yearlyTotal = subs.reduce((s,sub) => {
+    if (sub.cycle==='year') return s + (sub.amount||0);
+    return s + (sub.amount||0)*12;
+  }, 0);
+  const upcoming = subs.filter(sub => {
+    if (!sub.nextDate) return false;
+    const d = Math.ceil((new Date(sub.nextDate+'T00:00:00') - new Date()) / 86400000);
+    return d >= 0 && d <= 7;
+  });
+  statsEl.innerHTML =
+    statCard('月費合計', fmt(Math.round(monthlyTotal)), 'danger', `共 ${subs.length} 項訂閱`, '🔄') +
+    statCard('年費合計', fmt(Math.round(yearlyTotal)), 'blue', '預估全年支出', '📅') +
+    statCard('本週到期', upcoming.length+'項', upcoming.length>0?'warning':'', upcoming.map(s=>escHtml(s.name)).join('、')||'無', '⏰');
+
+  if (!subs.length) {
+    listEl.innerHTML = emptyState('🔄','尚無訂閱記錄','新增 Netflix、Spotify 等訂閱服務');
+    return;
+  }
+  const sorted = [...subs].sort((a,b)=>(a.nextDate||'').localeCompare(b.nextDate||''));
+  listEl.innerHTML = sorted.map(sub => {
+    const daysLeft = sub.nextDate ? Math.ceil((new Date(sub.nextDate+'T00:00:00')-new Date())/86400000) : null;
+    const urgentCls = daysLeft!==null&&daysLeft<=3?'due-urgent':daysLeft!==null&&daysLeft<=7?'due-warn':'';
+    const cycleTxt = sub.cycle==='year'?'每年':'每月';
+    const nextTxt = daysLeft===null?'未設定':daysLeft<=0?'今日扣款':daysLeft+'天後扣款';
+    return `<div class="account-card ${urgentCls}" style="margin-bottom:12px">
+      <div class="account-card-header" style="display:flex;align-items:center;gap:12px">
+        <div style="width:40px;height:40px;border-radius:12px;background:${sub.color||'var(--m-blue)'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${sub.icon||'📱'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:15px;color:var(--tx-primary)">${escHtml(sub.name)}</div>
+          <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${cycleTxt} · ${nextTxt}</div>
+        </div>
+        <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:var(--tx-red)">−${fmt(sub.amount)}</div>
+      </div>
+      <div class="account-card-footer">
+        <button class="btn btn-ghost btn-sm" onclick="openModal('editSub','${sub.id}')">✏️ 編輯</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSub('${sub.id}')">🗑 刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function deleteSub(id) {
+  openActionSheet('確定刪除此訂閱？', [{label:'刪除訂閱', danger:true, fn:`doDeleteSub('${id}')`}]);
+}
+function doDeleteSub(id) {
+  DB.subscriptions = DB.subscriptions.filter(s=>s.id!==id);
+  saveDB(); renderSubscriptions(); toast('訂閱已刪除','danger');
+}
+
+// ════════════════════════════════════════════════════════════════
+// 匯率換算
+// ════════════════════════════════════════════════════════════════
+function renderExchange() {
+  const wrap = document.getElementById('exchangeContent');
+  if (!wrap) return;
+  const currencies = [
+    {code:'USD', name:'美元', flag:'🇺🇸'},
+    {code:'JPY', name:'日圓', flag:'🇯🇵'},
+    {code:'EUR', name:'歐元', flag:'🇪🇺'},
+    {code:'HKD', name:'港幣', flag:'🇭🇰'},
+    {code:'GBP', name:'英鎊', flag:'🇬🇧'},
+    {code:'CNY', name:'人民幣', flag:'🇨🇳'},
+    {code:'KRW', name:'韓圓', flag:'🇰🇷'},
+    {code:'AUD', name:'澳幣', flag:'🇦🇺'},
+    {code:'SGD', name:'新加坡元', flag:'🇸🇬'},
+    {code:'MYR', name:'馬幣', flag:'🇲🇾'},
+  ];
+  wrap.innerHTML = `
+    <div class="chart-box" style="margin-bottom:16px">
+      <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:12px">快速換算</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <input id="fxAmount" type="number" inputmode="decimal" class="form-input" style="width:120px" placeholder="金額" value="1" oninput="calcExchange()">
+        <select id="fxFrom" class="form-select" style="width:120px" onchange="calcExchange()">
+          ${currencies.map(c=>`<option value="${c.code}">${c.flag} ${c.code}</option>`).join('')}
+          <option value="TWD">🇹🇼 TWD</option>
+        </select>
+        <span style="color:var(--tx-muted);font-size:18px">→</span>
+        <select id="fxTo" class="form-select" style="width:120px" onchange="calcExchange()">
+          <option value="TWD">🇹🇼 TWD</option>
+          ${currencies.map(c=>`<option value="${c.code}">${c.flag} ${c.code}</option>`).join('')}
+        </select>
+      </div>
+      <div id="fxResult" style="font-family:var(--ff-display);font-size:28px;font-weight:700;color:var(--tx-blue);margin-bottom:4px">—</div>
+      <div id="fxRate" style="font-size:11px;color:var(--tx-muted)"></div>
+    </div>
+    <div class="chart-box">
+      <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:12px">目前匯率（對台幣）</div>
+      <div id="fxRateTable"></div>
+      <div style="font-size:10px;color:var(--tx-muted);margin-top:10px;text-align:right" id="fxUpdatedAt"></div>
+    </div>`;
+  renderFxTable(currencies);
+  calcExchange();
+}
+function calcExchange() {
+  const amt  = parseFloat(document.getElementById('fxAmount')?.value)||0;
+  const from = document.getElementById('fxFrom')?.value||'USD';
+  const to   = document.getElementById('fxTo')?.value||'TWD';
+  const res  = document.getElementById('fxResult');
+  const rateEl = document.getElementById('fxRate');
+  if (!res) return;
+  const rateFrom = from==='TWD' ? 1 : (exchangeRates[from]||null);
+  const rateTo   = to==='TWD'   ? 1 : (exchangeRates[to]||null);
+  if (!rateFrom||!rateTo) { res.textContent='匯率載入中…'; return; }
+  const twdAmt = amt * rateFrom;
+  const result = twdAmt / rateTo;
+  const isJPY = ['JPY','KRW'].includes(to);
+  res.textContent = (isJPY ? Math.round(result) : result.toFixed(2)).toLocaleString() + ' ' + to;
+  const unitRate = rateFrom / rateTo;
+  rateEl.textContent = `1 ${from} ≈ ${isJPY?Math.round(unitRate):unitRate.toFixed(4)} ${to}`;
+}
+function renderFxTable(currencies) {
+  const tableEl = document.getElementById('fxRateTable');
+  const updEl   = document.getElementById('fxUpdatedAt');
+  if (!tableEl) return;
+  if (!Object.keys(exchangeRates).length) {
+    tableEl.innerHTML = '<div style="color:var(--tx-muted);font-size:12px;text-align:center;padding:12px">匯率載入中，請稍候…</div>';
+    fetchExchangeRates().then(()=>renderFxTable(currencies));
+    return;
+  }
+  tableEl.innerHTML = currencies.map(c => {
+    const rate = exchangeRates[c.code];
+    if (!rate) return '';
+    const isSmall = ['JPY','KRW'].includes(c.code);
+    const display = isSmall ? Math.round(rate).toLocaleString() : rate.toFixed(4);
+    return `<div class="nw-row">
+      <span style="font-size:18px;margin-right:4px">${c.flag}</span>
+      <span class="nw-name">${c.name}（${c.code}）</span>
+      <span class="nw-val" style="color:var(--tx-blue)">NT$ ${display}</span>
+    </div>`;
+  }).join('');
+  const cached = localStorage.getItem('mwallet_rates');
+  if (cached) {
+    try {
+      const d = JSON.parse(cached);
+      if (d.ts) updEl.textContent = '更新時間：' + new Date(d.ts).toLocaleString('zh-TW');
+    } catch {}
+  }
 }
 
 function toggleTxnFilter() {
@@ -4363,7 +4617,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
         <div id="lastCatHint" style="font-size:11px;color:var(--tx-muted);margin-top:4px;display:none"></div>
       </div>
     </div>
-    <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="tDesc" value="${escAttr(txn?.desc||'')}" placeholder="e.g. 全聯購物"></div>
+    <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="tDesc" value="${escAttr(txn?.desc||'')}" placeholder="e.g. 全聯購物" oninput="autoApplyRule(this.value)"></div>
     <div class="form-group"><label class="form-label">帳戶 / 卡片</label>
       <select class="form-select" id="tSrc" onchange="onTxnSrcChange(this.value)"><option value="">請選擇</option>${srcOpts('both')}</select>
     </div>
@@ -4537,6 +4791,49 @@ function openModal(type,id,preCard,preAcc,extraId) {
   }
 
   // ── CATEGORY ──
+  else if (type==='addRule'||type==='editRule') {
+    const rule = id&&type==='editRule' ? (DB.autoRules||[]).find(r=>r.id===id) : null;
+    t = rule ? '編輯自動分類規則' : '新增自動分類規則';
+    const catOpts2 = DB.categories.map(c=>`<option value="${c.id}" ${rule?.catId===c.id?'selected':''}>${escHtml(c.name)}</option>`).join('');
+    b = `${rule?`<input type="hidden" id="ruleId" value="${rule.id}">` : ''}
+      <div class="form-group"><label class="form-label">關鍵字（多個用逗號分隔）</label>
+        <input class="form-input" id="ruleKeywords" value="${escAttr(rule?.keywords||'')}" placeholder="e.g. 7-11, 全家, 萊爾富">
+        <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">描述欄包含任一關鍵字時自動套用</div>
+      </div>
+      <div class="form-group"><label class="form-label">自動套用類別</label>
+        <select class="form-select" id="ruleCat">${catOpts2}</select>
+      </div>`;
+    f = `<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveRule()">儲存</button>`;
+  }
+
+  else if (type==='addSub'||type==='editSub') {
+    const sub = id&&type==='editSub' ? (DB.subscriptions||[]).find(s=>s.id===id) : null;
+    t = sub ? '編輯訂閱' : '新增訂閱服務';
+    const icons = ['📱','🎬','🎵','🎮','📚','☁️','🔒','📧','🗺️','💼'];
+    b = `${sub?`<input type="hidden" id="subId" value="${sub.id}">` : ''}
+      <div class="form-group"><label class="form-label">服務名稱</label>
+        <input class="form-input" id="subName" value="${escAttr(sub?.name||'')}" placeholder="e.g. Netflix, Spotify">
+      </div>
+      <div class="form-group"><label class="form-label">圖示</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${icons.map(ic=>`<button type="button" onclick="this.parentElement.querySelectorAll('.icon-sel').forEach(b=>b.classList.remove('active'));this.classList.add('active');document.getElementById('subIcon').value=this.textContent" class="icon-sel btn btn-ghost btn-sm ${(sub?.icon||'📱')===ic?'active':''}" style="font-size:20px;padding:4px 8px">${ic}</button>`).join('')}</div>
+        <input type="hidden" id="subIcon" value="${sub?.icon||'📱'}">
+      </div>
+      <div class="form-group"><label class="form-label">金額（NT$）</label>
+        <input class="form-input" id="subAmount" type="number" inputmode="decimal" value="${sub?.amount||''}" placeholder="0">
+      </div>
+      <div class="form-group"><label class="form-label">扣款週期</label>
+        <select class="form-select" id="subCycle">
+          <option value="month" ${sub?.cycle!=='year'?'selected':''}>每月</option>
+          <option value="year"  ${sub?.cycle==='year'?'selected':''}>每年</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">下次扣款日</label>
+        <input class="form-input" id="subNextDate" type="date" value="${sub?.nextDate||today()}">
+      </div>
+      <div class="form-group"><label class="form-label">顏色</label>${colorPicker('subColor', sub?.color||'#0057B8')}</div>`;
+    f = `<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveSub()">儲存</button>`;
+  }
+
   else if (type==='addTag'||type==='editTag') {
     const tg = id&&type==='editTag' ? (DB.userTags||[]).find(x=>x.id===id) : null;
     t = tg ? '編輯標籤' : '新增標籤';
@@ -4616,6 +4913,45 @@ function closeModalOverlay(e) { if(e.target===document.getElementById('modalOver
 // ════════════════════════════════════════════════════════════════
 // SAVE HANDLERS
 // ════════════════════════════════════════════════════════════════
+function saveRule() {
+  const keywords = document.getElementById('ruleKeywords')?.value.trim();
+  const catId    = document.getElementById('ruleCat')?.value;
+  const ruleId   = document.getElementById('ruleId')?.value;
+  if (!keywords) { toast('請填入關鍵字','danger'); return; }
+  if (!catId)    { toast('請選擇類別','danger'); return; }
+  if (!DB.autoRules) DB.autoRules = [];
+  if (ruleId) {
+    const r = DB.autoRules.find(x=>x.id===ruleId);
+    if (r) Object.assign(r, {keywords, catId});
+    toast('規則已更新','success');
+  } else {
+    DB.autoRules.push({id:uid(), keywords, catId});
+    toast('規則新增成功','success');
+  }
+  saveDB(); closeModal(); renderRuleList();
+}
+
+function saveSub() {
+  const name     = document.getElementById('subName')?.value.trim();
+  const amount   = parseFloat(document.getElementById('subAmount')?.value)||0;
+  const cycle    = document.getElementById('subCycle')?.value||'month';
+  const nextDate = document.getElementById('subNextDate')?.value||today();
+  const color    = v('subColor');
+  const icon     = document.getElementById('subIcon')?.value||'📱';
+  const subId    = document.getElementById('subId')?.value;
+  if (!name) { toast('請填入服務名稱','danger'); return; }
+  if (!DB.subscriptions) DB.subscriptions = [];
+  if (subId) {
+    const s = DB.subscriptions.find(x=>x.id===subId);
+    if (s) Object.assign(s, {name,amount,cycle,nextDate,color,icon});
+    toast('訂閱已更新','success');
+  } else {
+    DB.subscriptions.push({id:uid(), name, amount, cycle, nextDate, color, icon});
+    toast('訂閱新增成功','success');
+  }
+  saveDB(); closeModal(); renderSubscriptions();
+}
+
 function saveCard() {
   const name=document.getElementById('cName').value.trim();
   if(!name){toast('請填入卡片名稱','danger');return;}
@@ -5754,6 +6090,7 @@ function switchSettingsTab(tab) {
   if(tab==='theme') updateThemeCards();
   if(tab==='data'||tab==='theme') checkStorageCapacity();
   if(tab==='data') refreshDataTabBtns();
+  if(tab==='rules') renderRuleList();
 }
 
 function refreshDataTabBtns() {
