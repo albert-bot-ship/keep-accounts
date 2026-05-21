@@ -558,10 +558,14 @@
             </div>
           </div>
           <div class="settings-section-body">
-            <div id="storageBar" style="height:8px;background:var(--bg-secondary);border-radius:8px;overflow:hidden;margin-bottom:6px">
-              <div id="storageBarFill" style="height:100%;border-radius:8px;transition:width .6s ease;background:var(--m-blue);width:0%"></div>
+            <div id="storageBar" style="height:10px;background:var(--bg-secondary);border-radius:6px;overflow:hidden;margin-bottom:6px">
+              <div id="storageBarFill" style="height:100%;border-radius:6px;transition:width .6s ease;background:var(--m-blue);width:0%"></div>
             </div>
-            <div id="storageLabel" style="font-size:11px;color:var(--tx-muted)">計算中...</div>
+            <div id="storageLabel" style="font-size:11px;color:var(--tx-muted);margin-bottom:10px">計算中...</div>
+            <div id="storageActions" style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" onclick="exportData()">📤 匯出備份</button>
+              <button class="btn btn-ghost btn-sm" onclick="showCleanupModal()">🗑 清除舊記錄</button>
+            </div>
           </div>
         </div>
       </div>
@@ -723,7 +727,7 @@
 // DATA
 // ════════════════════════════════════════════════════════════════
 const SK = 'mwallet_v2';
-let DB = defaultDB();
+let DB = loadDB(); // 先嘗試 localStorage 暫存，無則用 defaultDB
 let charts = {};
 let modalType = null, editTarget = null;
 let dashRange = 'salary';
@@ -760,11 +764,80 @@ function defaultDB() {
   };
 }
 function loadDB() {
-  // GitHub Pages 唯讀模式：不使用 localStorage
+  // 優先從 localStorage 暫存讀取（若比 GitHub 版本新）
+  try {
+    const cached = localStorage.getItem('mwallet_db_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch(e) {}
   return defaultDB();
 }
+
 function saveDB() {
-  // 唯讀模式：不寫入任何儲存空間，資料僅存在記憶體中
+  try {
+    const json = JSON.stringify(DB);
+    localStorage.setItem('mwallet_db_cache', json);
+    localStorage.setItem('mwallet_db_cache_ts', new Date().toISOString());
+    // 寫入後檢查使用量
+    checkStorageWarning();
+  } catch(e) {
+    if (e.name === 'QuotaExceededError') {
+      showStorageFullAlert();
+    }
+  }
+}
+
+function checkStorageWarning() {
+  try {
+    const used  = Object.keys(localStorage).reduce((s,k)=>s+(localStorage.getItem(k)||'').length*2, 0);
+    const limit = 5 * 1024 * 1024;
+    const pct   = Math.round(used / limit * 100);
+    localStorage.setItem('mwallet_storage_pct', pct);
+    if (pct >= 80) {
+      const lastWarn = localStorage.getItem('mwallet_storage_warned');
+      const today    = new Date().toISOString().slice(0,10);
+      if (lastWarn !== today) {
+        localStorage.setItem('mwallet_storage_warned', today);
+        setTimeout(showStorageWarningModal, 500);
+      }
+    }
+  } catch(e) {}
+}
+
+function showStorageFullAlert() {
+  openActionSheet(
+    '❌ 儲存空間已滿，此筆記錄無法存檔！',
+    [
+      { label:'📤 立即匯出備份', fn:`exportData()` },
+      { label:'🗑 清除舊記錄', fn:`showCleanupModal()` },
+    ]
+  );
+}
+
+function showStorageWarningModal() {
+  const pct = localStorage.getItem('mwallet_storage_pct') || '?';
+  const used = Object.keys(localStorage).reduce((s,k)=>s+(localStorage.getItem(k)||'').length*2, 0);
+  const kb   = Math.round(used/1024);
+  document.getElementById('modalTitle').textContent = '⚠️ 儲存空間快滿了';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="margin-bottom:12px">
+      <div style="height:10px;background:var(--bg-secondary);border-radius:6px;overflow:hidden;margin-bottom:6px">
+        <div style="height:100%;width:${pct}%;background:${pct>=90?'var(--m-red)':'var(--warn)'};border-radius:6px;transition:width .6s"></div>
+      </div>
+      <div style="font-size:12px;color:var(--tx-muted)">已使用 ${kb} KB（${pct}% / 5 MB）</div>
+    </div>
+    <div style="font-size:13px;color:var(--tx-secondary);margin-bottom:14px;line-height:1.6">
+      建議先匯出備份，再清除 2 年前的舊記錄以釋放空間。
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-primary" onclick="exportData();closeModal()">📤 先匯出備份</button>
+      <button class="btn btn-ghost" onclick="closeModal();setTimeout(showCleanupModal,200)">🗑 清除舊記錄</button>
+      <button class="btn btn-ghost" style="color:var(--tx-muted)" onclick="closeModal()">稍後再說</button>
+    </div>`;
+  document.getElementById('modalFooter').innerHTML = '';
+  document.getElementById('modalOverlay').classList.add('active');
 }
 
 async function loadFromGitHub() {
@@ -784,12 +857,77 @@ async function loadFromGitHub() {
     if (!DB.installments)   DB.installments = [];
     if (!DB.autoRules)      DB.autoRules = [];
     if (!DB.subscriptions)  DB.subscriptions = [];
+    // 記錄 GitHub 版本的時間戳
+    const ghTs = new Date().toISOString();
+    localStorage.setItem('mwallet_gh_ts', ghTs);
+    // 比較 localStorage 暫存是否更新
+    const cacheTs = localStorage.getItem('mwallet_db_cache_ts');
+    const ghLoaded = new Date(ghTs);
+    const cacheTime = cacheTs ? new Date(cacheTs) : null;
+    if (cacheTime && cacheTs && cacheTime > ghLoaded) {
+      // localStorage 有更新資料，延遲 1 秒後提示
+      setTimeout(()=> showCacheRestorePrompt(cacheTs), 1000);
+    } else {
+      // GitHub 版本是最新的，清除 localStorage 暫存
+      localStorage.removeItem('mwallet_db_cache');
+      localStorage.removeItem('mwallet_db_cache_ts');
+    }
     toast('✅ 資料已從 GitHub 載入','success');
   } catch (err) {
     console.warn('[mwallet] 載入 mwallet_backup.json 失敗:', err.message);
+    // 嘗試從 localStorage 暫存恢復
+    const cached = localStorage.getItem('mwallet_db_cache');
+    if (cached) {
+      try {
+        DB = JSON.parse(cached);
+        toast('⚠ 無法讀取 GitHub，已從本機暫存恢復資料','warning');
+        return;
+      } catch(e2) {}
+    }
     DB = defaultDB();
     toast('⚠ 無法讀取 mwallet_backup.json（' + err.message + '），顯示預設空資料','danger');
   }
+}
+
+function showCacheRestorePrompt(cacheTs) {
+  const d    = new Date(cacheTs);
+  const dtStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('modalTitle').textContent = '📋 發現未上傳的資料';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;color:var(--tx-secondary);line-height:1.8;margin-bottom:8px">
+      本機有比 GitHub 更新的資料：<br>
+      <strong style="color:var(--tx-primary)">最後記帳：${dtStr}</strong>
+    </div>
+    <div style="font-size:12px;color:var(--tx-muted)">
+      選擇「恢復」將使用本機暫存資料（記帳記錄更完整）。<br>
+      選擇「捨棄」將使用 GitHub 上的版本。
+    </div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="discardCache()">❌ 捨棄，用 GitHub 版本</button>
+    <button class="btn btn-primary" onclick="restoreCache()">✅ 恢復本機資料</button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function restoreCache() {
+  try {
+    const cached = localStorage.getItem('mwallet_db_cache');
+    if (cached) {
+      DB = JSON.parse(cached);
+      closeModal();
+      renderPage(currentPage);
+      updateSidebarBal();
+      toast('✅ 已恢復本機暫存資料','success');
+    }
+  } catch(e) {
+    toast('恢復失敗','danger');
+    closeModal();
+  }
+}
+function discardCache() {
+  localStorage.removeItem('mwallet_db_cache');
+  localStorage.removeItem('mwallet_db_cache_ts');
+  closeModal();
+  toast('已使用 GitHub 版本','info');
 }
 function ensureTags() { if (!DB.userTags) DB.userTags = []; }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -2781,6 +2919,89 @@ function sendMonthlyReport() {
   }, { passive: true });
 })();
 
+function showCleanupModal() {
+  const now     = new Date();
+  const ranges  = [
+    { label:'2 年前', year:2, date:new Date(now.getFullYear()-2, now.getMonth(), now.getDate()).toISOString().slice(0,10) },
+    { label:'1 年前', year:1, date:new Date(now.getFullYear()-1, now.getMonth(), now.getDate()).toISOString().slice(0,10) },
+    { label:'6 個月前', year:0.5, date:new Date(now.getFullYear(), now.getMonth()-6, now.getDate()).toISOString().slice(0,10) },
+  ];
+  const counts  = ranges.map(r => DB.transactions.filter(t=>t.date < r.date).length);
+  document.getElementById('modalTitle').textContent = '🗑 清除舊記錄';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:12px;color:var(--tx-secondary);margin-bottom:14px;line-height:1.6">
+      選擇要清除的範圍。<strong style="color:var(--tx-red)">清除前請確認已匯出備份</strong>，此操作無法復原。
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px" id="cleanupRangeList">
+      ${ranges.map((r,i)=>`
+        <label style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-secondary);border-radius:var(--r);cursor:pointer;border:2px solid transparent" id="cleanupRange_${i}" onclick="selectCleanupRange(${i})">
+          <input type="radio" name="cleanupRange" value="${r.date}" style="width:16px;height:16px;flex-shrink:0">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:var(--tx-primary)">${r.label}之前</div>
+            <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${r.date} 以前　共 <strong style="color:${counts[i]>0?'var(--tx-red)':'var(--tx-green)'}">${counts[i]} 筆</strong> 記錄</div>
+          </div>
+        </label>`).join('')}
+    </div>
+    <div id="cleanupPreviewNote" style="font-size:11px;color:var(--tx-muted);margin-top:10px;padding:8px 12px;background:rgba(200,16,46,.06);border-radius:var(--r);display:none">
+      ⚠️ 點「預覽」可先看哪些記錄會被刪除
+    </div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    <button class="btn btn-ghost" onclick="previewCleanup()" id="cleanupPreviewBtn" disabled>👁 預覽</button>
+    <button class="btn btn-danger" onclick="confirmCleanup()" id="cleanupConfirmBtn" disabled>🗑 確認清除</button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function selectCleanupRange(idx) {
+  document.querySelectorAll('[id^="cleanupRange_"]').forEach((el,i)=>{
+    el.style.borderColor = i===idx ? 'var(--m-red)' : 'transparent';
+  });
+  document.querySelectorAll('input[name="cleanupRange"]')[idx].checked = true;
+  document.getElementById('cleanupPreviewBtn').disabled  = false;
+  document.getElementById('cleanupConfirmBtn').disabled  = false;
+  document.getElementById('cleanupPreviewNote').style.display = '';
+}
+
+function previewCleanup() {
+  const sel = document.querySelector('input[name="cleanupRange"]:checked');
+  if (!sel) return;
+  const cutDate  = sel.value;
+  const toDelete = DB.transactions.filter(t=>t.date < cutDate);
+  document.getElementById('modalTitle').textContent = `預覽：將刪除 ${toDelete.length} 筆記錄`;
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:12px;color:var(--tx-muted);margin-bottom:10px">${cutDate} 之前的記錄（顯示最早 20 筆）</div>
+    <div style="max-height:280px;overflow-y:auto">
+      ${toDelete.slice(0,20).map(t=>`
+        <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bdr-subtle);font-size:12px">
+          <span style="color:var(--tx-muted)">${t.date}</span>
+          <span style="flex:1;margin:0 10px;color:var(--tx-primary)">${escHtml(t.desc)}</span>
+          <span style="color:${t.amount<0?'var(--tx-red)':'var(--tx-green)'}">${t.amount<0?'−':'+'}${fmt(Math.abs(t.amount))}</span>
+        </div>`).join('')}
+      ${toDelete.length>20?`<div style="text-align:center;padding:8px;font-size:11px;color:var(--tx-muted)">⋯ 還有 ${toDelete.length-20} 筆</div>`:''}
+    </div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal();setTimeout(showCleanupModal,200)">← 返回</button>
+    <button class="btn btn-danger" onclick="doCleanup('${cutDate}')">🗑 確認清除這 ${toDelete.length} 筆</button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function confirmCleanup() {
+  const sel = document.querySelector('input[name="cleanupRange"]:checked');
+  if (!sel) return;
+  previewCleanup();
+}
+
+function doCleanup(cutDate) {
+  const before = DB.transactions.length;
+  DB.transactions = DB.transactions.filter(t=>t.date >= cutDate);
+  const removed = before - DB.transactions.length;
+  saveDB();
+  closeModal();
+  toast(`✅ 已清除 ${removed} 筆舊記錄，空間已釋放`, 'success');
+  renderTxns();
+  setTimeout(checkStorageCapacity, 500);
+}
+
 function toggleTxnFilter() {
   const panel = document.getElementById('txnFilterPanel');
   const btn = document.getElementById('filterToggleBtn');
@@ -4519,7 +4740,10 @@ function repairTransferPairs() {
 function exportData() {
   const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(b);
-  a.download='mwallet_backup_'+today()+'.json'; a.click(); toast('備份匯出成功！','success');
+  a.download='mwallet_backup_'+today()+'.json'; a.click();
+  localStorage.removeItem('mwallet_db_cache');
+  localStorage.removeItem('mwallet_db_cache_ts');
+  toast('備份匯出成功！','success');
 }
 function importData(e) {
   const f=e.target.files[0]; if(!f) return;
@@ -6027,6 +6251,9 @@ function exportData() {
   const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(b);
   a.download='mwallet_backup.json'; a.click();
+  // 匯出成功 → 清空 localStorage 暫存（已安全存到 json 檔）
+  localStorage.removeItem('mwallet_db_cache');
+  localStorage.removeItem('mwallet_db_cache_ts');
   toast('備份匯出成功！將此檔案上傳至 GitHub 即可同步。','success');
   dismissBackup();
 }
