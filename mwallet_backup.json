@@ -1245,5 +1245,23 @@
       "color": "#5a1c00"
     }
   ],
-  "installments": []
+  "installments": [],
+  "autoRules": [
+    {
+      "id": "mpf7lge19iqp3",
+      "keywords": "Smax",
+      "catId": "mov787fj4o49i"
+    },
+    {
+      "id": "mpf7lr63c04jc",
+      "keywords": "勁戰",
+      "catId": "mov787fj4o49i"
+    },
+    {
+      "id": "mpf7lym8tt0h0",
+      "keywords": "Vios",
+      "catId": "mov787fj4o49i"
+    }
+  ],
+  "subscriptions": []
 }
