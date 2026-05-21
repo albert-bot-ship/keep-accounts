@@ -3727,7 +3727,8 @@ function renderSettings() {
 
   // 通知權限按鈕狀態
   setTimeout(()=>{
-    // 備份提醒週期按鈕    const backupBtns = document.getElementById('backupIntervalBtns');
+    // 備份提醒週期按鈕
+    const backupBtns = document.getElementById('backupIntervalBtns');
     if (backupBtns) {
       const curInterval = parseInt(localStorage.getItem('mwallet_backup_interval')||'30');
       backupBtns.innerHTML = [1,3,7,14,30].map(d=>
@@ -5580,6 +5581,33 @@ function switchSettingsTab(tab) {
   if(hdr) hdr.style.display=tab==='cat'?'':'none';
   if(tab==='theme') updateThemeCards();
   if(tab==='data'||tab==='theme') checkStorageCapacity();
+  if(tab==='data') refreshDataTabBtns();
+}
+
+function refreshDataTabBtns() {
+  // 備份週期
+  const backupBtns = document.getElementById('backupIntervalBtns');
+  if (backupBtns) {
+    const cur = parseInt(localStorage.getItem('mwallet_backup_interval')||'30');
+    backupBtns.innerHTML = [1,3,7,14,30].map(d=>
+      `<button class="btn btn-sm ${cur===d?'btn-primary':'btn-ghost'}" onclick="setBackupInterval(${d})">${d===1?'每天':d===30?'每月':d+'天'}</button>`
+    ).join('');
+  }
+  // 通知天數
+  const notifyBtns = document.getElementById('notifyDaysBtns');
+  if (notifyBtns) {
+    const curDays = parseInt(localStorage.getItem('mwallet_notify_days')||'5');
+    const notifyEnabled = localStorage.getItem('mwallet_notify_enabled') !== 'false';
+    const hasNotify = ('Notification' in window) && Notification.permission === 'granted';
+    const toggleCls = hasNotify && notifyEnabled ? 'btn-success' : 'btn-ghost';
+    const toggleTxt = !('Notification' in window) ? '不支援通知'
+      : Notification.permission === 'denied' ? '🚫 通知已封鎖'
+      : hasNotify && notifyEnabled ? '🔔 通知已開啟（點擊關閉）' : '🔕 開啟通知';
+    const dayBtns = hasNotify && notifyEnabled
+      ? [1,3,5,7].map(d=>`<button class="btn btn-sm ${curDays===d?'btn-primary':'btn-ghost'}" onclick="setNotifyDays(${d})">提前 ${d} 天</button>`).join('') : '';
+    notifyBtns.innerHTML = `<button class="btn btn-sm ${toggleCls}" onclick="requestNotifyPermission()" id="notifyPermBtn">${toggleTxt}</button>${dayBtns}`;
+  }
+  addShakePermIfNeeded();
 }
 
 // ════════════════════════════════════════════════════════════════
