@@ -886,20 +886,86 @@ async function loadFromGitHub() {
 }
 
 function showCacheRestorePrompt(cacheTs) {
-  const d    = new Date(cacheTs);
+  const d = new Date(cacheTs);
   const dtStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+
+  // 分析本機暫存和目前 GitHub 資料的差異
+  let diffHtml = '';
+  try {
+    const cached = localStorage.getItem('mwallet_db_cache');
+    if (cached) {
+      const localDB = JSON.parse(cached);
+      const ghTxns  = DB.transactions || [];
+      const lcTxns  = localDB.transactions || [];
+
+      // 找出本機比 GitHub 多的記錄
+      const ghIds   = new Set(ghTxns.map(t=>t.id));
+      const newTxns = lcTxns.filter(t=>!ghIds.has(t.id))
+                            .sort((a,b)=>b.date.localeCompare(a.date));
+
+      // 找出本機修改過的記錄（id 相同但內容不同）
+      const ghMap   = Object.fromEntries(ghTxns.map(t=>[t.id, t]));
+      const modTxns = lcTxns.filter(t=>{
+        const g = ghMap[t.id];
+        return g && JSON.stringify(t) !== JSON.stringify(g);
+      });
+
+      const rows = [];
+
+      if (newTxns.length > 0) {
+        rows.push(`<div style="margin-bottom:8px">
+          <div style="font-size:11px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:5px">新增 ${newTxns.length} 筆記錄</div>
+          ${newTxns.slice(0,5).map(t=>{
+            const cat = (localDB.categories||[]).find(c=>c.id===t.category);
+            const sign = t.amount>=0?'+':'−';
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:var(--bg-secondary);border-radius:6px;margin-bottom:3px;font-size:12px">
+              <span style="color:var(--tx-muted);flex-shrink:0;margin-right:8px">${t.date.slice(5).replace('-','/')}</span>
+              <span style="flex:1;color:var(--tx-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(t.desc)}</span>
+              <span style="font-family:var(--ff-display);font-weight:700;flex-shrink:0;margin-left:8px;color:${t.amount>=0?'var(--tx-green)':'var(--tx-red)'}">${sign}${fmt(Math.abs(t.amount))}</span>
+            </div>`;
+          }).join('')}
+          ${newTxns.length>5?`<div style="font-size:11px;color:var(--tx-muted);text-align:center;padding:4px">⋯ 還有 ${newTxns.length-5} 筆</div>`:''}
+        </div>`);
+      }
+
+      if (modTxns.length > 0) {
+        rows.push(`<div style="margin-bottom:8px">
+          <div style="font-size:11px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:5px">修改 ${modTxns.length} 筆記錄</div>
+          ${modTxns.slice(0,3).map(t=>`
+            <div style="padding:5px 8px;background:var(--bg-secondary);border-radius:6px;margin-bottom:3px;font-size:12px;color:var(--tx-secondary)">
+              ${t.date.slice(5).replace('-','/')}　${escHtml(t.desc)}
+            </div>`).join('')}
+        </div>`);
+      }
+
+      // 設定變更
+      const ghCards = DB.creditCards||[], lcCards = localDB.creditCards||[];
+      const ghAccs  = DB.bankAccounts||[], lcAccs = localDB.bankAccounts||[];
+      const newCards = lcCards.filter(c=>!(ghCards.find(g=>g.id===c.id))).length;
+      const newAccs  = lcAccs.filter(a=>!(ghAccs.find(g=>g.id===a.id))).length;
+      if (newCards>0) rows.push(`<div style="font-size:12px;color:var(--tx-secondary);padding:4px 8px">💳 新增 ${newCards} 張信用卡</div>`);
+      if (newAccs>0)  rows.push(`<div style="font-size:12px;color:var(--tx-secondary);padding:4px 8px">🏦 新增 ${newAccs} 個帳戶</div>`);
+
+      if (rows.length === 0) {
+        rows.push(`<div style="font-size:12px;color:var(--tx-muted);padding:8px">設定或帳戶資訊有變更</div>`);
+      }
+
+      diffHtml = `<div style="margin:10px 0;max-height:260px;overflow-y:auto">${rows.join('')}</div>`;
+    }
+  } catch(e) { diffHtml = ''; }
+
   document.getElementById('modalTitle').textContent = '📋 發現未上傳的資料';
   document.getElementById('modalBody').innerHTML = `
-    <div style="font-size:13px;color:var(--tx-secondary);line-height:1.8;margin-bottom:8px">
-      本機有比 GitHub 更新的資料：<br>
-      <strong style="color:var(--tx-primary)">最後記帳：${dtStr}</strong>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:13px;color:var(--tx-secondary)">本機暫存比 GitHub 版本更新</div>
+      <div style="font-size:12px;font-weight:600;color:var(--m-blue)">最後記帳：${dtStr}</div>
     </div>
-    <div style="font-size:12px;color:var(--tx-muted)">
-      選擇「恢復」將使用本機暫存資料（記帳記錄更完整）。<br>
-      選擇「捨棄」將使用 GitHub 上的版本。
+    ${diffHtml}
+    <div style="font-size:11px;color:var(--tx-muted);padding:6px 0;border-top:1px solid var(--bdr-subtle)">
+      選「恢復」使用本機資料，選「捨棄」使用 GitHub 版本
     </div>`;
   document.getElementById('modalFooter').innerHTML = `
-    <button class="btn btn-ghost" onclick="discardCache()">❌ 捨棄，用 GitHub 版本</button>
+    <button class="btn btn-ghost" onclick="discardCache()">❌ 捨棄</button>
     <button class="btn btn-primary" onclick="restoreCache()">✅ 恢復本機資料</button>`;
   document.getElementById('modalOverlay').classList.add('active');
 }
