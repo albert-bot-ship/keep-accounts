@@ -3578,7 +3578,6 @@ function renderCards() {
 
     // ── STEP 3：渲染各分層 HTML（含未還比例顯示）───────────────
     const layersHtml = layerDataArr.map(({l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed})=>{
-      // 有分期金額的分層：直接顯示 layer.amount 總額，不走 paidRatio
       let layerOutstanding, hasPaidOffset;
       if (isMonthlyFixed) {
         layerOutstanding = layerAmt;
@@ -3587,15 +3586,20 @@ function renderCards() {
         layerOutstanding = Math.max(0, Math.round((totalLayerAmt - redeemLayerAmt) * (1 - paidRatio)));
         hasPaidOffset = (totalPaid+unlayeredRedeem+layerRedeemTotal)>0 && totalLayerAmt>0;
       }
+      // 依主題決定分層金額顏色
+      const isLight = (c.cardTheme==='white'||c.cardTheme==='gold');
+      const layerRedColor   = hasTheme ? (isLight?'#c0392b':'#ff6b80') : 'var(--tx-red)';
+      const layerGreenColor = hasTheme ? (isLight?'#1a7a3a':'#5dffa0') : 'var(--tx-green)';
+      const layerMutedColor = hasTheme ? (isLight?'rgba(26,26,46,.5)':'rgba(255,255,255,.5)') : 'var(--tx-muted)';
       return `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||c.color}"></div>
         <div style="flex:1;min-width:0">
           <div class="layer-name">${escHtml(l.label)}${hasMonthly?`<span style="font-size:10px;background:#1c69d422;color:#1c69d4;border-radius:3px;padding:1px 5px;margin-left:6px">分期 每月 −${fmt(l.monthlyAmt)}</span>`:''}</div>
-          ${hasDetail?`<div style="font-size:10px;color:var(--tx-muted);margin-top:2px">${layerAmt>0?`手動 −${fmt(layerAmt)}　`:''}${txLayerAmt>0?`記帳 −${fmt(txLayerAmt)}　`:''}${feLayerAmt>0?`固定 −${fmt(feLayerAmt)}　`:''}${redeemLayerAmt>0?`<span style="color:var(--tx-green)">折抵 +${fmt(redeemLayerAmt)}</span>`:''}</div>`:''}
+          ${hasDetail?`<div style="font-size:10px;color:${layerMutedColor};margin-top:2px">${layerAmt>0?`手動 −${fmt(layerAmt)}　`:''}${txLayerAmt>0?`記帳 −${fmt(txLayerAmt)}　`:''}${feLayerAmt>0?`固定 −${fmt(feLayerAmt)}　`:''}${redeemLayerAmt>0?`<span style="color:${layerGreenColor}">折抵 +${fmt(redeemLayerAmt)}</span>`:''}</div>`:''}
         </div>
         <div style="text-align:right;flex-shrink:0">
-          ${hasPaidOffset?`<div style="font-size:10px;color:var(--tx-muted);text-decoration:line-through">−${fmt(totalLayerAmt)}</div>`:''}
-          <span class="layer-amt" style="color:${layerOutstanding>0?'var(--tx-red)':'var(--tx-muted)'};font-weight:700">${layerOutstanding>0?'−'+fmt(layerOutstanding):'−0'}</span>
+          ${hasPaidOffset?`<div style="font-size:10px;color:${layerMutedColor};text-decoration:line-through">−${fmt(totalLayerAmt)}</div>`:''}
+          <span class="layer-amt" style="color:${layerOutstanding>0?layerRedColor:layerMutedColor};font-weight:700">${layerOutstanding>0?'−'+fmt(layerOutstanding):'−0'}</span>
         </div>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCardLayer','${c.id}',null,null,'${l.id}')">✏️</button>
         <button class="btn btn-danger btn-icon btn-sm" onclick="delCardLayer('${c.id}','${l.id}')">✕</button>
