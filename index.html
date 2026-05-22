@@ -375,6 +375,10 @@
         <div class="chart-title">年度消費熱力日曆</div>
         <div id="heatmapContent"></div>
       </div>
+      <div class="chart-box mt-4" id="sankeyBox">
+        <div class="chart-title">本月收支桑基圖</div>
+        <div id="sankeyWrap"></div>
+      </div>
     </section>
 
     <!-- ─── SUBSCRIPTIONS ─────────────────────── -->
@@ -2993,6 +2997,208 @@ function doCleanup(cutDate) {
   setTimeout(checkStorageCapacity, 500);
 }
 
+// ════════════════════════════════════════════════════════════════
+// 1. 本期預算剩餘倒數
+// ════════════════════════════════════════════════════════════════
+function renderPeriodCountdown() {
+  const wrap = document.getElementById('gaugeWrap');
+  if (!wrap) return;
+
+  const { from, to } = getSalaryCycle();
+  const now      = new Date();
+  const toReal   = new Date(now.getFullYear(), now.getMonth(), now.getDate() >= 25
+    ? now.getMonth() === 11 ? 24 : 24
+    : 24);
+  // 計算本期結束日
+  const endDate  = now.getDate() >= 25
+    ? new Date(now.getMonth() === 11 ? now.getFullYear()+1 : now.getFullYear(),
+               now.getMonth() === 11 ? 0 : now.getMonth()+1, 24)
+    : new Date(now.getFullYear(), now.getMonth(), 24);
+  const daysLeft = Math.max(0, Math.ceil((endDate - now) / 86400000));
+  const daysTotal= Math.round((endDate - new Date(from+'T00:00:00')) / 86400000);
+  const daysGone = daysTotal - daysLeft;
+
+  // 期間支出
+  const spend = Math.abs(DB.transactions
+    .filter(t=>t.date>=from&&t.date<=to&&t.amount<0&&!t.isTransfer&&!t.isPayment)
+    .reduce((s,t)=>s+t.amount,0));
+
+  // 有預算的類別總預算
+  const totalBudget = DB.categories.filter(c=>c.budget>0).reduce((s,c)=>s+c.budget,0);
+
+  if (dashRemainAmt === null && totalBudget === 0) {
+    wrap.innerHTML = '';
+    return;
+  }
+
+  const remaining = dashRemainAmt !== null ? dashRemainAmt : (totalBudget - spend);
+  const dailyAllowed = daysLeft > 0 ? Math.round(remaining / daysLeft) : 0;
+  const color = remaining <= 0 ? 'var(--tx-red)' : daysLeft <= 5 ? 'var(--warn)' : 'var(--tx-green)';
+  const pct   = daysTotal > 0 ? Math.round(daysGone / daysTotal * 100) : 0;
+
+  wrap.innerHTML = `<div class="chart-box" style="padding:14px 18px">
+    <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:10px">本期剩餘預算</div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:120px">
+        <div style="font-family:var(--ff-display);font-size:28px;font-weight:700;color:${color};letter-spacing:1px">${fmt(remaining)}</div>
+        <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">日均可花 <span style="color:${color};font-weight:600">${fmt(dailyAllowed)}</span></div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:var(--ff-display);font-size:32px;font-weight:700;color:${daysLeft<=5?'var(--warn)':'var(--tx-blue)'}">${daysLeft}</div>
+        <div style="font-size:10px;color:var(--tx-muted)">天後本期結束</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden">
+      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--m-blue),var(--m-violet));border-radius:3px;transition:width .8s ease"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx-muted);margin-top:3px">
+      <span>${from.slice(5)} 開始</span><span>${pct}% 已過</span><span>${endDate.getMonth()+1}/${endDate.getDate()} 結束</span>
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// 2. 卡片封面主題
+// ════════════════════════════════════════════════════════════════
+const CARD_THEMES = [
+  { id:'default', label:'預設',    cls:'',          style:'' },
+  { id:'dark',    label:'金屬黑',  cls:'ct-dark',   style:'linear-gradient(135deg,#1a1a2e,#16213e)' },
+  { id:'blue',    label:'寶藍',    cls:'ct-blue',   style:'linear-gradient(135deg,#0057B8,#6F2CA7)' },
+  { id:'rose',    label:'玫瑰金',  cls:'ct-rose',   style:'linear-gradient(135deg,#b76e79,#8b3a6b,#c9956c)' },
+  { id:'carbon',  label:'碳纖維',  cls:'ct-carbon', style:'repeating-linear-gradient(45deg,#1a1a1a 0px,#1a1a1a 2px,#2a2a2a 2px,#2a2a2a 4px)' },
+  { id:'emerald', label:'祖母綠',  cls:'ct-emerald',style:'linear-gradient(135deg,#0a3d2e,#1a6b4a)' },
+  { id:'gold',    label:'金',      cls:'ct-gold',   style:'linear-gradient(135deg,#8B6914,#C8A000,#8B6914)' },
+  { id:'midnight',label:'午夜',    cls:'ct-midnight',style:'linear-gradient(135deg,#0d0d0d,#1a1a2e)' },
+  { id:'white',   label:'純白',    cls:'ct-white',  style:'linear-gradient(135deg,#e8ecf0,#f5f7fa)' },
+];
+function cardThemeHtml(currentTheme) {
+  return `<div class="form-group"><label class="form-label">卡片封面主題</label>
+    <div class="card-preview-mini" id="cardThemePreview" style="${currentTheme&&currentTheme!=='default'?CARD_THEMES.find(t=>t.id===currentTheme)?.style:''}">${currentTheme&&currentTheme!=='default'?CARD_THEMES.find(t=>t.id===currentTheme)?.label||'':''}</div>
+    <div class="card-theme-selector">
+      ${CARD_THEMES.map(t=>`<div class="card-theme-swatch ${t.cls} ${(currentTheme||'default')===t.id?'active':''}"
+        title="${t.label}" onclick="selectCardTheme('${t.id}')"
+        style="${t.id==='default'?'background:var(--bg-secondary);border:1px dashed var(--bdr-normal)':''}"></div>`).join('')}
+    </div>
+    <input type="hidden" id="cardThemeVal" value="${currentTheme||'default'}">
+  </div>`;
+}
+function selectCardTheme(themeId) {
+  const theme = CARD_THEMES.find(t=>t.id===themeId);
+  if (!theme) return;
+  const preview = document.getElementById('cardThemePreview');
+  const hidden  = document.getElementById('cardThemeVal');
+  if (preview) {
+    preview.style.background = themeId==='default' ? 'var(--bg-secondary)' : theme.style;
+    preview.textContent = themeId==='default' ? '預設' : theme.label;
+  }
+  if (hidden) hidden.value = themeId;
+  document.querySelectorAll('.card-theme-swatch').forEach((el,i)=>{
+    el.classList.toggle('active', CARD_THEMES[i].id===themeId);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// 3. 桑基圖
+// ════════════════════════════════════════════════════════════════
+function renderSankey() {
+  const wrap = document.getElementById('sankeyWrap');
+  if (!wrap) return;
+  const curYM = nowYM();
+  const txns  = DB.transactions.filter(t=>ym(t.date)===curYM&&!t.isTransfer&&!t.isPayment);
+  const income  = txns.filter(t=>t.amount>0);
+  const expense = txns.filter(t=>t.amount<0);
+  if (!income.length && !expense.length) { wrap.innerHTML='<div style="color:var(--tx-muted);text-align:center;padding:20px;font-size:12px">本月尚無收支記錄</div>'; return; }
+
+  const totalIn  = income.reduce((s,t)=>s+t.amount,0);
+  const totalOut = Math.abs(expense.reduce((s,t)=>s+t.amount,0));
+
+  // 收入按帳戶彙總
+  const inMap = {};
+  income.forEach(t=>{ const n=sourceName(t); inMap[n]=(inMap[n]||0)+t.amount; });
+  // 支出按類別彙總
+  const outMap = {};
+  expense.forEach(t=>{ const cat=getCat(t.category); outMap[cat.name]=(outMap[cat.name]||0)+Math.abs(t.amount); });
+
+  const inItems  = Object.entries(inMap).sort((a,b)=>b[1]-a[1]);
+  const outItems = Object.entries(outMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  const W=Math.max(320, Math.min(wrap.offsetWidth||360,600)), H=Math.max(200,Math.max(inItems.length,outItems.length)*36+80);
+  const canvas = document.createElement('canvas');
+  canvas.width=W; canvas.height=H; canvas.id='sankeyCanvas';
+  canvas.style.cssText=`width:100%;max-width:${W}px`;
+  wrap.innerHTML=''; wrap.appendChild(canvas);
+  const ctx=canvas.getContext('2d');
+
+  const COL_W=12, MID=W/2, LEFT=80, RIGHT=W-80, NODE_H=24, GAP=8;
+  const isDark=!document.getElementById('appBody').classList.contains('light-theme');
+  const textColor=isDark?'rgba(255,255,255,.75)':'rgba(0,0,0,.7)';
+  const totalMax=Math.max(totalIn,totalOut)||1;
+
+  // 繪製左側收入節點
+  let leftY=40;
+  const leftNodes=inItems.map(([name,amt])=>{
+    const h=Math.max(NODE_H, Math.round(amt/totalMax*(H-80)));
+    const node={name,amt,x:LEFT-COL_W,y:leftY,h};
+    leftY+=h+GAP;
+    return node;
+  });
+  // 繪製右側支出節點
+  let rightY=40;
+  const rightNodes=outItems.map(([name,amt])=>{
+    const h=Math.max(NODE_H, Math.round(amt/totalMax*(H-80)));
+    const node={name,amt,x:RIGHT,y:rightY,h};
+    rightY+=h+GAP;
+    return node;
+  });
+
+  const inColors=['#0057B8','#6F2CA7','#00897B','#C07A00','#AD1457','#0288D1','#558B2F','#6D4C41'];
+  const outColors=['#C8102E','#E65100','#F57F17','#558B2F','#0277BD','#7B1FA2','#00838F','#4E342E'];
+
+  // 流動帶
+  leftNodes.forEach((ln,li)=>{
+    let lFill=ln.y;
+    rightNodes.forEach((rn,ri)=>{
+      const flow=Math.min(ln.amt,rn.amt)/totalMax;
+      const fh=Math.max(1,Math.round(flow*(H-80)*0.6));
+      const grad=ctx.createLinearGradient(LEFT,0,RIGHT,0);
+      grad.addColorStop(0,inColors[li%inColors.length]+'99');
+      grad.addColorStop(1,outColors[ri%outColors.length]+'99');
+      ctx.beginPath();
+      ctx.moveTo(LEFT,lFill);
+      ctx.bezierCurveTo(MID,lFill,MID,rn.y,RIGHT,rn.y);
+      ctx.bezierCurveTo(MID,rn.y+fh,MID,lFill+fh,LEFT,lFill+fh);
+      ctx.closePath();
+      ctx.fillStyle=grad;
+      ctx.fill();
+      lFill+=fh;
+    });
+  });
+
+  // 節點
+  leftNodes.forEach((n,i)=>{
+    ctx.fillStyle=inColors[i%inColors.length];
+    ctx.beginPath(); ctx.roundRect(n.x,n.y,COL_W,n.h,3); ctx.fill();
+    ctx.fillStyle=textColor; ctx.font='11px system-ui';
+    ctx.textAlign='right'; ctx.fillText(n.name.slice(0,8),n.x-4,n.y+n.h/2+4);
+    ctx.textAlign='right'; ctx.fillStyle=inColors[i%inColors.length];
+    ctx.font='bold 10px system-ui';
+    ctx.fillText('+'+fmt(n.amt),n.x-4,n.y+n.h/2-4);
+  });
+  rightNodes.forEach((n,i)=>{
+    ctx.fillStyle=outColors[i%outColors.length];
+    ctx.beginPath(); ctx.roundRect(n.x,n.y,COL_W,n.h,3); ctx.fill();
+    ctx.fillStyle=textColor; ctx.font='11px system-ui';
+    ctx.textAlign='left'; ctx.fillText(n.name.slice(0,6),n.x+COL_W+4,n.y+n.h/2+4);
+    ctx.fillStyle=outColors[i%outColors.length];
+    ctx.font='bold 10px system-ui';
+    ctx.fillText('-'+fmt(n.amt),n.x+COL_W+4,n.y+n.h/2-4);
+  });
+
+  // 標題
+  ctx.fillStyle=textColor; ctx.font='bold 12px system-ui'; ctx.textAlign='center';
+  ctx.fillText('收入',LEFT,20); ctx.fillText('支出',RIGHT+COL_W,20);
+}
+
 function toggleTxnFilter() {
   const panel = document.getElementById('txnFilterPanel');
   const btn = document.getElementById('filterToggleBtn');
@@ -3254,7 +3460,7 @@ function renderDashboard() {
       ? `<div style="text-align:center;padding:12px 0"><button class="btn btn-ghost btn-sm" onclick="dashRecentLimit+=5;renderDashboard()">顯示更多（還有 ${remaining} 筆）</button></div>`
       : (sorted.length > 5 ? `<div style="text-align:center;padding:8px 0;font-size:11px;color:var(--tx-muted)">已顯示全部 ${sorted.length} 筆</div>` : ''));
   renderHealthScore();
-  renderGauge();
+  renderPeriodCountdown();
   updateSidebarBal();
 }
 function statCard(label,val,cls,sub,icon) {
@@ -3396,7 +3602,7 @@ function renderCards() {
       </div>`;
     }).join('');
 
-    return `<div class="account-card${due!==null&&due<=2?' due-urgent':due!==null&&due<=5?' due-warn':''}" id="card-${c.id}" onclick="cardClickHandler(event,'card','${c.id}')" style="cursor:pointer">
+    return `<div class="account-card${due!==null&&due<=2?' due-urgent':due!==null&&due<=5?' due-warn':''}" id="card-${c.id}" data-theme="${c.cardTheme||'default'}" onclick="cardClickHandler(event,'card','${c.id}')" style="cursor:pointer">
       <div class="card-sheen-layer"></div>
       <div class="account-card-header" style="border-top:3px solid ${c.color}">
         <div class="account-card-icon" style="background:${c.color}22">${icon}</div>
@@ -4452,6 +4658,7 @@ function renderAnalytics() {
     </div>
     <div style="font-size:10px;color:var(--tx-muted);margin-top:10px;text-align:right">顏色越深代表消費金額越高　年度：${year}</div>`;
   renderHeatmap(year);
+  renderSankey();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -4821,7 +5028,8 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <div class="form-group"><label class="form-label">現金回饋率（%，0=不追蹤）</label><input class="form-input" id="cCashback" type="number" step="0.1" min="0" value="${c?.cashbackRate||0}" placeholder="e.g. 1.5"></div>
       <div class="form-group"><label class="form-label">點數換算（1點=NT$）</label><input class="form-input" id="cPtRate" type="number" step="0.01" value="${c?.pointRate||0}" placeholder="e.g. 0.5"></div>
     </div>
-    <div class="form-group"><label class="form-label">代表顏色</label>${colorPicker('cColor',c?.color||'#C8102E')}</div>`;
+    <div class="form-group"><label class="form-label">代表顏色</label>${colorPicker('cColor',c?.color||'#C8102E')}</div>
+    ${cardThemeHtml(c?.cardTheme||'default')}`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCard()">儲存</button>`;
   }
 
@@ -5270,7 +5478,8 @@ function saveCard() {
   if(!name){toast('請填入卡片名稱','danger');return;}
   const obj={name,color:v('cColor'),icon:v('cIcon'),limit:+v('cLimit')||0,
     billingDay:+v('cBillingDay')||null, dueDay:+v('cDueDay')||null,
-    cashbackRate:+v('cCashback')||0, pointRate:+v('cPtRate')||0};
+    cashbackRate:+v('cCashback')||0, pointRate:+v('cPtRate')||0,
+    cardTheme: document.getElementById('cardThemeVal')?.value||'default'};
   if(modalType==='editCard'){Object.assign(getCard(editTarget),obj);toast('信用卡已更新','success');}
   else{DB.creditCards.push({id:uid(),...obj});toast('信用卡新增成功','success');}
   saveDB();closeModal();renderCards();
