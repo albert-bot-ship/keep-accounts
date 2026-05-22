@@ -857,20 +857,11 @@ async function loadFromGitHub() {
     if (!DB.installments)   DB.installments = [];
     if (!DB.autoRules)      DB.autoRules = [];
     if (!DB.subscriptions)  DB.subscriptions = [];
-    // 記錄 GitHub 版本的時間戳
-    const ghTs = new Date().toISOString();
-    localStorage.setItem('mwallet_gh_ts', ghTs);
-    // 比較 localStorage 暫存是否更新
+    // 檢查 localStorage 是否有未上傳的暫存資料
     const cacheTs = localStorage.getItem('mwallet_db_cache_ts');
-    const ghLoaded = new Date(ghTs);
-    const cacheTime = cacheTs ? new Date(cacheTs) : null;
-    if (cacheTime && cacheTs && cacheTime > ghLoaded) {
-      // localStorage 有更新資料，延遲 1 秒後提示
-      setTimeout(()=> showCacheRestorePrompt(cacheTs), 1000);
-    } else {
-      // GitHub 版本是最新的，清除 localStorage 暫存
-      localStorage.removeItem('mwallet_db_cache');
-      localStorage.removeItem('mwallet_db_cache_ts');
+    if (cacheTs) {
+      // localStorage 有資料代表有未上傳的變更，提示使用者選擇
+      setTimeout(()=> showCacheRestorePrompt(cacheTs), 800);
     }
     toast('✅ 資料已從 GitHub 載入','success');
   } catch (err) {
