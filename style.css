@@ -2576,18 +2576,18 @@ body.drag-selecting {
 .ct-gold    { background: linear-gradient(135deg,#8B6914,#C8A000,#8B6914); }
 .ct-midnight{ background: linear-gradient(135deg,#0d0d0d,#1a1a2e,#0d0d0d); }
 
-/* 套用到卡片 */
-.account-card[data-theme="dark"]    { background: linear-gradient(135deg,#1a1a2e,#16213e) !important; }
-.account-card[data-theme="blue"]    { background: linear-gradient(135deg,#0057B8,#6F2CA7) !important; }
-.account-card[data-theme="rose"]    { background: linear-gradient(135deg,#b76e79,#8b3a6b,#c9956c) !important; }
-.account-card[data-theme="carbon"]  { background: repeating-linear-gradient(45deg,#1a1a1a 0px,#1a1a1a 2px,#2a2a2a 2px,#2a2a2a 4px) !important; }
-.account-card[data-theme="emerald"] { background: linear-gradient(135deg,#0a3d2e,#1a6b4a) !important; border-color:#c8a000 !important; }
-.account-card[data-theme="white"]   { background: linear-gradient(135deg,#e8ecf0,#f5f7fa) !important; color:#111; }
-.account-card[data-theme="gold"]    { background: linear-gradient(135deg,#8B6914,#C8A000,#8B6914) !important; }
-.account-card[data-theme="midnight"]{ background: linear-gradient(135deg,#0d0d0d,#1a1a2e) !important; }
-.account-card[data-theme="white"] .account-balance,
-.account-card[data-theme="white"] .account-card-type,
-.account-card[data-theme="white"] .tx-primary { color:#111 !important; }
+/* 套用到卡片 — 優先級高於 Liquid Glass */
+body .account-card[data-theme="dark"]    { background: linear-gradient(135deg,#1a1a2e,#16213e) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+body .account-card[data-theme="blue"]    { background: linear-gradient(135deg,#0057B8,#6F2CA7) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+body .account-card[data-theme="rose"]    { background: linear-gradient(135deg,#b76e79,#8b3a6b,#c9956c) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+body .account-card[data-theme="carbon"]  { background: repeating-linear-gradient(45deg,#1a1a1a 0px,#1a1a1a 2px,#2a2a2a 2px,#2a2a2a 4px) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+body .account-card[data-theme="emerald"] { background: linear-gradient(135deg,#0a3d2e,#1a6b4a) !important; border-color:#c8a000 !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+body .account-card[data-theme="white"]   { background: linear-gradient(135deg,#e8ecf0,#f5f7fa) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+body .account-card[data-theme="gold"]    { background: linear-gradient(135deg,#8B6914,#C8A000,#8B6914) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+body .account-card[data-theme="midnight"]{ background: linear-gradient(135deg,#0d0d0d,#1a1a2e) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+body .account-card[data-theme="white"] .account-balance,
+body .account-card[data-theme="white"] .account-card-type,
+body .account-card[data-theme="white"] .tx-primary { color:#111 !important; }
 
 /* 卡片預覽（Modal內） */
 .card-preview-mini {
