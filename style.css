@@ -2721,3 +2721,86 @@ body .account-card[data-theme="white"] .account-card-footer { background:rgba(26
 /* ══ SANKEY CHART ════════════════════════════════════════════ */
 #sankeyWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 #sankeyCanvas { display: block; }
+
+/* ══ 卡片主題文字補全覆蓋 ═══════════════════════════════════ */
+/* 深色系 — 補齊 account-card-type / a-over / layer-amt / badge / due-badge / billing-badge */
+body .account-card[data-theme="dark"] .account-card-type,
+body .account-card[data-theme="blue"] .account-card-type,
+body .account-card[data-theme="carbon"] .account-card-type,
+body .account-card[data-theme="midnight"] .account-card-type {
+  color: rgba(255,255,255,.6) !important; -webkit-text-fill-color:rgba(255,255,255,.6) !important;
+}
+body .account-card[data-theme="dark"] .a-over,
+body .account-card[data-theme="blue"] .a-over,
+body .account-card[data-theme="carbon"] .a-over,
+body .account-card[data-theme="emerald"] .a-over,
+body .account-card[data-theme="midnight"] .a-over,
+body .account-card[data-theme="rose"] .a-over {
+  color:#ffb3c0 !important; -webkit-text-fill-color:#ffb3c0 !important;
+}
+body .account-card[data-theme="dark"] .layer-amt,
+body .account-card[data-theme="blue"] .layer-amt,
+body .account-card[data-theme="carbon"] .layer-amt,
+body .account-card[data-theme="emerald"] .layer-amt,
+body .account-card[data-theme="midnight"] .layer-amt,
+body .account-card[data-theme="rose"] .layer-amt {
+  color: rgba(255,255,255,.9) !important; -webkit-text-fill-color:rgba(255,255,255,.9) !important;
+}
+body .account-card[data-theme="dark"] .badge,
+body .account-card[data-theme="blue"] .badge,
+body .account-card[data-theme="carbon"] .badge,
+body .account-card[data-theme="emerald"] .badge,
+body .account-card[data-theme="midnight"] .badge,
+body .account-card[data-theme="rose"] .badge {
+  color: rgba(255,255,255,.85) !important; -webkit-text-fill-color:rgba(255,255,255,.85) !important;
+  background: rgba(255,255,255,.12) !important; border-color:rgba(255,255,255,.2) !important;
+}
+body .account-card[data-theme="dark"] .due-badge,
+body .account-card[data-theme="blue"] .due-badge,
+body .account-card[data-theme="carbon"] .due-badge,
+body .account-card[data-theme="emerald"] .due-badge,
+body .account-card[data-theme="midnight"] .due-badge,
+body .account-card[data-theme="rose"] .due-badge,
+body .account-card[data-theme="dark"] .billing-badge,
+body .account-card[data-theme="blue"] .billing-badge,
+body .account-card[data-theme="carbon"] .billing-badge,
+body .account-card[data-theme="emerald"] .billing-badge,
+body .account-card[data-theme="midnight"] .billing-badge,
+body .account-card[data-theme="rose"] .billing-badge {
+  color: #fff !important; -webkit-text-fill-color:#fff !important;
+}
+
+/* 玫瑰金補齊 */
+body .account-card[data-theme="rose"] .account-card-type {
+  color: rgba(255,255,255,.65) !important; -webkit-text-fill-color:rgba(255,255,255,.65) !important;
+}
+
+/* 金色補齊 */
+body .account-card[data-theme="gold"] .account-card-type {
+  color: rgba(26,10,0,.6) !important; -webkit-text-fill-color:rgba(26,10,0,.6) !important;
+}
+body .account-card[data-theme="gold"] .a-neg { color:#7a0000 !important; -webkit-text-fill-color:#7a0000 !important; }
+body .account-card[data-theme="gold"] .a-pos { color:#1a5c1a !important; -webkit-text-fill-color:#1a5c1a !important; }
+body .account-card[data-theme="gold"] .a-over { color:#8b0000 !important; -webkit-text-fill-color:#8b0000 !important; }
+body .account-card[data-theme="gold"] .layer-amt { color:rgba(26,10,0,.85) !important; -webkit-text-fill-color:rgba(26,10,0,.85) !important; }
+body .account-card[data-theme="gold"] .badge,
+body .account-card[data-theme="gold"] .due-badge,
+body .account-card[data-theme="gold"] .billing-badge {
+  color:rgba(26,10,0,.85) !important; -webkit-text-fill-color:rgba(26,10,0,.85) !important;
+  background:rgba(26,10,0,.08) !important; border-color:rgba(26,10,0,.2) !important;
+}
+body .account-card[data-theme="gold"] .prog-wrap { background:rgba(0,0,0,.15) !important; }
+
+/* 純白補齊 */
+body .account-card[data-theme="white"] .account-card-type {
+  color: rgba(26,26,46,.55) !important; -webkit-text-fill-color:rgba(26,26,46,.55) !important;
+}
+body .account-card[data-theme="white"] .a-over { color:#a00000 !important; -webkit-text-fill-color:#a00000 !important; }
+body .account-card[data-theme="white"] .layer-amt { color:rgba(26,26,46,.85) !important; -webkit-text-fill-color:rgba(26,26,46,.85) !important; }
+body .account-card[data-theme="white"] .badge,
+body .account-card[data-theme="white"] .due-badge,
+body .account-card[data-theme="white"] .billing-badge {
+  color:rgba(26,26,46,.85) !important; -webkit-text-fill-color:rgba(26,26,46,.85) !important;
+  background:rgba(26,26,46,.07) !important; border-color:rgba(26,26,46,.15) !important;
+}
+body .account-card[data-theme="white"] .prog-wrap { background:rgba(26,26,46,.1) !important; }
