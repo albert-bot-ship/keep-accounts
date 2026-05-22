@@ -2543,3 +2543,62 @@ body.drag-selecting {
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* ══ CARD THEMES ════════════════════════════════════════════ */
+.card-theme-selector {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;
+}
+.card-theme-swatch {
+  width: 44px; height: 28px; border-radius: 6px; cursor: pointer;
+  border: 2px solid transparent; transition: all .2s;
+  position: relative; overflow: hidden;
+}
+.card-theme-swatch.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--m-blue), 0 0 10px rgba(0,87,184,.4);
+}
+.card-theme-swatch::after {
+  content: '✓'; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 13px; font-weight: 700;
+  opacity: 0; transition: opacity .2s;
+  text-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+.card-theme-swatch.active::after { opacity: 1; }
+
+/* 各主題漸層 */
+.ct-dark    { background: linear-gradient(135deg,#1a1a2e,#16213e); }
+.ct-blue    { background: linear-gradient(135deg,#0057B8,#6F2CA7); }
+.ct-rose    { background: linear-gradient(135deg,#b76e79,#8b3a6b,#c9956c); }
+.ct-carbon  { background: repeating-linear-gradient(45deg,#1a1a1a 0px,#1a1a1a 2px,#2a2a2a 2px,#2a2a2a 4px); }
+.ct-emerald { background: linear-gradient(135deg,#0a3d2e,#1a6b4a,#0d5c3a); border:1px solid #c8a000; }
+.ct-white   { background: linear-gradient(135deg,#e8ecf0,#f5f7fa); }
+.ct-gold    { background: linear-gradient(135deg,#8B6914,#C8A000,#8B6914); }
+.ct-midnight{ background: linear-gradient(135deg,#0d0d0d,#1a1a2e,#0d0d0d); }
+
+/* 套用到卡片 */
+.account-card[data-theme="dark"]    { background: linear-gradient(135deg,#1a1a2e,#16213e) !important; }
+.account-card[data-theme="blue"]    { background: linear-gradient(135deg,#0057B8,#6F2CA7) !important; }
+.account-card[data-theme="rose"]    { background: linear-gradient(135deg,#b76e79,#8b3a6b,#c9956c) !important; }
+.account-card[data-theme="carbon"]  { background: repeating-linear-gradient(45deg,#1a1a1a 0px,#1a1a1a 2px,#2a2a2a 2px,#2a2a2a 4px) !important; }
+.account-card[data-theme="emerald"] { background: linear-gradient(135deg,#0a3d2e,#1a6b4a) !important; border-color:#c8a000 !important; }
+.account-card[data-theme="white"]   { background: linear-gradient(135deg,#e8ecf0,#f5f7fa) !important; color:#111; }
+.account-card[data-theme="gold"]    { background: linear-gradient(135deg,#8B6914,#C8A000,#8B6914) !important; }
+.account-card[data-theme="midnight"]{ background: linear-gradient(135deg,#0d0d0d,#1a1a2e) !important; }
+.account-card[data-theme="white"] .account-balance,
+.account-card[data-theme="white"] .account-card-type,
+.account-card[data-theme="white"] .tx-primary { color:#111 !important; }
+
+/* 卡片預覽（Modal內） */
+.card-preview-mini {
+  height: 56px; border-radius: 10px; margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--ff-display); font-size: 13px;
+  letter-spacing: 2px; color: rgba(255,255,255,.8);
+  transition: background .3s ease;
+  border: 1px solid rgba(255,255,255,.1);
+}
+
+/* ══ SANKEY CHART ════════════════════════════════════════════ */
+#sankeyWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+#sankeyCanvas { display: block; }
