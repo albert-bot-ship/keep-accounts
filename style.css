@@ -2585,9 +2585,48 @@ body .account-card[data-theme="emerald"] { background: linear-gradient(135deg,#0
 body .account-card[data-theme="white"]   { background: linear-gradient(135deg,#e8ecf0,#f5f7fa) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
 body .account-card[data-theme="gold"]    { background: linear-gradient(135deg,#8B6914,#C8A000,#8B6914) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
 body .account-card[data-theme="midnight"]{ background: linear-gradient(135deg,#0d0d0d,#1a1a2e) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+
+/* 深色主題文字 — 白色 */
+body .account-card[data-theme="dark"] .account-card-type,
+body .account-card[data-theme="dark"] .account-balance,
+body .account-card[data-theme="dark"] .layer-bar,
+body .account-card[data-theme="dark"] .nw-name,
+body .account-card[data-theme="dark"] .badge { color:rgba(255,255,255,.9) !important; -webkit-text-fill-color:rgba(255,255,255,.9) !important; }
+
+body .account-card[data-theme="blue"] .account-card-type,
+body .account-card[data-theme="blue"] .account-balance,
+body .account-card[data-theme="blue"] .layer-bar,
+body .account-card[data-theme="blue"] .badge { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+
+body .account-card[data-theme="rose"] .account-card-type,
+body .account-card[data-theme="rose"] .account-balance,
+body .account-card[data-theme="rose"] .layer-bar { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+
+body .account-card[data-theme="carbon"] .account-card-type,
+body .account-card[data-theme="carbon"] .account-balance,
+body .account-card[data-theme="carbon"] .layer-bar { color:rgba(255,255,255,.9) !important; -webkit-text-fill-color:rgba(255,255,255,.9) !important; }
+
+body .account-card[data-theme="emerald"] .account-card-type,
+body .account-card[data-theme="emerald"] .account-balance,
+body .account-card[data-theme="emerald"] .layer-bar { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+body .account-card[data-theme="emerald"] .account-card-type { color:#c8a000 !important; -webkit-text-fill-color:#c8a000 !important; }
+
+body .account-card[data-theme="gold"] .account-card-type,
+body .account-card[data-theme="gold"] .account-balance,
+body .account-card[data-theme="gold"] .layer-bar { color:#1a0a00 !important; -webkit-text-fill-color:#1a0a00 !important; }
+
+body .account-card[data-theme="midnight"] .account-card-type,
+body .account-card[data-theme="midnight"] .account-balance,
+body .account-card[data-theme="midnight"] .layer-bar { color:rgba(255,255,255,.85) !important; -webkit-text-fill-color:rgba(255,255,255,.85) !important; }
+
+/* 純白主題文字 — 深色 */
 body .account-card[data-theme="white"] .account-balance,
 body .account-card[data-theme="white"] .account-card-type,
-body .account-card[data-theme="white"] .tx-primary { color:#111 !important; }
+body .account-card[data-theme="white"] .layer-bar,
+body .account-card[data-theme="white"] .badge,
+body .account-card[data-theme="white"] .tx-primary { color:#1a1a2e !important; -webkit-text-fill-color:#1a1a2e !important; }
+body .account-card[data-theme="white"] .btn { color:#1a1a2e !important; border-color:rgba(0,0,0,.15) !important; }
+body .account-card[data-theme="white"] .account-card-footer { background:rgba(0,0,0,.04) !important; border-color:rgba(0,0,0,.08) !important; }
 
 /* 卡片預覽（Modal內） */
 .card-preview-mini {
