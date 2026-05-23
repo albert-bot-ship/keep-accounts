@@ -3768,11 +3768,11 @@ function renderCards() {
     const layerRedeemTotal = layerDataArr.reduce((s,d)=>s+d.redeemLayerAmt,0);
     // 當期已還比例（用於一般分層的比例計算）— 必須在 displayOutstanding 前定義
     const periodTotalPaid = totalPaid + unlayeredRedeem + layerRedeemTotal;
-    // 未還款顯示金額：所有分層顯示金額合計（monthlyFixed用layer.amount，一般用period交易）
+    // 未還款顯示金額：改用 cardBalance 計算所有未還款（不限週期）
     const layerDisplayTotal = layerDataArr.reduce((s,d)=>s+(d.isMonthlyFixed?d.layerAmt:d.totalLayerAmt),0);
     const unlayeredAmt = unlayeredSpend;
-    const netOutstanding = Math.max(0, layerDisplayTotal + unlayeredAmt - periodTotalPaid);
-    const paidRatio = layerDisplayTotal+unlayeredAmt > 0 ? Math.min(1, periodTotalPaid/(layerDisplayTotal+unlayeredAmt)) : (Math.max(0,-bal)===0?1:0);
+    const netOutstanding = Math.max(0, -cardBalance(c.id));
+    const paidRatio = layerDisplayTotal+unlayeredAmt > 0 ? Math.min(1, periodTotalPaid/(layerDisplayTotal+unlayeredAmt)) : (netOutstanding===0?1:0);
 
     // ── STEP 3：渲染各分層 HTML（含未還比例顯示）───────────────
     const hasTheme = (c.cardTheme && c.cardTheme !== 'default');
