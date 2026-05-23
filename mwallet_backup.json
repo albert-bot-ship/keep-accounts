@@ -1145,6 +1145,29 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mpilklv9do0fj",
+      "date": "2026-05-25",
+      "amount": -55,
+      "desc": "信用卡繳款 — 遠東樂+卡",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4un0o9i6ja",
+      "sourceType": "account",
+      "notes": "",
+      "isPayment": true,
+      "layerId": "mowtbbfi5phoq"
+    },
+    {
+      "id": "mpilklv9kbxl1",
+      "date": "2026-05-25",
+      "amount": 55,
+      "desc": "繳款入帳 — 遠東樂+卡",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4j2lhbf7rv",
+      "sourceType": "card",
+      "notes": "",
+      "isPayment": true
     }
   ],
   "fixedExpenses": [
