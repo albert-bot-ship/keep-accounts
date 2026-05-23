@@ -1156,7 +1156,8 @@
       "sourceType": "account",
       "notes": "",
       "isPayment": true,
-      "layerId": "mowtbbfi5phoq"
+      "layerId": "mowtbbfi5phoq",
+      "transferPairTxnId": "mpilklv9kbxl1"
     },
     {
       "id": "mpilklv9kbxl1",
@@ -1167,7 +1168,8 @@
       "sourceId": "mov4j2lhbf7rv",
       "sourceType": "card",
       "notes": "",
-      "isPayment": true
+      "isPayment": true,
+      "transferPairTxnId": "mpilklv9do0fj"
     },
     {
       "id": "mpim1jy1dwwti",
