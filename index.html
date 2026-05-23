@@ -481,6 +481,7 @@
               <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">📥 匯入備份</button>
               <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
               <button class="btn btn-ghost btn-sm" onclick="repairTransferPairs()">🔗 修復轉帳配對</button>
+              <button class="btn btn-ghost btn-sm" onclick="repairPaymentPairs()">💳 修復繳款配對</button>
               <button class="btn btn-danger btn-sm" onclick="confirmClearAll()">🗑 清除資料</button>
             </div>
           </div>
@@ -3369,6 +3370,33 @@ function scrollToCard(id) {
   setTimeout(()=>{ el.style.boxShadow = ''; }, 1500);
 }
 
+function repairPaymentPairs() {
+  // 找所有沒有 transferPairTxnId 的繳款記錄，嘗試配對
+  const payments = DB.transactions.filter(t=>t.isPayment && !t.transferPairTxnId);
+  let fixed = 0;
+  payments.forEach(p => {
+    // 找同日期、同金額、來源不同的另一筆繳款
+    const pair = DB.transactions.find(t =>
+      t.isPayment && !t.transferPairTxnId &&
+      t.id !== p.id &&
+      t.date === p.date &&
+      Math.abs(t.amount) === Math.abs(p.amount) &&
+      t.sourceType !== p.sourceType
+    );
+    if (pair) {
+      p.transferPairTxnId = pair.id;
+      pair.transferPairTxnId = p.id;
+      fixed++;
+    }
+  });
+  if (fixed > 0) {
+    saveDB();
+    toast(`✅ 已修復 ${fixed} 對繳款記錄的配對`, 'success');
+  } else {
+    toast('繳款配對已是最新狀態', 'info');
+  }
+}
+
 function toggleTxnFilter() {
   const panel = document.getElementById('txnFilterPanel');
   const btn = document.getElementById('filterToggleBtn');
@@ -5870,9 +5898,12 @@ function doPayment() {
   const [,fromId]=fromVal.split('_');
   const card=getCard(cardId);
   const lastCat=DB.categories[DB.categories.length-1]?.id||'';
-  DB.transactions.push({id:uid(),date,amount:-Math.abs(amt),desc:'信用卡繳款 — '+(card?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isPayment:true,layerId});
-  DB.transactions.push({id:uid(),date,amount:+Math.abs(amt),desc:'繳款入帳 — '+(card?.name||''),category:lastCat,sourceId:cardId,sourceType:'card',notes,isPayment:true});
-  saveDB();closeModal();renderCards();toast('繳款成功！','success');
+  const id1=uid(), id2=uid();
+  // 帳戶扣款
+  DB.transactions.push({id:id1,date,amount:-Math.abs(amt),desc:'信用卡繳款 — '+(card?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isPayment:true,isTransfer:false,layerId,transferPairTxnId:id2});
+  // 信用卡入帳（抵銷負債）
+  DB.transactions.push({id:id2,date,amount:+Math.abs(amt),desc:'繳款入帳 — '+(card?.name||''),category:lastCat,sourceId:cardId,sourceType:'card',notes,isPayment:true,isTransfer:false,transferPairTxnId:id1});
+  saveDB();closeModal();renderCards();renderTxns();toast('繳款成功！','success');
 }
 function toggleTfMultiLayer(side, isMulti) {
   const singleDiv = document.getElementById(side==='from'?'tfFromSingleDiv':'tfToSingleDiv');
