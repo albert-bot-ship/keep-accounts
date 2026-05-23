@@ -235,6 +235,7 @@
         <div class="page-title">信用卡</div>
         <button class="btn btn-primary" onclick="openModal('addCard')">＋ 新增信用卡</button>
       </div>
+      <div id="cardQuickNav" style="margin-bottom:4px"></div>
       <div class="stats-grid" id="ccStats"></div>
       <div class="cards-grid" id="cardsGrid"></div>
     </section>
@@ -3318,6 +3319,35 @@ function wrapTachNum(valStr) {
   return `${prefix}<span class="tach-num" data-unit="NT$">${clean}</span>`;
 }
 
+// ════════════════════════════════════════════════════════════════
+// 信用卡快捷導覽
+// ════════════════════════════════════════════════════════════════
+function renderCardQuickNav() {
+  const wrap = document.getElementById('cardQuickNav');
+  if (!wrap || !DB.creditCards.length) { if(wrap) wrap.innerHTML=''; return; }
+  wrap.innerHTML = `<div class="acc-quicknav">
+    ${DB.creditCards.map(c => {
+      const bal = cardBalance(c.id);
+      const isNeg = bal < 0;
+      return `<div class="acc-quicknav-chip"
+        style="color:${c.color||'var(--m-blue)'};border-color:${c.color||'var(--m-blue)'}44;background:${c.color||'var(--m-blue)'}11"
+        onclick="scrollToCard('${c.id}')">
+        <div class="acc-quicknav-dot" style="background:${c.color||'var(--m-blue)'}"></div>
+        ${escHtml(c.name)}
+        ${isNeg?`<span style="font-size:10px;opacity:.8">−${fmt(Math.abs(bal))}</span>`:'<span style="font-size:10px;opacity:.6">✓</span>'}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+function scrollToCard(id) {
+  const el = document.getElementById('card-'+id);
+  if (!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  el.style.transition = 'box-shadow .3s';
+  el.style.boxShadow = '0 0 0 3px var(--m-blue), 0 0 20px rgba(0,87,184,.4)';
+  setTimeout(()=>{ el.style.boxShadow = ''; }, 1500);
+}
+
 function toggleTxnFilter() {
   const panel = document.getElementById('txnFilterPanel');
   const btn = document.getElementById('filterToggleBtn');
@@ -3783,6 +3813,7 @@ function renderCards() {
   }).join('');
   html += `<div class="add-card-btn" onclick="openModal('addCard')"><div class="add-card-icon">＋</div><div class="add-card-label">新增信用卡</div></div>`;
   document.getElementById('cardsGrid').innerHTML = html;
+  renderCardQuickNav();
 }
 
 function deleteCard(id) {
