@@ -786,12 +786,33 @@ function saveDB() {
     const json = JSON.stringify(DB);
     localStorage.setItem('mwallet_db_cache', json);
     localStorage.setItem('mwallet_db_cache_ts', new Date().toISOString());
-    // 寫入後檢查使用量
     checkStorageWarning();
+    // 即時更新所有金額顯示（不管在哪個頁面）
+    refreshAllAmounts();
   } catch(e) {
     if (e.name === 'QuotaExceededError') {
       showStorageFullAlert();
     }
+  }
+}
+
+let _refreshing = false;
+function refreshAllAmounts() {
+  if (_refreshing) return;
+  _refreshing = true;
+  try {
+    // 1. 側欄餘額快覽
+    updateSidebarBal();
+    // 2. 信用卡快捷導覽金額
+    renderCardQuickNav();
+    // 3. 帳戶快捷導覽
+    renderAccQuickNav();
+    // 4. 依當前頁面重新渲染
+    if (currentPage === 'dashboard')    renderDashboard();
+    else if (currentPage === 'cards')   renderCards();
+    else if (currentPage === 'accounts') renderAccounts();
+  } finally {
+    _refreshing = false;
   }
 }
 
