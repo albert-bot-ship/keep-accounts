@@ -3782,14 +3782,48 @@ function renderCards() {
     const is = hasTheme ? '' : 'color:var(--tx-secondary)';
     const io = hasTheme ? '' : 'color:#e67800';
 
+    // 分期分層的已固定金額（不參與比例分配）
+    const monthlyFixedTotal = layerDataArr.filter(d=>d.isMonthlyFixed).reduce((s,d)=>s+d.layerAmt,0);
+    // 扣掉分期後的剩餘未還款（給一般分層分配）
+    const netForNormal = Math.max(0, netOutstanding - monthlyFixedTotal);
+    // 一般分層的歷史消費合計（全部交易，不限週期）
+    const normalLayers = layerDataArr.filter(d=>!d.isMonthlyFixed);
+    const normalTotal  = normalLayers.reduce((s,d)=>{
+      // 該分層的全部消費（不限週期）
+      const allTx = DB.transactions
+        .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===d.l.id&&t.amount<0&&!t.isPayment)
+        .reduce((ss,t)=>ss+Math.abs(t.amount),0);
+      const allML = DB.transactions
+        .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerAmounts&&t.amount<0&&!t.isPayment)
+        .reduce((ss,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===d.l.id);return ss+(la?Math.abs(la.amount):0);},0);
+      return s + allTx + allML;
+    }, 0);
+
     const layersHtml = layerDataArr.map(({l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed})=>{
       let layerOutstanding, hasPaidOffset;
       if (isMonthlyFixed) {
+        // 分期分層：維持原本金額不變
         layerOutstanding = layerAmt;
         hasPaidOffset = false;
       } else {
-        layerOutstanding = Math.max(0, Math.round((totalLayerAmt - redeemLayerAmt) * (1 - paidRatio)));
-        hasPaidOffset = (totalPaid+unlayeredRedeem+layerRedeemTotal)>0 && totalLayerAmt>0;
+        // 一般分層：按歷史消費比例分配 netForNormal
+        const allTx = DB.transactions
+          .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
+          .reduce((ss,t)=>ss+Math.abs(t.amount),0);
+        const allML = DB.transactions
+          .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerAmounts&&t.amount<0&&!t.isPayment)
+          .reduce((ss,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===l.id);return ss+(la?Math.abs(la.amount):0);},0);
+        const layerHistTotal = allTx + allML;
+        if (normalLayers.length === 1) {
+          // 只有一個一般分層：直接顯示全部剩餘未還款
+          layerOutstanding = netForNormal;
+        } else if (normalTotal > 0) {
+          // 多個一般分層：按比例分配
+          layerOutstanding = Math.round(netForNormal * layerHistTotal / normalTotal);
+        } else {
+          layerOutstanding = 0;
+        }
+        hasPaidOffset = false;
       }
       const isLight = (c.cardTheme==='white'||c.cardTheme==='gold');
       const layerRedColor   = hasTheme ? (isLight?'#b71c1c':'#ff6b80') : 'var(--tx-red)';
