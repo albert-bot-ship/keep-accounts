@@ -2308,6 +2308,7 @@ function initCtxMenu() {
         const a  = getAcc(id); if(!a) return;
         const bal= accountBalance(id);
         openCtxMenu(e, `🏦 ${a.name}`, `餘額 ${fmt(bal)}`, [
+          {icon:'📋', label:'查看明細',    fn:`filterByAccount('${id}')`},
           {icon:'↔️', label:'帳戶轉帳',   fn:`openModal('transfer','${id}')`},
           {icon:'➕', label:'新增消費',    fn:`openModal('addTxn',null,null,'${id}')`},
           {icon:'✏️', label:'編輯',        fn:`openModal('editAccount','${id}')`},
@@ -3942,7 +3943,25 @@ function cardClickHandler(e, type, id) {
 function filterByCard(cardId) {
   const el = document.querySelector('[data-page="txns"]');
   nav(el,'txns');
-  setTimeout(()=>{ document.getElementById('filterSource').value='card_'+cardId; renderTxns(); },60);
+  setTimeout(()=>{
+    document.getElementById('filterSource').value='card_'+cardId;
+    // 清除類型篩選，確保繳款記錄（正數）也顯示
+    const typeEl = document.getElementById('filterType');
+    if (typeEl) typeEl.value = '';
+    renderTxns();
+  }, 60);
+}
+
+function filterByAccount(accountId) {
+  const el = document.querySelector('[data-page="txns"]');
+  nav(el,'txns');
+  setTimeout(()=>{
+    document.getElementById('filterSource').value='account_'+accountId;
+    // 清除類型篩選，確保繳款記錄（負數）也顯示
+    const typeEl = document.getElementById('filterType');
+    if (typeEl) typeEl.value = '';
+    renderTxns();
+  }, 60);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -4083,6 +4102,7 @@ function renderAccounts() {
         <button class="btn btn-sm btn-primary" onclick="openModal('addLayer','${a.id}')">＋ 分層</button>
         <button class="btn btn-sm btn-ghost"   onclick="openModal('addTxn',null,null,'${a.id}')">＋ 記帳</button>
         <button class="btn btn-sm btn-violet"  onclick="openModal('transfer','${a.id}')">🔄 轉帳</button>
+        <button class="btn btn-sm btn-ghost"   onclick="filterByAccount('${a.id}')">📋 明細</button>
       </div>
       <div class="card-tap-hint">點擊卡片查看消費明細 ›</div>
     </div>`;
