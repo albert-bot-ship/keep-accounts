@@ -421,8 +421,13 @@ textarea.form-input{resize:vertical;min-height:66px}
   border:1px solid var(--bdr-subtle);
 }
 .layer-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.layer-name{flex:1;font-size:13px}
-.layer-amt{font-family:var(--ff-display);font-weight:700;font-size:14px}
+.layer-name{flex:1;font-size:13px;color:var(--tx-primary)}
+.layer-amt{font-family:var(--ff-display);font-weight:700;font-size:14px;color:var(--tx-primary)}
+
+/* 淺色模式下 layer-bar 文字強制深色 */
+body.light-theme .layer-bar .layer-name { color: #1a1a2e !important; }
+body.light-theme .layer-bar .layer-amt  { color: #1a1a2e !important; }
+body.light-theme .layer-bar             { background: #f0f2f8 !important; border-color: #d0d4e8 !important; }
 
 /* ── PROGRESS BAR ────────────────────────── */
 .prog-wrap{background:var(--bg-secondary);border-radius:4px;height:5px;overflow:hidden;margin-top:5px}
