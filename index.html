@@ -3929,20 +3929,19 @@ function cardClickHandler(e, type, id) {
   }
 }
 
+// 暫存由外部設定的篩選條件（filterByCard / filterByAccount 使用）
+let _pendingFilterSource = null;
+
 function filterByCard(cardId) {
-  // 先設好篩選條件
-  const srcEl  = document.getElementById('filterSource');
+  _pendingFilterSource = 'card_' + cardId;
   const typeEl = document.getElementById('filterType');
-  if (srcEl)  srcEl.value  = 'card_' + cardId;
-  if (typeEl) typeEl.value = '';  // 清除類型篩選，確保繳款記錄也顯示
-  // 再切換頁面（renderPage 會呼叫 renderTxns 並帶入已設好的篩選）
+  if (typeEl) typeEl.value = '';
   navigateTo('txns');
 }
 
 function filterByAccount(accountId) {
-  const srcEl  = document.getElementById('filterSource');
+  _pendingFilterSource = 'account_' + accountId;
   const typeEl = document.getElementById('filterType');
-  if (srcEl)  srcEl.value  = 'account_' + accountId;
   if (typeEl) typeEl.value = '';
   navigateTo('txns');
 }
@@ -4207,11 +4206,14 @@ function doDeleteAccount(id) {
 // ════════════════════════════════════════════════════════════════
 function renderTxns() {
   // Populate source filter
-  const srcSel=document.getElementById('filterSource'), oldSrc=srcSel.value;
+  const srcSel = document.getElementById('filterSource');
+  // 優先套用外部傳入的篩選（由 filterByCard / filterByAccount 設定）
+  const oldSrc = _pendingFilterSource !== null ? _pendingFilterSource : srcSel.value;
+  _pendingFilterSource = null; // 用完清除
   srcSel.innerHTML='<option value="">全部帳戶/卡片</option>';
   DB.creditCards.forEach(c=>{srcSel.innerHTML+=`<option value="card_${c.id}">[卡] ${escHtml(c.name)}</option>`;});
   DB.bankAccounts.forEach(a=>{srcSel.innerHTML+=`<option value="account_${a.id}">[帳] ${escHtml(a.name)}</option>`;});
-  srcSel.value=oldSrc;
+  srcSel.value = oldSrc;
   const catSel=document.getElementById('filterCat'), oldCat=catSel.value;
   catSel.innerHTML='<option value="">全部類別</option>';
   DB.categories.forEach(c=>{catSel.innerHTML+=`<option value="${c.id}">${escHtml(c.name)}</option>`;});
@@ -4246,6 +4248,9 @@ function renderTxns() {
   document.getElementById('txnTableWrap').innerHTML =
     txnTable(pagedTxns, true) + renderTxnPager(txns.length);
   updateBatchUI();
+  // 每次渲染完捲到頂部
+  const mainEl = document.querySelector('.main-content');
+  if (mainEl) mainEl.scrollTop = 0;
 }
 
 function txnTable(txns, withActions) {
