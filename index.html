@@ -4051,21 +4051,12 @@ function renderCards() {
     // ── 各分層獨立計算未還款 ──────────────────────────────────
     // 分期分層：用 layer.amount（手動設定值）
     const monthlyFixedTotal = layerDataArr.filter(d=>d.isMonthlyFixed).reduce((s,d)=>s+d.layerAmt,0);
+    // 頂部總未還款 = cardBalance（全部消費 − 全部繳款），最準確
+    const netOutstanding = Math.max(0, -cardBalance(c.id));
+    // 一般分層的剩餘 = 總未還款 − 分期合計
+    const netForNormal = Math.max(0, netOutstanding - monthlyFixedTotal);
 
-    // 一般分層：用全部歷史交易計算，按繳款比例扣減
-    const fixedLayerIds = new Set(layerDataArr.filter(d=>d.isMonthlyFixed).map(d=>d.l.id));
-    // 所有非分期的實際消費（全時間）
-    const allNonFixedExpense = DB.transactions
-      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.isPayment&&!fixedLayerIds.has(t.layerId))
-      .reduce((s,t)=>s+Math.abs(t.amount),0);
-    // 所有繳款（全時間）
-    const allPayments = DB.transactions
-      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.isPayment&&t.amount>0)
-      .reduce((s,t)=>s+t.amount,0);
-    // 繳款比例
-    const allPayRatio = allNonFixedExpense>0 ? Math.min(1, allPayments/allNonFixedExpense) : (allNonFixedExpense===0?1:0);
-
-    // 一般分層各自的歷史消費
+    // 一般分層歷史消費比例（用於多分層時的比例分配）
     const normalLayers = layerDataArr.filter(d=>!d.isMonthlyFixed);
     const normalTxMap = {};
     normalLayers.forEach(d=>{
@@ -4078,10 +4069,7 @@ function renderCards() {
       normalTxMap[d.l.id] = tx + ml;
     });
     const normalTotal = Object.values(normalTxMap).reduce((s,v)=>s+v,0);
-    const netForNormal = Math.max(0, Math.round(normalTotal * (1-allPayRatio)));
-    // 頂部總未還款 = 分期合計 + 一般交易未還款
-    const netOutstanding = monthlyFixedTotal + netForNormal;
-    const paidRatio = allPayRatio;
+    const paidRatio = 0; // 不再使用比例計算
 
     const layersHtml = layerDataArr.map(({l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed})=>{
       let layerOutstanding, hasPaidOffset;
