@@ -3930,27 +3930,21 @@ function cardClickHandler(e, type, id) {
 }
 
 function filterByCard(cardId) {
-  const el = document.querySelector('[data-page="txns"]');
-  nav(el,'txns');
-  setTimeout(()=>{
-    document.getElementById('filterSource').value='card_'+cardId;
-    // 清除類型篩選，確保繳款記錄（正數）也顯示
-    const typeEl = document.getElementById('filterType');
-    if (typeEl) typeEl.value = '';
-    renderTxns();
-  }, 60);
+  // 先設好篩選條件
+  const srcEl  = document.getElementById('filterSource');
+  const typeEl = document.getElementById('filterType');
+  if (srcEl)  srcEl.value  = 'card_' + cardId;
+  if (typeEl) typeEl.value = '';  // 清除類型篩選，確保繳款記錄也顯示
+  // 再切換頁面（renderPage 會呼叫 renderTxns 並帶入已設好的篩選）
+  navigateTo('txns');
 }
 
 function filterByAccount(accountId) {
-  const el = document.querySelector('[data-page="txns"]');
-  nav(el,'txns');
-  setTimeout(()=>{
-    document.getElementById('filterSource').value='account_'+accountId;
-    // 清除類型篩選，確保繳款記錄（負數）也顯示
-    const typeEl = document.getElementById('filterType');
-    if (typeEl) typeEl.value = '';
-    renderTxns();
-  }, 60);
+  const srcEl  = document.getElementById('filterSource');
+  const typeEl = document.getElementById('filterType');
+  if (srcEl)  srcEl.value  = 'account_' + accountId;
+  if (typeEl) typeEl.value = '';
+  navigateTo('txns');
 }
 
 // ════════════════════════════════════════════════════════════════
