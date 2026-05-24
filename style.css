@@ -3156,20 +3156,58 @@ body.nf-mono .fnp-display {
   inset: 0;
   pointer-events: none;
   z-index: 9997;
-  animation: mBorderBreath 3.5s ease-in-out infinite;
-  outline: 4px solid var(--m-blue);
-  outline-offset: -4px;
-  box-shadow:
-    0 0 0 4px var(--m-blue),
-    0 0 12px 6px rgba(111,44,167,0.9),
-    0 0 24px 10px rgba(200,16,46,0.7),
-    0 0 40px 14px rgba(0,87,184,0.5),
-    inset 0 0 0 4px var(--m-violet),
-    inset 0 0 16px 4px rgba(200,16,46,0.5);
+  animation: mBorderCycle 6s ease-in-out infinite;
 }
-@keyframes mBorderBreath {
-  0%, 100% { opacity: 0.3; }
-  50%       { opacity: 1;   }
+@keyframes mBorderCycle {
+  0% {
+    box-shadow:
+      0 0 0 3px rgba(0,87,184,0.9),
+      0 0 12px 6px rgba(0,87,184,0.6),
+      0 0 28px 10px rgba(0,87,184,0.3),
+      inset 0 0 0 3px rgba(0,87,184,0.5);
+  }
+  30% {
+    box-shadow:
+      0 0 0 3px rgba(0,87,184,0.9),
+      0 0 12px 6px rgba(0,87,184,0.6),
+      0 0 28px 10px rgba(0,87,184,0.3),
+      inset 0 0 0 3px rgba(0,87,184,0.5);
+  }
+  45% {
+    box-shadow:
+      0 0 0 3px rgba(111,44,167,0.9),
+      0 0 12px 6px rgba(111,44,167,0.6),
+      0 0 28px 10px rgba(111,44,167,0.3),
+      inset 0 0 0 3px rgba(111,44,167,0.5);
+  }
+  55% {
+    box-shadow:
+      0 0 0 3px rgba(111,44,167,0.9),
+      0 0 12px 6px rgba(111,44,167,0.6),
+      0 0 28px 10px rgba(111,44,167,0.3),
+      inset 0 0 0 3px rgba(111,44,167,0.5);
+  }
+  70% {
+    box-shadow:
+      0 0 0 3px rgba(200,16,46,0.9),
+      0 0 12px 6px rgba(200,16,46,0.6),
+      0 0 28px 10px rgba(200,16,46,0.3),
+      inset 0 0 0 3px rgba(200,16,46,0.5);
+  }
+  85% {
+    box-shadow:
+      0 0 0 3px rgba(200,16,46,0.9),
+      0 0 12px 6px rgba(200,16,46,0.6),
+      0 0 28px 10px rgba(200,16,46,0.3),
+      inset 0 0 0 3px rgba(200,16,46,0.5);
+  }
+  100% {
+    box-shadow:
+      0 0 0 3px rgba(0,87,184,0.9),
+      0 0 12px 6px rgba(0,87,184,0.6),
+      0 0 28px 10px rgba(0,87,184,0.3),
+      inset 0 0 0 3px rgba(0,87,184,0.5);
+  }
 }
 body.anim-none    #mPowerBorder { display: none !important; }
-body.anim-reduced #mPowerBorder { animation-duration: 6s !important; }
+body.anim-reduced #mPowerBorder { animation-duration: 10s !important; }
