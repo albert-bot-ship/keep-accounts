@@ -3157,21 +3157,18 @@ body.nf-mono .fnp-display {
   pointer-events: none;
   z-index: 9997;
   animation: mBorderBreath 3.5s ease-in-out infinite;
-  border-radius: 0;
-  /* 整圈漸層 box-shadow 模擬邊框 */
   box-shadow:
-    /* 外發光藍 */
-    0 0 0 1.5px rgba(0,87,184,0.6),
-    /* 外發光紫 */
-    0 0 4px 1px rgba(111,44,167,0.4),
-    /* 外發光紅 */
-    0 0 8px 1px rgba(200,16,46,0.3),
-    /* 內側細線 */
-    inset 0 0 0 1.5px rgba(0,87,184,0.4);
+    /* 外層粗發光 */
+    0 0 0 3px rgba(0,87,184,0.9),
+    0 0 8px 4px rgba(111,44,167,0.7),
+    0 0 16px 6px rgba(200,16,46,0.5),
+    /* 內側線 */
+    inset 0 0 0 2px rgba(0,87,184,0.7),
+    inset 0 0 8px 2px rgba(111,44,167,0.4);
 }
 @keyframes mBorderBreath {
-  0%, 100% { opacity: 0.2; }
-  50%       { opacity: 1;   }
+  0%, 100% { opacity: 0.25; }
+  50%       { opacity: 1; }
 }
 body.anim-none    #mPowerBorder { display: none !important; }
 body.anim-reduced #mPowerBorder { animation-duration: 6s !important; }
