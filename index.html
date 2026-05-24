@@ -5652,7 +5652,10 @@ function openModal(type,id,preCard,preAcc,extraId) {
         <div id="lastCatHint" style="font-size:11px;color:var(--tx-muted);margin-top:4px;display:none"></div>
       </div>
     </div>
-    <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="tDesc" value="${escAttr(txn?.desc||'')}" placeholder="e.g. 全聯購物" oninput="autoApplyRule(this.value)"></div>
+    <div class="form-group">
+      <label class="form-label" id="tDescLabel">消費內容（選填）</label>
+      <input class="form-input" id="tDesc" value="${escAttr(txn?.desc||'')}" placeholder="選填，e.g. 全聯購物" oninput="autoApplyRule(this.value)">
+    </div>
     <div class="form-group"><label class="form-label">帳戶 / 卡片</label>
       <select class="form-select" id="tSrc" onchange="onTxnSrcChange(this.value)"><option value="">請選擇</option>${srcOpts('both')}</select>
     </div>
@@ -6065,7 +6068,7 @@ function saveTxn() {
         catId=v('tCat'),srcVal=v('tSrc'),notes=v('tNotes'),
         tags=JSON.parse(v('tTagsVal')||'[]'),
         fee=+(document.getElementById('tFee')?.value)||0;
-  if(!date||!amt||!desc||!srcVal){toast('請填寫完整資訊','danger');return;}
+  if(!date||!amt||!srcVal){toast('請填寫完整資訊','danger');return;}
   const [sType,sId]=srcVal.split('_');
   const isRed = type==='redemption';
   const amount = type==='income'||isRed ? Math.abs(amt) : -Math.abs(amt);
@@ -6482,8 +6485,12 @@ function reloadTxnCats(typeVal) {
   const forType = typeVal === 'income' ? 'income' : 'expense';
   const cur = sel.value;
   sel.innerHTML = catOpts(cur, forType);
-  // 若原來選的類別不在新清單裡，自動選第一個
   if (!sel.value) sel.selectedIndex = 0;
+  // 切換 label 和 placeholder
+  const descLabel = document.getElementById('tDescLabel');
+  const descInput = document.getElementById('tDesc');
+  if (descLabel) descLabel.textContent = typeVal === 'income' ? '收入說明（選填）' : '消費內容（選填）';
+  if (descInput) descInput.placeholder = typeVal === 'income' ? '選填，e.g. 薪資匯入' : '選填，e.g. 全聯購物';
 }
 function reloadQaCats(typeVal) {
   const sel = document.getElementById('qaCat'); if (!sel) return;
