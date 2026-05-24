@@ -985,7 +985,7 @@ async function loadFromGitHub() {
       // localStorage 有資料代表有未上傳的變更，提示使用者選擇
       setTimeout(()=> showCacheRestorePrompt(cacheTs), 800);
     }
-    toast('✅ 資料已從 GitHub 載入','success');
+    // 靜默載入，不跳toast
   } catch (err) {
     console.warn('[mwallet] 載入 mwallet_backup.json 失敗:', err.message);
     // 嘗試從 localStorage 暫存恢復
@@ -3579,7 +3579,6 @@ function setFontSize(size) {
     const btn=document.getElementById('fs-'+s);
     if(btn) btn.className = 'btn btn-sm '+(s===size?'btn-primary':'btn-ghost');
   });
-  toast('字體大小已更新','success');
 }
 function initFontSize() {
   const saved = localStorage.getItem('mwallet_fontsize')||'medium';
@@ -3600,7 +3599,6 @@ function setRadius(mode) {
     const btn=document.getElementById('radius-'+m);
     if(btn) btn.className = 'btn btn-sm '+(m===mode?'btn-primary':'btn-ghost');
   });
-  toast('圓角已更新','success');
 }
 function initRadius() {
   const saved = localStorage.getItem('mwallet_radius')||'default';
@@ -3620,7 +3618,6 @@ function setAnim(mode) {
     const btn=document.getElementById('anim-'+m);
     if(btn) btn.className = 'btn btn-sm '+(m===mode?'btn-primary':'btn-ghost');
   });
-  toast('動畫強度已更新','success');
 }
 function initAnim() {
   const saved = localStorage.getItem('mwallet_anim')||'full';
@@ -3640,7 +3637,6 @@ function setBgStyle(style) {
     const btn=document.getElementById('bg-'+s);
     if(btn) btn.className = 'btn btn-sm '+(s===style?'btn-primary':'btn-ghost');
   });
-  toast('背景風格已更新','success');
 }
 function initBgStyle() {
   const saved = localStorage.getItem('mwallet_bgstyle')||'particles';
@@ -3660,7 +3656,6 @@ function setNumFont(font) {
     const btn=document.getElementById('nf-'+f);
     if(btn) btn.className = 'btn btn-sm '+(f===font?'btn-primary':'btn-ghost');
   });
-  toast('數字字型已更新','success');
 }
 function initNumFont() {
   const saved = localStorage.getItem('mwallet_numfont')||'rajdhani';
