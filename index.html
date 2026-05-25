@@ -1381,12 +1381,10 @@ function cardLayerDynamicBalance(cardId, layerId) {
 function accountBalance(id) {
   const acc = getAcc(id); if (!acc) return 0;
   const lay = (acc.layers||[]).reduce((s,l)=>s+(l.amount||0),0);
-  const tx  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===id&&!t.layerId)
+  const tx  = DB.transactions
+    .filter(t=>t.sourceType==='account'&&t.sourceId===id)
     .reduce((s,t)=>s+t.amount,0);
-  // 有指定分層的交易，其金額已算在 layerDynamicBalance，不要重複加
-  const layerTx = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===id&&t.layerId)
-    .reduce((s,t)=>s+t.amount,0);
-  return lay + tx + layerTx;
+  return lay + tx;
 }
 
 // 分層動態餘額 = 初始金額 + 所有標記此分層的交易加減
