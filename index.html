@@ -4189,14 +4189,22 @@ let _pendingFilterSource = null;
 function filterByCard(cardId) {
   _pendingFilterSource = 'card_' + cardId;
   const typeEl = document.getElementById('filterType');
+  const fromEl = document.getElementById('filterFrom');
+  const toEl   = document.getElementById('filterTo');
   if (typeEl) typeEl.value = '';
+  if (fromEl) fromEl.value = '';
+  if (toEl)   toEl.value   = '';
   navigateTo('txns');
 }
 
 function filterByAccount(accountId) {
   _pendingFilterSource = 'account_' + accountId;
   const typeEl = document.getElementById('filterType');
+  const fromEl = document.getElementById('filterFrom');
+  const toEl   = document.getElementById('filterTo');
   if (typeEl) typeEl.value = '';
+  if (fromEl) fromEl.value = '';
+  if (toEl)   toEl.value   = '';
   navigateTo('txns');
 }
 
