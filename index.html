@@ -6522,19 +6522,31 @@ function saveTxn() {
   const isMulti = document.getElementById('tMultiLayerToggle')?.checked;
   let layerId = null;
   let layerAmounts = null;
-  if (isMulti) {
-    const list = document.getElementById('tMultiLayerList');
-    if (list) {
-      const entries = [...list.querySelectorAll('input[type="checkbox"]:checked')].map(chk=>{
-        const lid = chk.id.replace('mlchk_','');
-        const a = +(document.getElementById('mlamt_'+lid)?.value)||0;
-        return {layerId: lid, amount: (isRed||type==='income') ? a : -a};
-      }).filter(e=>e.amount!==0);
-      if (entries.length>0) layerAmounts = entries;
+
+  // 薪水收入且有填分配 → 不連結分層，由 layerAllocations 負責
+  const cat = getCat(catId);
+  const isSalaryIncome = type==='income' && cat.name?.includes('薪') && sType==='account';
+  const hasSalaryAlloc = isSalaryIncome && (() => {
+    const acc = getAcc(sId);
+    return (acc?.layers||[]).some(l=>parseFloat(document.getElementById('alloc_'+l.id)?.value)||0);
+  })();
+
+  if (!hasSalaryAlloc) {
+    if (isMulti) {
+      const list = document.getElementById('tMultiLayerList');
+      if (list) {
+        const entries = [...list.querySelectorAll('input[type="checkbox"]:checked')].map(chk=>{
+          const lid = chk.id.replace('mlchk_','');
+          const a = +(document.getElementById('mlamt_'+lid)?.value)||0;
+          return {layerId: lid, amount: (isRed||type==='income') ? a : -a};
+        }).filter(e=>e.amount!==0);
+        if (entries.length>0) layerAmounts = entries;
+      }
+    } else {
+      layerId = v('tLayer')||null;
     }
-  } else {
-    layerId = v('tLayer')||null;
   }
+  // 薪水收入：layerId 和 layerAmounts 都維持 null，不連結分層
 
   const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0};
   if(modalType==='editTxn'){
@@ -6582,8 +6594,8 @@ function saveTxn() {
     }
     DB.transactions.push({id:uid(),...txnObj,isFixed:false});
     const cat=getCat(catId);
-    // 若是薪水收入，儲存薪水撥入分層記錄
-    if (type==='income' && cat.name?.includes('薪') && sType==='account') {
+    // 若是薪水收入且有填分配，儲存薪水撥入分層記錄
+    if (hasSalaryAlloc) {
       saveSalaryAllocs(date, sId);
     }
     if(cat.budget>0&&amount<0&&catMonthSpend(catId)>cat.budget) toast('⚠ 類別「'+cat.name+'」已超過本月額度！','danger');
