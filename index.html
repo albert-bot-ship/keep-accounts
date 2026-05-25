@@ -3000,18 +3000,23 @@ function setMonthlyReportDay(day) {
 function scheduleMonthlyReport() {
   if (localStorage.getItem('mwallet_monthly_report') !== 'true') return;
   if (Notification.permission !== 'granted') return;
-  const day  = parseInt(localStorage.getItem('mwallet_report_day') || '1');
-  const now  = new Date();
+  // 防止重複排程
+  clearTimeout(window._monthlyReportTimer);
+  const day = parseInt(localStorage.getItem('mwallet_report_day') || '1');
+  const now = new Date();
   let target = new Date(now.getFullYear(), now.getMonth(), day, 9, 0, 0);
-  // 若今天已過，排到下個月
   if (target <= now) target = new Date(now.getFullYear(), now.getMonth()+1, day, 9, 0, 0);
   const msUntil = target - now;
-  // 最多排 31 天
   if (msUntil > 31*24*60*60*1000) return;
-  clearTimeout(window._monthlyReportTimer);
   window._monthlyReportTimer = setTimeout(()=>{
-    sendMonthlyReport();
-    scheduleMonthlyReport(); // 排下次
+    // 確認今天是否已發過
+    const lastSent = localStorage.getItem('mwallet_last_report_date');
+    const todayStr = new Date().toISOString().slice(0,10);
+    if (lastSent !== todayStr) {
+      sendMonthlyReport();
+      localStorage.setItem('mwallet_last_report_date', todayStr);
+    }
+    scheduleMonthlyReport();
   }, msUntil);
 }
 
