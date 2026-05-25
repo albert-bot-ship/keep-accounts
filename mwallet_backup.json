@@ -1042,21 +1042,6 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
-    },
-    {
-      "id": "mplk25hb04n46",
-      "date": "2026-05-25",
-      "amount": 41953,
-      "desc": "薪資匯入",
-      "category": "mp9mrsge4di8n",
-      "sourceId": "mov4r1sf9uw5u",
-      "sourceType": "account",
-      "notes": "",
-      "isRedemption": false,
-      "layerId": null,
-      "tags": [],
-      "fee": 0,
-      "isFixed": false
     }
   ],
   "fixedExpenses": [
