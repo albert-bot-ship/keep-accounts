@@ -382,6 +382,15 @@
         <div class="chart-title">本月收支桑基圖</div>
         <div id="sankeyWrap"></div>
       </div>
+      <div class="chart-box mt-4" id="monthCompareBox">
+        <div class="chart-title" style="margin-bottom:12px">月份對比</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+          <select class="form-select" id="compareMonthA" style="flex:1" onchange="renderMonthCompare()"></select>
+          <span style="color:var(--tx-muted);font-size:13px">vs</span>
+          <select class="form-select" id="compareMonthB" style="flex:1" onchange="renderMonthCompare()"></select>
+        </div>
+        <div id="monthCompareContent"></div>
+      </div>
     </section>
 
     <!-- ─── SUBSCRIPTIONS ─────────────────────── -->
@@ -463,6 +472,20 @@
 
       <!-- ── 資料管理 Tab ── -->
       <div class="settings-tab-panel" id="spanel-data">
+
+        <!-- 通知中心 -->
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <div class="settings-section-icon" style="background:rgba(255,179,0,.12)">🔔</div>
+            <div>
+              <div class="settings-section-title">通知中心</div>
+              <div class="settings-section-desc">所有待辦提醒一覽</div>
+            </div>
+          </div>
+          <div class="settings-section-body" id="notificationCenter">
+            <div style="font-size:12px;color:var(--tx-muted);text-align:center;padding:12px">載入中...</div>
+          </div>
+        </div>
 
         <!-- 資料管理 -->
         <div class="settings-section">
@@ -3669,6 +3692,207 @@ function initNumFont() {
   setTimeout(()=>setNumFont(saved),200);
 }
 
+// ════════════════════════════════════════════════════════════════
+// 月份對比
+// ════════════════════════════════════════════════════════════════
+function initMonthCompare() {
+  const selA = document.getElementById('compareMonthA');
+  const selB = document.getElementById('compareMonthB');
+  if (!selA || !selB) return;
+  // 收集所有有交易的月份
+  const months = [...new Set(DB.transactions.map(t=>t.date.slice(0,7)))].sort().reverse();
+  const opts = months.map(m=>`<option value="${m}">${m}</option>`).join('');
+  selA.innerHTML = opts;
+  selB.innerHTML = opts;
+  // 預設A=本月 B=上月
+  const now = new Date();
+  const thisM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const lastM = `${now.getFullYear()}-${String(now.getMonth()).padStart(2,'0')}`;
+  if (months.includes(thisM)) selA.value = thisM;
+  if (months.includes(lastM)) selB.value = lastM;
+  renderMonthCompare();
+}
+
+function renderMonthCompare() {
+  const wrap = document.getElementById('monthCompareContent');
+  const selA = document.getElementById('compareMonthA');
+  const selB = document.getElementById('compareMonthB');
+  if (!wrap||!selA||!selB) return;
+  const mA = selA.value, mB = selB.value;
+  if (!mA||!mB) return;
+
+  const getTxns = m => DB.transactions.filter(t=>t.date.startsWith(m)&&!t.isTransfer&&!t.isPayment);
+  const tA = getTxns(mA), tB = getTxns(mB);
+  const expA = Math.abs(tA.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
+  const expB = Math.abs(tB.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
+  const incA = tA.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const incB = tB.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+
+  // 各類別對比
+  const getCatMap = txns => {
+    const m = {};
+    txns.filter(t=>t.amount<0).forEach(t=>{
+      const c=getCat(t.category);
+      m[c.name]=(m[c.name]||0)+Math.abs(t.amount);
+    });
+    return m;
+  };
+  const catA = getCatMap(tA), catB = getCatMap(tB);
+  const allCats = [...new Set([...Object.keys(catA),...Object.keys(catB)])];
+
+  const diffColor = (a,b) => a>b?'var(--tx-red)':a<b?'var(--tx-green)':'var(--tx-muted)';
+  const diffStr   = (a,b) => {
+    if (b===0) return '';
+    const d = Math.round((a-b)/b*100);
+    return `<span style="font-size:10px;color:${diffColor(a,b)}">${d>0?'+':''}${d}%</span>`;
+  };
+
+  wrap.innerHTML = `
+    <!-- 總覽三欄 -->
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:4px;margin-bottom:14px;align-items:center">
+      <div style="text-align:left">
+        <div style="font-size:10px;color:var(--tx-muted);margin-bottom:2px">${mA}</div>
+        <div style="font-family:var(--ff-display);font-size:16px;font-weight:700;color:var(--tx-red)">−${fmt(expA)}</div>
+        <div style="font-size:11px;color:var(--tx-green)">+${fmt(incA)}</div>
+      </div>
+      <div style="font-size:11px;color:var(--tx-muted);padding:0 8px">VS</div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:var(--tx-muted);margin-bottom:2px">${mB}</div>
+        <div style="font-family:var(--ff-display);font-size:16px;font-weight:700;color:var(--tx-red)">−${fmt(expB)}</div>
+        <div style="font-size:11px;color:var(--tx-green)">+${fmt(incB)}</div>
+      </div>
+    </div>
+    <!-- 支出差異 -->
+    <div style="text-align:center;margin-bottom:14px;padding:8px;background:var(--bg-secondary);border-radius:var(--r)">
+      <span style="font-size:12px;color:var(--tx-muted)">支出差異：</span>
+      <span style="font-family:var(--ff-display);font-size:14px;font-weight:700;color:${diffColor(expA,expB)}">
+        ${expA>=expB?'+':''}${fmt(expA-expB)} ${diffStr(expA,expB)}
+      </span>
+    </div>
+    <!-- 各類別對比 -->
+    <div style="font-size:10px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:8px">類別對比</div>
+    ${allCats.sort((a,b)=>((catA[b]||0)+(catB[b]||0))-((catA[a]||0)+(catB[a]||0))).map(cat=>{
+      const vA=catA[cat]||0, vB=catB[cat]||0;
+      const max=Math.max(vA,vB,1);
+      return `<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+          <span style="color:var(--tx-secondary)">${escHtml(cat)}</span>
+          <span>${diffStr(vA,vB)}</span>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center">
+          <span style="font-size:10px;color:var(--tx-red);width:70px;text-align:right">${vA>0?fmt(vA):''}</span>
+          <div style="flex:1;position:relative;height:6px;background:var(--bg-secondary);border-radius:3px">
+            <div style="position:absolute;left:0;top:0;height:100%;border-radius:3px;background:rgba(0,87,184,.6);width:${Math.round(vA/max*100)}%"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center;margin-top:2px">
+          <span style="font-size:10px;color:var(--tx-muted);width:70px;text-align:right">${vB>0?fmt(vB):''}</span>
+          <div style="flex:1;position:relative;height:6px;background:var(--bg-secondary);border-radius:3px">
+            <div style="position:absolute;left:0;top:0;height:100%;border-radius:3px;background:rgba(111,44,167,.5);width:${Math.round(vB/max*100)}%"></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// 通知中心
+// ════════════════════════════════════════════════════════════════
+function renderNotificationCenter() {
+  const wrap = document.getElementById('notificationCenter');
+  if (!wrap) return;
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0,10);
+  const items = [];
+
+  // 信用卡繳款到期
+  DB.creditCards.forEach(c=>{
+    const d = daysUntilDue(c);
+    if (d!==null && d<=7 && d>=0) {
+      const urgency = d<=2 ? '🔴' : d<=5 ? '🟡' : '🟢';
+      items.push({
+        icon: urgency,
+        title: `${c.name} 繳款`,
+        desc: d===0 ? '今日到期！' : `${d} 天後到期`,
+        urgent: d<=2
+      });
+    }
+  });
+
+  // 固定消費即將扣款
+  DB.fixedExpenses.forEach(fe=>{
+    const day = fe.dueDay;
+    if (!day) return;
+    const target = new Date(now.getFullYear(), now.getMonth(), day);
+    if (target < now) target.setMonth(target.getMonth()+1);
+    const diff = Math.ceil((target-now)/86400000);
+    if (diff<=3 && diff>=0) {
+      items.push({
+        icon: '📅',
+        title: `${fe.name} 扣款`,
+        desc: diff===0 ? '今日扣款' : `${diff} 天後扣款`,
+        urgent: diff===0
+      });
+    }
+  });
+
+  // 備份提醒
+  const lastBackup = localStorage.getItem('mwallet_last_backup');
+  if (lastBackup) {
+    const daysSince = Math.floor((now-new Date(lastBackup))/86400000);
+    const reminderDays = parseInt(localStorage.getItem('mwallet_backup_days')||'7');
+    if (daysSince >= reminderDays) {
+      items.push({
+        icon: '💾',
+        title: '備份提醒',
+        desc: `已 ${daysSince} 天未備份`,
+        urgent: daysSince > reminderDays*2
+      });
+    }
+  }
+
+  // 儲存空間
+  const pct = parseInt(localStorage.getItem('mwallet_storage_pct')||'0');
+  if (pct >= 80) {
+    items.push({
+      icon: '📦',
+      title: '儲存空間',
+      desc: `已使用 ${pct}%，建議清理`,
+      urgent: pct>=90
+    });
+  }
+
+  if (items.length === 0) {
+    wrap.innerHTML = `<div style="text-align:center;padding:16px;font-size:12px;color:var(--tx-muted)">✅ 目前沒有待辦提醒</div>`;
+    return;
+  }
+
+  wrap.innerHTML = items.map(item=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bdr-subtle)">
+      <div style="font-size:18px;flex-shrink:0">${item.icon}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:${item.urgent?'var(--tx-red)':'var(--tx-primary)'}">${escHtml(item.title)}</div>
+        <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${escHtml(item.desc)}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// 消費記錄標記
+// ════════════════════════════════════════════════════════════════
+const TXN_MARKS = {
+  good:     { emoji:'👍', label:'值得',   color:'var(--tx-green)' },
+  impulse:  { emoji:'😅', label:'衝動消費', color:'var(--warn)' },
+  necessary:{ emoji:'✅', label:'必要支出', color:'var(--tx-blue)' },
+};
+function setTxnMark(txnId, mark) {
+  const t = DB.transactions.find(t=>t.id===txnId);
+  if (!t) return;
+  t.mark = t.mark===mark ? null : mark; // 再點一次取消
+  saveDB();
+  renderTxns();
+}
+
 function toggleTxnFilter() {
   const panel = document.getElementById('txnFilterPanel');
   const btn = document.getElementById('filterToggleBtn');
@@ -4631,7 +4855,7 @@ function txnTable(txns, withActions) {
     return `${groupHdr}<div class="txn-card-mobile" ${rowClick}>
       <div class="txn-card-top">
         ${chkBox}
-        <div class="txn-card-desc">${escHtml(t.desc)}</div>
+        <div class="txn-card-desc">${escHtml(t.desc||'（未填）')}</div>
         <div class="txn-card-amount ${amtCls}">${sign}${fmt(Math.abs(t.amount))}</div>
         ${actBtns}
       </div>
@@ -4641,9 +4865,17 @@ function txnTable(txns, withActions) {
         <span class="txn-card-source">${sourceName(t)}</span>
         <span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55;font-size:10px">${cat.name}</span>
         <span class="txn-card-tags">${sysTags}${mlBadge}${feeBadge}${userTagBadges}</span>
+        ${t.mark && TXN_MARKS[t.mark] ? `<span title="${TXN_MARKS[t.mark].label}" style="font-size:13px;cursor:pointer" onclick="event.stopPropagation();setTxnMark('${t.id}',null)">${TXN_MARKS[t.mark].emoji}</span>` : ''}
       </div>
       ${t.notes?`<div class="txn-card-notes">${escHtml(t.notes)}</div>`:''}
       ${mlDetail}
+      ${!batchMode&&withActions?`<div style="display:flex;gap:6px;padding:6px 0 2px;border-top:1px solid var(--bdr-subtle);margin-top:6px">
+        ${Object.entries(TXN_MARKS).map(([k,v])=>`
+          <button onclick="event.stopPropagation();setTxnMark('${t.id}','${k}')"
+            style="flex:1;padding:3px;border:1px solid ${t.mark===k?v.color:'var(--bdr-subtle)'};border-radius:6px;background:${t.mark===k?v.color+'22':'transparent'};font-size:12px;cursor:pointer;color:${v.color}">
+            ${v.emoji} ${v.label}
+          </button>`).join('')}
+      </div>`:''}
     </div>`;
   }).join('');
   const mobileTotal = `<div style="padding:10px 14px;border-top:1px solid var(--bdr-subtle);display:flex;justify-content:space-between;font-size:12px;color:var(--tx-muted)">
@@ -5186,6 +5418,7 @@ function renderAnalytics() {
     <div style="font-size:10px;color:var(--tx-muted);margin-top:10px;text-align:right">顏色越深代表消費金額越高　年度：${year}</div>`;
   renderHeatmap(year);
   renderSankey();
+  initMonthCompare();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -5194,6 +5427,9 @@ function renderAnalytics() {
 function renderSettings() {
   const wrap = document.getElementById('catList');
   if (!DB.categories.length) { wrap.innerHTML=emptyState('🏷','尚無類別'); return; }
+
+  // 通知中心
+  setTimeout(renderNotificationCenter, 100);
 
   // 通知權限按鈕狀態
   setTimeout(()=>{
