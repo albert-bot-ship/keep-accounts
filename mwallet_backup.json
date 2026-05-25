@@ -1053,7 +1053,7 @@
       "sourceType": "account",
       "notes": "",
       "isRedemption": false,
-      "layerId": "mowt3b5ret5t3",
+      "layerId": null,
       "tags": [],
       "fee": 0,
       "isFixed": false
