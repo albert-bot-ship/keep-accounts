@@ -1334,6 +1334,92 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mpkp4cd52uv00",
+      "date": "2026-05-25",
+      "amount": -1000,
+      "desc": "轉帳 → Line Bank",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "mpkp4cd5j999h",
+      "transferPairTxnId": "mpkp4cd54uylr"
+    },
+    {
+      "id": "mpkp4cd54uylr",
+      "date": "2026-05-25",
+      "amount": 1000,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov76o8qoesbi",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null,
+      "transferPairId": "mpkp4cd5j999h",
+      "transferPairTxnId": "mpkp4cd52uv00"
+    },
+    {
+      "id": "mpkp53ej2riqp",
+      "date": "2026-05-25",
+      "amount": -300,
+      "desc": "轉帳 → Line Pay",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov76o8qoesbi",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null,
+      "transferPairId": "mpkp53ejs426k",
+      "transferPairTxnId": "mpkp53ej4lsnf"
+    },
+    {
+      "id": "mpkp53ej4lsnf",
+      "date": "2026-05-25",
+      "amount": 300,
+      "desc": "轉入 ← Line Bank",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov77cse8fhx0",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mov8xjzx4jqk4",
+      "transferPairId": "mpkp53ejs426k",
+      "transferPairTxnId": "mpkp53ej2riqp"
+    },
+    {
+      "id": "mpkp5ph6vcur3",
+      "date": "2026-05-25",
+      "amount": -195,
+      "desc": "全家",
+      "category": "mov4018zwuesg",
+      "sourceId": "mov77cse8fhx0",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mov8xjzx4jqk4",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
+    },
+    {
+      "id": "mpkpdkoz2waer",
+      "date": "2026-05-25",
+      "amount": -704,
+      "desc": "",
+      "category": "mpkpd5uhst1z2",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt3b5ret5t3",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [
@@ -1550,6 +1636,17 @@
       "name": "其他",
       "color": "#7f8c8d",
       "budget": 0
+    },
+    {
+      "id": "mpkpd5uhst1z2",
+      "name": "電話網路",
+      "budget": 0,
+      "color": "#0057B8",
+      "icon": "",
+      "emoji": "",
+      "forType": "expense",
+      "budgetStartDay": 8,
+      "budgetEndDay": 5
     }
   ],
   "userTags": [
