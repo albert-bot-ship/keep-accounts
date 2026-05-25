@@ -3369,96 +3369,72 @@ function renderSankey() {
   const txns  = DB.transactions.filter(t=>ym(t.date)===curYM&&!t.isTransfer&&!t.isPayment);
   const income  = txns.filter(t=>t.amount>0);
   const expense = txns.filter(t=>t.amount<0);
-  if (!income.length && !expense.length) { wrap.innerHTML='<div style="color:var(--tx-muted);text-align:center;padding:20px;font-size:12px">本月尚無收支記錄</div>'; return; }
+  if (!income.length && !expense.length) {
+    wrap.innerHTML='<div style="color:var(--tx-muted);text-align:center;padding:20px;font-size:12px">本月尚無收支記錄</div>';
+    return;
+  }
 
   const totalIn  = income.reduce((s,t)=>s+t.amount,0);
   const totalOut = Math.abs(expense.reduce((s,t)=>s+t.amount,0));
+  const totalMax = Math.max(totalIn,totalOut)||1;
 
   // 收入按帳戶彙總
   const inMap = {};
   income.forEach(t=>{ const n=sourceName(t); inMap[n]=(inMap[n]||0)+t.amount; });
+  const inItems = Object.entries(inMap).sort((a,b)=>b[1]-a[1]);
+
   // 支出按類別彙總
   const outMap = {};
   expense.forEach(t=>{ const cat=getCat(t.category); outMap[cat.name]=(outMap[cat.name]||0)+Math.abs(t.amount); });
-
-  const inItems  = Object.entries(inMap).sort((a,b)=>b[1]-a[1]);
   const outItems = Object.entries(outMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
-  const W=Math.max(320, Math.min(wrap.offsetWidth||360,600)), H=Math.max(200,Math.max(inItems.length,outItems.length)*36+80);
-  const canvas = document.createElement('canvas');
-  canvas.width=W; canvas.height=H; canvas.id='sankeyCanvas';
-  canvas.style.cssText=`width:100%;max-width:${W}px`;
-  wrap.innerHTML=''; wrap.appendChild(canvas);
-  const ctx=canvas.getContext('2d');
+  const inColors  = ['#0057B8','#6F2CA7','#00897B','#C07A00','#AD1457','#0288D1','#558B2F','#6D4C41'];
+  const outColors = ['#C8102E','#E65100','#F57F17','#558B2F','#0277BD','#7B1FA2','#00838F','#4E342E'];
 
-  const COL_W=12, MID=W/2, LEFT=80, RIGHT=W-80, NODE_H=24, GAP=8;
-  const isDark=!document.getElementById('appBody').classList.contains('light-theme');
-  const textColor=isDark?'rgba(255,255,255,.75)':'rgba(0,0,0,.7)';
-  const totalMax=Math.max(totalIn,totalOut)||1;
+  const mkBar = (name, amt, color, align) => {
+    const pct = Math.max(8, Math.round(amt/totalMax*100));
+    const isLeft = align==='left';
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:${isLeft?'flex-start':'flex-end'};gap:6px;margin-bottom:3px">
+        ${isLeft
+          ? `<div style="width:12px;height:12px;border-radius:3px;background:${color};flex-shrink:0"></div>
+             <span style="font-size:12px;color:var(--tx-primary);font-weight:600">${escHtml(name)}</span>
+             <span style="font-size:11px;color:${color};font-family:var(--ff-display);font-weight:700">+${fmt(amt)}</span>`
+          : `<span style="font-size:11px;color:${color};font-family:var(--ff-display);font-weight:700">−${fmt(amt)}</span>
+             <span style="font-size:12px;color:var(--tx-primary);font-weight:600">${escHtml(name)}</span>
+             <div style="width:12px;height:12px;border-radius:3px;background:${color};flex-shrink:0"></div>`}
+      </div>
+      <div style="height:8px;background:var(--bg-secondary);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;
+          ${isLeft?'margin-left:0':'margin-left:auto'};transition:width .6s ease;opacity:.85"></div>
+      </div>
+    </div>`;
+  };
 
-  // 繪製左側收入節點
-  let leftY=40;
-  const leftNodes=inItems.map(([name,amt])=>{
-    const h=Math.max(NODE_H, Math.round(amt/totalMax*(H-80)));
-    const node={name,amt,x:LEFT-COL_W,y:leftY,h};
-    leftY+=h+GAP;
-    return node;
-  });
-  // 繪製右側支出節點
-  let rightY=40;
-  const rightNodes=outItems.map(([name,amt])=>{
-    const h=Math.max(NODE_H, Math.round(amt/totalMax*(H-80)));
-    const node={name,amt,x:RIGHT,y:rightY,h};
-    rightY+=h+GAP;
-    return node;
-  });
-
-  const inColors=['#0057B8','#6F2CA7','#00897B','#C07A00','#AD1457','#0288D1','#558B2F','#6D4C41'];
-  const outColors=['#C8102E','#E65100','#F57F17','#558B2F','#0277BD','#7B1FA2','#00838F','#4E342E'];
-
-  // 流動帶
-  leftNodes.forEach((ln,li)=>{
-    let lFill=ln.y;
-    rightNodes.forEach((rn,ri)=>{
-      const flow=Math.min(ln.amt,rn.amt)/totalMax;
-      const fh=Math.max(1,Math.round(flow*(H-80)*0.6));
-      const grad=ctx.createLinearGradient(LEFT,0,RIGHT,0);
-      grad.addColorStop(0,inColors[li%inColors.length]+'99');
-      grad.addColorStop(1,outColors[ri%outColors.length]+'99');
-      ctx.beginPath();
-      ctx.moveTo(LEFT,lFill);
-      ctx.bezierCurveTo(MID,lFill,MID,rn.y,RIGHT,rn.y);
-      ctx.bezierCurveTo(MID,rn.y+fh,MID,lFill+fh,LEFT,lFill+fh);
-      ctx.closePath();
-      ctx.fillStyle=grad;
-      ctx.fill();
-      lFill+=fh;
-    });
-  });
-
-  // 節點
-  leftNodes.forEach((n,i)=>{
-    ctx.fillStyle=inColors[i%inColors.length];
-    ctx.beginPath(); ctx.roundRect(n.x,n.y,COL_W,n.h,3); ctx.fill();
-    ctx.fillStyle=textColor; ctx.font='11px system-ui';
-    ctx.textAlign='right'; ctx.fillText(n.name.slice(0,8),n.x-4,n.y+n.h/2+4);
-    ctx.textAlign='right'; ctx.fillStyle=inColors[i%inColors.length];
-    ctx.font='bold 10px system-ui';
-    ctx.fillText('+'+fmt(n.amt),n.x-4,n.y+n.h/2-4);
-  });
-  rightNodes.forEach((n,i)=>{
-    ctx.fillStyle=outColors[i%outColors.length];
-    ctx.beginPath(); ctx.roundRect(n.x,n.y,COL_W,n.h,3); ctx.fill();
-    ctx.fillStyle=textColor; ctx.font='11px system-ui';
-    ctx.textAlign='left'; ctx.fillText(n.name.slice(0,6),n.x+COL_W+4,n.y+n.h/2+4);
-    ctx.fillStyle=outColors[i%outColors.length];
-    ctx.font='bold 10px system-ui';
-    ctx.fillText('-'+fmt(n.amt),n.x+COL_W+4,n.y+n.h/2-4);
-  });
-
-  // 標題
-  ctx.fillStyle=textColor; ctx.font='bold 12px system-ui'; ctx.textAlign='center';
-  ctx.fillText('收入',LEFT,20); ctx.fillText('支出',RIGHT+COL_W,20);
+  wrap.innerHTML = `
+    <!-- 總覽 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:10px 14px;background:var(--bg-secondary);border-radius:var(--r)">
+      <div>
+        <div style="font-size:9px;color:var(--tx-muted);letter-spacing:1px;margin-bottom:2px">本月收入</div>
+        <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:var(--tx-green)">+${fmt(totalIn)}</div>
+      </div>
+      <div style="font-size:20px;color:var(--tx-muted)">→</div>
+      <div style="text-align:right">
+        <div style="font-size:9px;color:var(--tx-muted);letter-spacing:1px;margin-bottom:2px">本月支出</div>
+        <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:var(--tx-red)">−${fmt(totalOut)}</div>
+      </div>
+    </div>
+    <!-- 兩欄對比 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:10px">收入來源</div>
+        ${inItems.map(([name,amt],i)=>mkBar(name,amt,inColors[i%inColors.length],'left')).join('')}
+      </div>
+      <div>
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:10px">支出類別</div>
+        ${outItems.map(([name,amt],i)=>mkBar(name,amt,outColors[i%outColors.length],'right')).join('')}
+      </div>
+    </div>`;
 }
 
 // ════════════════════════════════════════════════════════════════
