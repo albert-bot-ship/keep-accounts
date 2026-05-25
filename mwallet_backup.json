@@ -1043,6 +1043,19 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "prev_balance_adj",
+      "date": "2026-04-30",
+      "amount": 1704,
+      "desc": "上期結餘",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "tags": [],
+      "isTransfer": false,
+      "isPayment": false
     }
   ],
   "fixedExpenses": [
