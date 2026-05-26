@@ -1430,9 +1430,9 @@ function accountBalance(id) {
 function layerDynamicBalance(accId, layerId) {
   const acc   = getAcc(accId); if (!acc) return 0;
   const layer = (acc.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
-  // 單分層交易
+  // 單分層交易（限定同帳戶，避免信用卡同名 layerId 干擾）
   const txSum = DB.transactions
-    .filter(t=>t.layerId===layerId)
+    .filter(t=>t.layerId===layerId && t.sourceType==='account' && t.sourceId===accId)
     .reduce((s,t)=>s+t.amount, 0);
   // 多分層交易（layerAmounts）
   const mlSum = DB.transactions
