@@ -4653,7 +4653,8 @@ function renderAccounts() {
       const lChange = dynBal - (l.amount||0); // 累積增減
       const lSpend  = DB.transactions.filter(t=>t.layerId===l.id&&t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0);
       const lIncome = DB.transactions.filter(t=>t.layerId===l.id&&t.amount>0).reduce((s,t)=>s+t.amount,0);
-      const dynCls  = dynBal < 0 ? 'color:var(--tx-red)' : 'color:var(--m-blue)';
+      const dynColor = dynBal < 0 ? 'var(--tx-red)' : 'var(--m-blue)';
+      const dynCls   = `color:${dynColor};-webkit-text-fill-color:${dynColor};font-weight:700`;
       return `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||a.color}"></div>
         <div style="flex:1;min-width:0">
@@ -4665,7 +4666,7 @@ function renderAccounts() {
           </div>
         </div>
         <div style="text-align:right">
-          <span class="layer-amt" style="${dynCls};font-weight:700">${a.accType==='外幣'&&a.currency?fmtFX(dynBal,a.currency):fmt(dynBal)}</span>
+          <span class="layer-amt" style="${dynCls}">${a.accType==='外幣'&&a.currency?fmtFX(dynBal,a.currency):fmt(dynBal)}</span>
           ${(()=>{
             if (a.accType!=='外幣'||!a.currency) return '';
             const rate = getRateTWD(a.currency);
