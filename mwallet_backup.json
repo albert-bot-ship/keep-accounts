@@ -1087,6 +1087,62 @@
       "tags": [],
       "fee": 1,
       "isFixed": false
+    },
+    {
+      "id": "mpm56te7casyc",
+      "date": "2026-05-26",
+      "amount": -5000,
+      "desc": "轉帳 → 國泰子帳戶",
+      "category": "mpkx8dqi0qkp5",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "mpm56te72chla",
+      "transferPairTxnId": "mpm56te7yqe4b"
+    },
+    {
+      "id": "mpm56te7yqe4b",
+      "date": "2026-05-26",
+      "amount": 5000,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mpkx8dqi0qkp5",
+      "sourceId": "mov4sadxpcepw",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt9nf0j6och",
+      "transferPairId": "mpm56te72chla",
+      "transferPairTxnId": "mpm56te7casyc"
+    },
+    {
+      "id": "mpm577e9xghxt",
+      "date": "2026-05-26",
+      "amount": -2500,
+      "desc": "轉帳 → 郵局",
+      "category": "mpkx8dqi0qkp5",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "mpm577e9l5l1a",
+      "transferPairTxnId": "mpm577e9lvro1"
+    },
+    {
+      "id": "mpm577e9lvro1",
+      "date": "2026-05-26",
+      "amount": 2500,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mpkx8dqi0qkp5",
+      "sourceId": "mov74st8ti4ry",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowtfdp3hzho9",
+      "transferPairId": "mpm577e9l5l1a",
+      "transferPairTxnId": "mpm577e9xghxt"
     }
   ],
   "fixedExpenses": [
