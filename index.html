@@ -4473,10 +4473,11 @@ function renderCards() {
     // ── 各分層獨立計算未還款 ──────────────────────────────────
     // 分期分層：用 layer.amount（手動設定值）
     const monthlyFixedTotal = layerDataArr.filter(d=>d.isMonthlyFixed).reduce((s,d)=>s+d.layerAmt,0);
-    // 頂部總未還款 = cardBalance（全部消費 − 全部繳款），最準確
-    const netOutstanding = Math.max(0, -cardBalance(c.id));
-    // 一般分層的剩餘 = 總未還款 − 分期合計
-    const netForNormal = Math.max(0, netOutstanding - monthlyFixedTotal);
+    // 頂部總未還款 = 交易記錄未還款 + 分期分層金額
+    const txOutstanding = Math.max(0, -cardBalance(c.id));
+    const netOutstanding = txOutstanding + monthlyFixedTotal;
+    // 一般分層的剩餘 = 交易記錄未還款（分期已獨立計算，不重複扣）
+    const netForNormal = txOutstanding;
 
     // 一般分層歷史消費比例（用於多分層時的比例分配）
     const normalLayers = layerDataArr.filter(d=>!d.isMonthlyFixed);
