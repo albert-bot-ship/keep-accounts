@@ -4856,12 +4856,14 @@ function renderAccounts() {
       <div class="account-card-footer">
         <button class="btn btn-sm btn-primary" onclick="openModal('addLayer','${a.id}')">＋ 分層</button>
         ${a.accType==='證券'
-          ? `<button class="btn btn-sm btn-violet" onclick="nav(document.querySelector('[data-page=invest]'),'invest')">📈 買入/賣出</button>`
+          ? `<button class="btn btn-sm btn-ghost" onclick="fetchStockPrices().then(()=>{renderAccounts();renderInvest();})" title="更新持股市值">🔄 更新市值</button>
+             <button class="btn btn-sm btn-violet" onclick="nav(document.querySelector('[data-page=invest]'),'invest')">📈 買入/賣出</button>
+             <button class="btn btn-sm btn-ghost" onclick="nav(document.querySelector('[data-page=invest]'),'invest')">📋 明細</button>`
           : `<button class="btn btn-sm btn-ghost" onclick="openModal('addTxn',null,null,'${a.id}')">＋ 記帳</button>
-        <button class="btn btn-sm btn-violet" onclick="openModal('transfer','${a.id}')">🔄 轉帳</button>`}
-        <button class="btn btn-sm btn-ghost" onclick="filterByAccount('${a.id}')">📋 明細</button>
+             <button class="btn btn-sm btn-violet" onclick="openModal('transfer','${a.id}')">🔄 轉帳</button>
+             <button class="btn btn-sm btn-ghost" onclick="filterByAccount('${a.id}')">📋 明細</button>`}
       </div>
-      <div class="card-tap-hint">點擊卡片查看消費明細 ›</div>
+      <div class="card-tap-hint">${a.accType==='證券'?'點擊卡片前往投資持股 ›':'點擊卡片查看消費明細 ›'}</div>
     </div>`;
   }).join('');
   html += `<div class="add-card-btn" onclick="openModal('addAccount')"><div class="add-card-icon">＋</div><div class="add-card-label">新增銀行帳戶</div></div>`;
