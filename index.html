@@ -4837,6 +4837,7 @@ function renderAccounts() {
         })()}
         ${isLow?`<div style="font-size:11px;color:var(--warn);margin-top:4px">⚠ 低於最低餘額警示 ${fmt(a.minBalance)}</div>`:''}
         ${salaryDynamic!==null?`<div style="font-size:11px;color:var(--tx-secondary);margin-top:6px">薪水剩餘生活費：<span style="color:${salaryDynamic<0?'var(--tx-red)':'var(--tx-green)'};font-weight:700">${fmt(salaryDynamic)}</span></div>`:''}
+        ${a.accType==='證券'?`<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;margin-bottom:4px;font-size:12px;border:1px solid var(--bdr-normal)" onclick="event.stopPropagation();fetchStockPrices().then(()=>{renderAccounts();renderInvest();toast('✅ 市值已更新','success')})">🔄 更新持股市值</button>`:''}
         <div style="display:flex;gap:0;margin-top:8px;background:var(--bg-secondary);border-radius:var(--r);overflow:hidden">
           <div style="flex:1;padding:7px 10px;text-align:center;border-right:1px solid var(--bdr-subtle)">
             <div style="font-size:9px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:2px">本月流出</div>
@@ -4856,8 +4857,7 @@ function renderAccounts() {
       <div class="account-card-footer">
         <button class="btn btn-sm btn-primary" onclick="openModal('addLayer','${a.id}')">＋ 分層</button>
         ${a.accType==='證券'
-          ? `<button class="btn btn-sm btn-ghost" onclick="fetchStockPrices().then(()=>{renderAccounts();renderInvest();})" title="更新持股市值">🔄 更新市值</button>
-             <button class="btn btn-sm btn-violet" onclick="nav(document.querySelector('[data-page=invest]'),'invest')">📈 買入/賣出</button>
+          ? `<button class="btn btn-sm btn-violet" onclick="nav(document.querySelector('[data-page=invest]'),'invest')">📈 買入/賣出</button>
              <button class="btn btn-sm btn-ghost" onclick="nav(document.querySelector('[data-page=invest]'),'invest')">📋 明細</button>`
           : `<button class="btn btn-sm btn-ghost" onclick="openModal('addTxn',null,null,'${a.id}')">＋ 記帳</button>
              <button class="btn btn-sm btn-violet" onclick="openModal('transfer','${a.id}')">🔄 轉帳</button>
@@ -8199,7 +8199,7 @@ function setupViewportFix() {
 let stockPrices={};
 const STOCK_CACHE_KEY='mwallet_stocks', STOCK_CACHE_TTL=5*60*1000;
 async function fetchStockPrices() {
-  const symbols=[...new Set(DB.bankAccounts.filter(a=>a.accType==='證券').flatMap(a=>(a.holdings||[]).map(h=>h.symbol)).filter(Boolean))];
+  const symbols=[...new Set((DB.stockTrades||[]).map(t=>t.symbol.toUpperCase()).filter(Boolean))];
   if(!symbols.length) return;
   try {
     const c=JSON.parse(localStorage.getItem(STOCK_CACHE_KEY)||'{}');
@@ -8229,7 +8229,7 @@ async function fetchSingleStock(symbol) {
 function renderStockHoldings(acc) {
   if(acc.accType!=='證券') return '';
   const holdings=acc.holdings||[];
-  if(!holdings.length) return '<div style="font-size:12px;color:var(--tx-muted);margin-top:8px">尚無持股記錄，點✏️編輯新增持股</div>';
+  if(!holdings.length) return '';
   const rows=holdings.map(h=>{
     const sp=stockPrices[h.symbol?.toUpperCase()];
     const costTotal=h.totalCost||0;
