@@ -310,7 +310,7 @@
         <!-- 浮動批量操作列 -->
         <div id="batchActionBar" style="display:none;position:sticky;bottom:0;z-index:200;
           background:var(--bg-primary);border-top:2px solid var(--m-blue);
-          padding:10px 16px;align-items:center;gap:8px;flex-wrap:wrap;
+          padding:10px 16px;display:none;align-items:center;gap:8px;flex-wrap:wrap;
           box-shadow:0 -4px 20px rgba(0,0,0,.3)">
           <div class="batch-row-1">
             <input type="checkbox" id="chkAll" onchange="toggleAllChk(this)" style="width:16px;height:16px;cursor:pointer">
@@ -824,6 +824,35 @@
             <div id="ruleList"></div>
           </div>
         </div>
+
+        <!-- ══ 重置記帳資料（獨立危險區）══ -->
+        <div class="settings-section" style="border:2px solid #ff2d55;border-radius:var(--r-lg);background:linear-gradient(135deg,rgba(255,45,85,.08),rgba(200,16,46,.04));margin-top:8px">
+          <div class="settings-section-header" style="border-bottom:1px solid rgba(255,45,85,.25)">
+            <div class="settings-section-icon" style="background:rgba(255,45,85,.18);font-size:20px">⚠️</div>
+            <div style="flex:1">
+              <div class="settings-section-title" style="color:#ff2d55;font-size:15px;letter-spacing:1px">重置記帳資料</div>
+              <div class="settings-section-desc" style="color:rgba(255,45,85,.8)">清除所有交易記錄與初始金額，保留帳戶卡片架構</div>
+            </div>
+          </div>
+          <div class="settings-section-body">
+            <div style="background:rgba(255,45,85,.07);border:1px solid rgba(255,45,85,.2);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
+              <div style="font-size:12px;color:#ff2d55;font-weight:600;margin-bottom:6px">⚠ 此操作將清除以下資料，無法復原：</div>
+              <div style="font-size:11px;color:var(--tx-secondary);display:flex;flex-direction:column;gap:4px">
+                <span>• 所有消費 / 收入 / 轉帳記錄</span>
+                <span>• 信用卡與銀行帳戶所有分層初始金額</span>
+                <span>• 信用卡分層每月分期金額（monthlyAmt）</span>
+                <span>• 固定消費已生成記錄</span>
+                <span>• 薪水撥入記錄</span>
+              </div>
+              <div style="font-size:11px;color:var(--tx-muted);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,45,85,.15)">✅ 保留：卡片、帳戶、分層架構、類別、固定消費設定、訂閱、規則、外觀設定</div>
+            </div>
+            <button class="btn btn-sm" onclick="resetDataStep1()"
+              style="width:100%;background:linear-gradient(135deg,#ff2d55,#c8102e);color:#fff;font-size:14px;font-weight:700;padding:13px;border-radius:var(--r);border:none;letter-spacing:1.5px;box-shadow:0 4px 18px rgba(255,45,85,.45);cursor:pointer">
+              🔄 開始重置記帳資料
+            </button>
+          </div>
+        </div>
+
       </div>
 
     </section>
@@ -3272,6 +3301,9 @@ function renderPeriodCountdown() {
 
   const { from, to } = getSalaryCycle();
   const now      = new Date();
+  const toReal   = new Date(now.getFullYear(), now.getMonth(), now.getDate() >= 25
+    ? now.getMonth() === 11 ? 24 : 24
+    : 24);
   // 計算本期結束日
   const endDate  = now.getDate() >= 25
     ? new Date(now.getMonth() === 11 ? now.getFullYear()+1 : now.getFullYear(),
@@ -3692,8 +3724,7 @@ function initMonthCompare() {
   // 預設A=本月 B=上月
   const now = new Date();
   const thisM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const lastDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
-  const lastM = `${lastDate.getFullYear()}-${String(lastDate.getMonth()+1).padStart(2,'0')}`;
+  const lastM = `${now.getFullYear()}-${String(now.getMonth()).padStart(2,'0')}`;
   if (months.includes(thisM)) selA.value = thisM;
   if (months.includes(lastM)) selB.value = lastM;
   renderMonthCompare();
@@ -5393,7 +5424,9 @@ function renderFixed() {
       const cat=getCat(fe.category);
       const src=fe.sourceType==='card'?getCard(fe.sourceId):getAcc(fe.sourceId);
       const layers=fe.layers||[];
-      const nowDayNum = new Date().getDate();
+      const nowDay = new Date().getDate();
+      const nowDayNum = nowDay;
+      const daysLeft = fe.day >= nowDayNum ? fe.day - nowDayNum : (new Date(new Date().getFullYear(), new Date().getMonth()+1, fe.day) - new Date()) / 86400000;
       const daysLeftInt = Math.ceil(fe.day >= nowDayNum ? fe.day - nowDayNum : (new Date(new Date().getFullYear(), new Date().getMonth()+1, fe.day) - new Date(new Date().setHours(0,0,0,0))) / 86400000);
       const countdownCls = daysLeftInt<=0?'a-over':daysLeftInt<=3?'a-neg':daysLeftInt<=7?'badge-warn':'badge-gray';
       const countdownTxt = daysLeftInt<=0?'今日扣款':daysLeftInt+'天後扣款';
@@ -6936,8 +6969,91 @@ function toast(msg,type) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// INIT
+// 重置記帳資料
 // ════════════════════════════════════════════════════════════════
+function resetDataStep1() {
+  // 第一層彈窗：警告 + 建議備份
+  openModal('_resetStep1');
+  document.getElementById('modalTitle').innerHTML =
+    '<span style="color:#ff2d55;font-size:16px;letter-spacing:1px">⚠️ 重置記帳資料</span>';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="background:rgba(255,45,85,.08);border:1px solid rgba(255,45,85,.3);border-radius:var(--r);padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:13px;color:#ff2d55;font-weight:700;margin-bottom:8px">此操作將永久清除所有交易記錄與初始金額</div>
+      <div style="font-size:12px;color:var(--tx-secondary);line-height:1.8">
+        • 所有消費 / 收入 / 轉帳記錄<br>
+        • 所有分層初始金額與分期金額<br>
+        • 固定消費已生成記錄<br>
+        • 薪水撥入記錄
+      </div>
+    </div>
+    <div style="font-size:13px;color:var(--tx-primary);margin-bottom:12px;font-weight:600">建議先匯出備份，確保資料安全。</div>
+    <button class="btn btn-ghost btn-sm" onclick="exportData()" style="width:100%;margin-bottom:8px;border:1px solid var(--bdr-normal)">
+      📤 先匯出 JSON 備份
+    </button>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">取消，我再想想</button>
+    <button class="btn btn-sm" onclick="resetDataStep2()"
+      style="background:linear-gradient(135deg,#ff2d55,#c8102e);color:#fff;font-weight:700;border:none;padding:8px 18px;border-radius:var(--r);cursor:pointer">
+      我已備份，繼續 →
+    </button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function resetDataStep2() {
+  // 第二層彈窗：輸入今日日期確認
+  const now = new Date();
+  const ymd = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  document.getElementById('modalTitle').innerHTML =
+    '<span style="color:#ff2d55;font-size:16px;letter-spacing:1px">⚠️ 最終確認</span>';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;color:var(--tx-primary);margin-bottom:14px;line-height:1.8">
+      請輸入<strong style="color:#ff2d55">今天的日期</strong>確認執行重置：<br>
+      <span style="font-size:11px;color:var(--tx-muted)">格式：YYYYMMDD，例如 ${ymd}</span>
+    </div>
+    <input class="form-input" id="resetDateInput" type="text" maxlength="8"
+      placeholder="${ymd}"
+      style="font-size:20px;letter-spacing:4px;text-align:center;border:2px solid rgba(255,45,85,.4);font-family:var(--ff-display)">
+    <div id="resetDateErr" style="font-size:11px;color:#ff2d55;margin-top:6px;display:none">⚠ 日期不正確，請重新輸入</div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    <button class="btn btn-sm" onclick="doResetData('${ymd}')"
+      style="background:linear-gradient(135deg,#ff2d55,#c8102e);color:#fff;font-weight:700;border:none;padding:8px 18px;border-radius:var(--r);cursor:pointer">
+      🔄 確認重置
+    </button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+  setTimeout(()=>document.getElementById('resetDateInput')?.focus(), 100);
+}
+
+function doResetData(expectedYmd) {
+  const input = document.getElementById('resetDateInput')?.value?.trim();
+  const errEl = document.getElementById('resetDateErr');
+  if (input !== expectedYmd) {
+    if (errEl) errEl.style.display = '';
+    return;
+  }
+  // 執行重置
+  // 1. 清空交易記錄
+  DB.transactions = [];
+  // 2. 清空固定消費已生成記錄
+  DB.generatedFixed = {};
+  // 3. 清空薪水撥入記錄
+  DB.layerAllocations = [];
+  // 4. 銀行帳戶所有分層金額歸零
+  DB.bankAccounts.forEach(a => {
+    (a.layers || []).forEach(l => { l.amount = 0; });
+  });
+  // 5. 信用卡所有分層金額 & monthlyAmt 歸零
+  DB.creditCards.forEach(c => {
+    (c.layers || []).forEach(l => {
+      l.amount = 0;
+      if (l.monthlyAmt !== undefined) l.monthlyAmt = '';
+    });
+  });
+  saveDB();
+  closeModal();
+  navigateTo('dashboard');
+  toast('✅ 重置完成，所有記錄已清除，架構保留', 'success');
+}
 // ════════════════════════════════════════════════════════════════
 // HELPERS FOR MODALS
 // ════════════════════════════════════════════════════════════════
@@ -8015,6 +8131,8 @@ document.addEventListener('pointerdown', e => {
 <button class="fab-btn" id="fabBtn" onclick="openFnp();addFabRipple(this)" title="快速記帳">
   <span class="fab-icon">＋</span>
 </button>
+  <span class="fab-icon">＋</span>
+</button>
 
 <!-- ══ BACKUP BANNER ══════════════════════════════════════════ -->
 <div class="backup-banner" id="backupBanner" style="display:none">
@@ -8026,7 +8144,7 @@ document.addEventListener('pointerdown', e => {
 </div>
 
 <!-- ══ CALCULATOR PANEL ════════════════════════════════════════ -->
-<div id="calcPanel" style="display:none;position:fixed;inset:0;z-index:9999;align-items:flex-end;justify-content:center">
+<div id="calcPanel" style="display:none;position:fixed;inset:0;z-index:9999;display:none;align-items:flex-end;justify-content:center">
   <div style="position:absolute;inset:0;background:rgba(0,0,0,.55)" onclick="closeCalc()"></div>
   <div class="calc-box">
     <div class="calc-header">
