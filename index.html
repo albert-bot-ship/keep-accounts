@@ -4808,12 +4808,25 @@ function renderAccounts() {
             const valCls = pl >= 0 ? 'positive' : 'negative';
             const plCls  = pl >= 0 ? 'color:var(--tx-green)' : 'color:var(--tx-red)';
             const plSign = pl >= 0 ? '+' : '';
+            // 每支股票當日股價列表
+            const priceRows = accSymbols.map(sym=>{
+              const h = hMap[sym]; if(!h||h.shares<=0) return '';
+              const sp = stockPrices[sym];
+              if(!sp) return '';
+              const updTime = sp.updatedAt ? new Date(sp.updatedAt).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : '';
+              return '<div style="font-size:11px;color:var(--tx-muted);margin-top:3px">'
+                + '<span style="font-family:var(--ff-display);color:var(--tx-secondary);font-weight:600">'+ sym +'</span>'
+                + ' <span style="color:var(--tx-primary);font-weight:700">$'+ sp.price.toFixed(2) +'/股</span>'
+                + (updTime?'<span style="color:var(--tx-muted);font-size:10px;margin-left:4px">'+updTime+'</span>':'')
+                + '</div>';
+            }).join('');
             return '<div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">持股市值'+(hasPrice?'':' (尚未載入)')+'</div>'
               + '<div class="account-balance '+valCls+'">' + fmt(Math.round(totalMktVal)) + '</div>'
               + '<div style="font-size:12px;color:var(--tx-secondary);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap">'
               + '<span>投入成本：<span style="color:var(--tx-muted)">' + fmt(totalCost) + '</span></span>'
               + (totalCost>0 ? '<span style="'+plCls+';font-weight:600">'+plSign+fmt(Math.round(pl))+' ('+plSign+plPct.toFixed(1)+'%)</span>' : '')
-              + '</div>';
+              + '</div>'
+              + (hasPrice ? priceRows : '');
           }
           return '<div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">帳戶餘額'+(a.accType==='外幣'&&a.currency?' ('+a.currency+')':'')+'</div>'
             + '<div class="account-balance '+(bal<0?'negative':isLow?'warning':'positive')+'">'
