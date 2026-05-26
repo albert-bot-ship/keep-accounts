@@ -310,7 +310,7 @@
         <!-- 浮動批量操作列 -->
         <div id="batchActionBar" style="display:none;position:sticky;bottom:0;z-index:200;
           background:var(--bg-primary);border-top:2px solid var(--m-blue);
-          padding:10px 16px;display:none;align-items:center;gap:8px;flex-wrap:wrap;
+          padding:10px 16px;align-items:center;gap:8px;flex-wrap:wrap;
           box-shadow:0 -4px 20px rgba(0,0,0,.3)">
           <div class="batch-row-1">
             <input type="checkbox" id="chkAll" onchange="toggleAllChk(this)" style="width:16px;height:16px;cursor:pointer">
@@ -3272,9 +3272,6 @@ function renderPeriodCountdown() {
 
   const { from, to } = getSalaryCycle();
   const now      = new Date();
-  const toReal   = new Date(now.getFullYear(), now.getMonth(), now.getDate() >= 25
-    ? now.getMonth() === 11 ? 24 : 24
-    : 24);
   // 計算本期結束日
   const endDate  = now.getDate() >= 25
     ? new Date(now.getMonth() === 11 ? now.getFullYear()+1 : now.getFullYear(),
@@ -3695,7 +3692,8 @@ function initMonthCompare() {
   // 預設A=本月 B=上月
   const now = new Date();
   const thisM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const lastM = `${now.getFullYear()}-${String(now.getMonth()).padStart(2,'0')}`;
+  const lastDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const lastM = `${lastDate.getFullYear()}-${String(lastDate.getMonth()+1).padStart(2,'0')}`;
   if (months.includes(thisM)) selA.value = thisM;
   if (months.includes(lastM)) selB.value = lastM;
   renderMonthCompare();
@@ -5395,9 +5393,7 @@ function renderFixed() {
       const cat=getCat(fe.category);
       const src=fe.sourceType==='card'?getCard(fe.sourceId):getAcc(fe.sourceId);
       const layers=fe.layers||[];
-      const nowDay = new Date().getDate();
-      const nowDayNum = nowDay;
-      const daysLeft = fe.day >= nowDayNum ? fe.day - nowDayNum : (new Date(new Date().getFullYear(), new Date().getMonth()+1, fe.day) - new Date()) / 86400000;
+      const nowDayNum = new Date().getDate();
       const daysLeftInt = Math.ceil(fe.day >= nowDayNum ? fe.day - nowDayNum : (new Date(new Date().getFullYear(), new Date().getMonth()+1, fe.day) - new Date(new Date().setHours(0,0,0,0))) / 86400000);
       const countdownCls = daysLeftInt<=0?'a-over':daysLeftInt<=3?'a-neg':daysLeftInt<=7?'badge-warn':'badge-gray';
       const countdownTxt = daysLeftInt<=0?'今日扣款':daysLeftInt+'天後扣款';
@@ -8019,8 +8015,6 @@ document.addEventListener('pointerdown', e => {
 <button class="fab-btn" id="fabBtn" onclick="openFnp();addFabRipple(this)" title="快速記帳">
   <span class="fab-icon">＋</span>
 </button>
-  <span class="fab-icon">＋</span>
-</button>
 
 <!-- ══ BACKUP BANNER ══════════════════════════════════════════ -->
 <div class="backup-banner" id="backupBanner" style="display:none">
@@ -8032,7 +8026,7 @@ document.addEventListener('pointerdown', e => {
 </div>
 
 <!-- ══ CALCULATOR PANEL ════════════════════════════════════════ -->
-<div id="calcPanel" style="display:none;position:fixed;inset:0;z-index:9999;display:none;align-items:flex-end;justify-content:center">
+<div id="calcPanel" style="display:none;position:fixed;inset:0;z-index:9999;align-items:flex-end;justify-content:center">
   <div style="position:absolute;inset:0;background:rgba(0,0,0,.55)" onclick="closeCalc()"></div>
   <div class="calc-box">
     <div class="calc-header">
