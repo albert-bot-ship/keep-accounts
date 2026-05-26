@@ -3176,72 +3176,78 @@ body.nf-mono .fnp-display {
   }
   30% {
     box-shadow:
-      0 0 0 8px rgba(0,87,184,1),
-      0 0 20px 12px rgba(0,87,184,0.75),
-      0 0 50px 22px rgba(0,87,184,0.45),
-      0 0 90px 32px rgba(0,87,184,0.18),
-      inset 0 0 0 8px rgba(0,87,184,1),
-      inset 0 0 25px 8px rgba(0,87,184,0.55),
-      inset 0 0 55px 18px rgba(0,87,184,0.28),
-      inset 0 0 90px 30px rgba(0,87,184,0.1);
+      0 0 0 4px rgba(0,87,184,0.9),
+      0 0 8px 4px rgba(0,87,184,0.55),
+      0 0 22px 10px rgba(0,87,184,0.35),
+      0 0 55px 20px rgba(0,87,184,0.15),
+      0 0 90px 30px rgba(0,87,184,0.06),
+      inset 0 0 4px 2px rgba(0,87,184,0.7),
+      inset 0 0 16px 6px rgba(0,87,184,0.38),
+      inset 0 0 40px 14px rgba(0,87,184,0.18),
+      inset 0 0 80px 28px rgba(0,87,184,0.07);
   }
   /* ── 紫 ── */
   45% {
     box-shadow:
-      0 0 0 8px rgba(111,44,167,1),
-      0 0 20px 12px rgba(111,44,167,0.75),
-      0 0 50px 22px rgba(111,44,167,0.45),
-      0 0 90px 32px rgba(111,44,167,0.18),
-      inset 0 0 0 8px rgba(111,44,167,1),
-      inset 0 0 25px 8px rgba(111,44,167,0.55),
-      inset 0 0 55px 18px rgba(111,44,167,0.28),
-      inset 0 0 90px 30px rgba(111,44,167,0.1);
+      0 0 0 4px rgba(111,44,167,0.9),
+      0 0 8px 4px rgba(111,44,167,0.55),
+      0 0 22px 10px rgba(111,44,167,0.35),
+      0 0 55px 20px rgba(111,44,167,0.15),
+      0 0 90px 30px rgba(111,44,167,0.06),
+      inset 0 0 4px 2px rgba(111,44,167,0.7),
+      inset 0 0 16px 6px rgba(111,44,167,0.38),
+      inset 0 0 40px 14px rgba(111,44,167,0.18),
+      inset 0 0 80px 28px rgba(111,44,167,0.07);
   }
   55% {
     box-shadow:
-      0 0 0 8px rgba(111,44,167,1),
-      0 0 20px 12px rgba(111,44,167,0.75),
-      0 0 50px 22px rgba(111,44,167,0.45),
-      0 0 90px 32px rgba(111,44,167,0.18),
-      inset 0 0 0 8px rgba(111,44,167,1),
-      inset 0 0 25px 8px rgba(111,44,167,0.55),
-      inset 0 0 55px 18px rgba(111,44,167,0.28),
-      inset 0 0 90px 30px rgba(111,44,167,0.1);
+      0 0 0 4px rgba(111,44,167,0.9),
+      0 0 8px 4px rgba(111,44,167,0.55),
+      0 0 22px 10px rgba(111,44,167,0.35),
+      0 0 55px 20px rgba(111,44,167,0.15),
+      0 0 90px 30px rgba(111,44,167,0.06),
+      inset 0 0 4px 2px rgba(111,44,167,0.7),
+      inset 0 0 16px 6px rgba(111,44,167,0.38),
+      inset 0 0 40px 14px rgba(111,44,167,0.18),
+      inset 0 0 80px 28px rgba(111,44,167,0.07);
   }
   /* ── 紅 ── */
   70% {
     box-shadow:
-      0 0 0 8px rgba(200,16,46,1),
-      0 0 20px 12px rgba(200,16,46,0.75),
-      0 0 50px 22px rgba(200,16,46,0.45),
-      0 0 90px 32px rgba(200,16,46,0.18),
-      inset 0 0 0 8px rgba(200,16,46,1),
-      inset 0 0 25px 8px rgba(200,16,46,0.55),
-      inset 0 0 55px 18px rgba(200,16,46,0.28),
-      inset 0 0 90px 30px rgba(200,16,46,0.1);
+      0 0 0 4px rgba(200,16,46,0.9),
+      0 0 8px 4px rgba(200,16,46,0.55),
+      0 0 22px 10px rgba(200,16,46,0.35),
+      0 0 55px 20px rgba(200,16,46,0.15),
+      0 0 90px 30px rgba(200,16,46,0.06),
+      inset 0 0 4px 2px rgba(200,16,46,0.7),
+      inset 0 0 16px 6px rgba(200,16,46,0.38),
+      inset 0 0 40px 14px rgba(200,16,46,0.18),
+      inset 0 0 80px 28px rgba(200,16,46,0.07);
   }
   85% {
     box-shadow:
-      0 0 0 8px rgba(200,16,46,1),
-      0 0 20px 12px rgba(200,16,46,0.75),
-      0 0 50px 22px rgba(200,16,46,0.45),
-      0 0 90px 32px rgba(200,16,46,0.18),
-      inset 0 0 0 8px rgba(200,16,46,1),
-      inset 0 0 25px 8px rgba(200,16,46,0.55),
-      inset 0 0 55px 18px rgba(200,16,46,0.28),
-      inset 0 0 90px 30px rgba(200,16,46,0.1);
+      0 0 0 4px rgba(200,16,46,0.9),
+      0 0 8px 4px rgba(200,16,46,0.55),
+      0 0 22px 10px rgba(200,16,46,0.35),
+      0 0 55px 20px rgba(200,16,46,0.15),
+      0 0 90px 30px rgba(200,16,46,0.06),
+      inset 0 0 4px 2px rgba(200,16,46,0.7),
+      inset 0 0 16px 6px rgba(200,16,46,0.38),
+      inset 0 0 40px 14px rgba(200,16,46,0.18),
+      inset 0 0 80px 28px rgba(200,16,46,0.07);
   }
   /* ── 回藍 ── */
   100% {
     box-shadow:
-      0 0 0 8px rgba(0,87,184,1),
-      0 0 20px 12px rgba(0,87,184,0.75),
-      0 0 50px 22px rgba(0,87,184,0.45),
-      0 0 90px 32px rgba(0,87,184,0.18),
-      inset 0 0 0 8px rgba(0,87,184,1),
-      inset 0 0 25px 8px rgba(0,87,184,0.55),
-      inset 0 0 55px 18px rgba(0,87,184,0.28),
-      inset 0 0 90px 30px rgba(0,87,184,0.1);
+      0 0 0 4px rgba(0,87,184,0.9),
+      0 0 8px 4px rgba(0,87,184,0.55),
+      0 0 22px 10px rgba(0,87,184,0.35),
+      0 0 55px 20px rgba(0,87,184,0.15),
+      0 0 90px 30px rgba(0,87,184,0.06),
+      inset 0 0 4px 2px rgba(0,87,184,0.7),
+      inset 0 0 16px 6px rgba(0,87,184,0.38),
+      inset 0 0 40px 14px rgba(0,87,184,0.18),
+      inset 0 0 80px 28px rgba(0,87,184,0.07);
   }
 }
 body.anim-none    #mPowerBorder { display: none !important; }
