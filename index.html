@@ -6021,7 +6021,7 @@ function loadIcon(fid,input) {
 function srcOpts(type) {
   let o='';
   if(type!=='account') DB.creditCards.forEach(c=>{o+=`<option value="card_${c.id}">[卡] ${escHtml(c.name)}</option>`;});
-  if(type!=='card')    DB.bankAccounts.forEach(a=>{o+=`<option value="account_${a.id}">[帳] ${escHtml(a.name)}</option>`;});
+  if(type!=='card')    DB.bankAccounts.filter(a=>a.accType!=='證券').forEach(a=>{o+=`<option value="account_${a.id}">[帳] ${escHtml(a.name)}</option>`;});
   return o;
 }
 function catOpts(selId, forType) {
@@ -6262,7 +6262,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
   // ── TRANSFER ──
   else if (type==='transfer') {
     t='帳戶轉帳';
-    const accOpts=DB.bankAccounts.map(a2=>`<option value="${a2.id}"${a2.id===id?' selected':''}>${escHtml(a2.name)}</option>`).join('');
+    const accOpts=DB.bankAccounts.filter(a2=>a2.accType!=='證券').map(a2=>`<option value="${a2.id}"${a2.id===id?' selected':''}>${escHtml(a2.name)}</option>`).join('');
     b=`<div class="form-group"><label class="form-label">從帳戶</label>
       <select class="form-select" id="tfFrom" onchange="onTfAccChange('from',this.value)">${accOpts}</select>
     </div>
@@ -7633,7 +7633,7 @@ function openQuickAdd() {
   const srcOpts2 = () => {
     let o = '';
     DB.creditCards.forEach(c2  => { o += `<option value="card_${c2.id}">[卡] ${escHtml(c2.name)}</option>`; });
-    DB.bankAccounts.forEach(a2 => { o += `<option value="account_${a2.id}">[帳] ${escHtml(a2.name)}</option>`; });
+    DB.bankAccounts.filter(a2=>a2.accType!=='證券').forEach(a2 => { o += `<option value="account_${a2.id}">[帳] ${escHtml(a2.name)}</option>`; });
     return o;
   };
 
