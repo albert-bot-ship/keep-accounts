@@ -430,7 +430,7 @@ textarea.form-input{resize:vertical;min-height:66px}
 
 /* 淺色模式下 layer-bar 文字強制深色 */
 body.light-theme .layer-bar .layer-name { color: #1a1a2e !important; -webkit-text-fill-color:#1a1a2e !important; }
-body.light-theme .layer-bar .layer-amt  { color: #1a1a2e !important; -webkit-text-fill-color:#1a1a2e !important; }
+body.light-theme .layer-bar .layer-amt  { color: #1a1a2e; -webkit-text-fill-color:#1a1a2e; }
 body.light-theme .layer-bar             { background: #e8eaf2 !important; border-color: #c8cce0 !important; }
 /* 深色卡片主題在淺色系統下：分層文字強制白色 */
 body.light-theme .account-card[data-theme="dark"] .layer-bar .layer-name,
@@ -460,7 +460,7 @@ body.light-theme .account-card[data-theme="rose"] .layer-bar {
 }
 /* 深色模式下 layer-bar 文字強制白色 */
 body:not(.light-theme) .layer-bar .layer-name { color: rgba(255,255,255,.9) !important; -webkit-text-fill-color:rgba(255,255,255,.9) !important; }
-body:not(.light-theme) .layer-bar .layer-amt  { color: rgba(255,255,255,.9) !important; -webkit-text-fill-color:rgba(255,255,255,.9) !important; }
+body:not(.light-theme) .layer-bar .layer-amt  { color: rgba(255,255,255,.9); -webkit-text-fill-color:rgba(255,255,255,.9); }
 
 /* ── PROGRESS BAR ────────────────────────── */
 .prog-wrap{background:var(--bg-secondary);border-radius:4px;height:5px;overflow:hidden;margin-top:5px}
