@@ -3371,15 +3371,14 @@ function renderPeriodCountdown() {
     .filter(t=>t.date>=from&&t.date<=to&&t.amount<0&&!t.isTransfer&&!t.isPayment)
     .reduce((s,t)=>s+t.amount,0));
 
-  // 有預算的類別總預算
-  const totalBudget = DB.categories.filter(c=>c.budget>0).reduce((s,c)=>s+c.budget,0);
-
-  if (dashRemainAmt === null && totalBudget === 0) {
-    wrap.innerHTML = '';
+  // 方案B：未勾選分層時不顯示
+  if (dashRemainAmt === null) {
+    wrap.innerHTML = '<div class="chart-box" style="padding:14px 18px;text-align:center"><div style="font-size:12px;color:var(--tx-muted);padding:8px 0">請在上方勾選分層以計算本期剩餘預算</div></div>';
     return;
   }
 
-  const remaining = dashRemainAmt !== null ? dashRemainAmt : (totalBudget - spend);
+  // 勾選分層後：用分層計算結果
+  const remaining    = dashRemainAmt;
   const dailyAllowed = daysLeft > 0 ? Math.round(remaining / daysLeft) : 0;
   const color = remaining <= 0 ? 'var(--tx-red)' : daysLeft <= 5 ? 'var(--warn)' : 'var(--tx-green)';
   const pct   = daysTotal > 0 ? Math.round(daysGone / daysTotal * 100) : 0;
