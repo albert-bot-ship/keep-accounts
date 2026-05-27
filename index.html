@@ -2927,12 +2927,14 @@ function renderSubscriptions() {
   if (!statsEl || !listEl) return;
   const subs = DB.subscriptions || [];
   const monthlyTotal = subs.reduce((s,sub) => {
-    if (sub.cycle==='year') return s + (sub.amount||0)/12;
-    return s + (sub.amount||0);
+    const total = (sub.amount||0)+(sub.fee||0);
+    if (sub.cycle==='year') return s + total/12;
+    return s + total;
   }, 0);
   const yearlyTotal = subs.reduce((s,sub) => {
-    if (sub.cycle==='year') return s + (sub.amount||0);
-    return s + (sub.amount||0)*12;
+    const total = (sub.amount||0)+(sub.fee||0);
+    if (sub.cycle==='year') return s + total;
+    return s + total*12;
   }, 0);
   const upcoming = subs.filter(sub => {
     if (!sub.nextDate) return false;
@@ -2961,7 +2963,10 @@ function renderSubscriptions() {
           <div style="font-weight:700;font-size:15px;color:var(--tx-primary)">${escHtml(sub.name)}</div>
           <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${cycleTxt} · ${nextTxt}</div>
         </div>
-        <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:var(--tx-red)">−${fmt(sub.amount)}</div>
+        <div style="text-align:right">
+          <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:var(--tx-red)">−${fmt((sub.amount||0)+(sub.fee||0))}</div>
+          ${sub.fee>0?`<div style="font-size:10px;color:var(--tx-muted)">含手續費 ${fmt(sub.fee)}</div>`:''}
+        </div>
       </div>
       <div class="account-card-footer">
         <button class="btn btn-ghost btn-sm" onclick="openModal('editSub','${sub.id}')">✏️ 編輯</button>
@@ -6429,7 +6434,15 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <div class="form-group"><label class="form-label">下次扣款日</label>
         <input class="form-input" id="subNextDate" type="date" value="${sub?.nextDate||today()}">
       </div>
-      <div class="form-group"><label class="form-label">顏色</label>${colorPicker('subColor', sub?.color||'#0057B8')}</div>`;
+      <div class="form-group"><label class="form-label">顏色</label>${colorPicker('subColor', sub?.color||'#0057B8')}</div>
+      <div class="form-group">
+        <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 10px;width:100%" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.textContent=this.textContent.includes('▼')?'▲ 收合手續費':'▼ 手續費（選填）'">▼ 手續費（選填）</button>
+        <div style="display:none;margin-top:8px">
+          <label class="form-label">手續費（NT$，選填）</label>
+          <input class="form-input" id="subFee" type="number" min="0" step="any" value="${sub?.fee||''}" placeholder="0">
+          <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 手續費將與訂閱金額一併記入消費記錄</div>
+        </div>
+      </div>`;
     f = `<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveSub()">儲存</button>`;
   }
 
@@ -6533,6 +6546,7 @@ function saveRule() {
 function saveSub() {
   const name     = document.getElementById('subName')?.value.trim();
   const amount   = parseFloat(document.getElementById('subAmount')?.value)||0;
+  const fee      = parseFloat(document.getElementById('subFee')?.value)||0;
   const cycle    = document.getElementById('subCycle')?.value||'month';
   const nextDate = document.getElementById('subNextDate')?.value||today();
   const color    = v('subColor');
@@ -6542,10 +6556,10 @@ function saveSub() {
   if (!DB.subscriptions) DB.subscriptions = [];
   if (subId) {
     const s = DB.subscriptions.find(x=>x.id===subId);
-    if (s) Object.assign(s, {name,amount,cycle,nextDate,color,icon});
+    if (s) Object.assign(s, {name,amount,fee,cycle,nextDate,color,icon});
     toast('訂閱已更新','success');
   } else {
-    DB.subscriptions.push({id:uid(), name, amount, cycle, nextDate, color, icon});
+    DB.subscriptions.push({id:uid(), name, amount, fee, cycle, nextDate, color, icon});
     toast('訂閱新增成功','success');
   }
   saveDB(); closeModal(); renderSubscriptions();
