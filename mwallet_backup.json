@@ -1247,6 +1247,35 @@
       "fee": 0,
       "isFixed": false,
       "mark": "necessary"
+    },
+    {
+      "id": "mpnft8lcr0ona",
+      "date": "2026-05-23",
+      "amount": -90,
+      "desc": "iCloud+（固定）",
+      "category": "mov4018zsf3sq",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isFixed": true,
+      "fixedId": "mpbacrohkh6jf",
+      "fee": 1,
+      "layerId": "mowvgma9od1k8"
+    },
+    {
+      "id": "mpnfug125gb71",
+      "date": "2026-05-27",
+      "amount": -10000,
+      "desc": "轉爸爸",
+      "category": "mowszknj43v9u",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt3b5ret5t3",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [
@@ -1298,7 +1327,9 @@
       "mp8pqqbj8s0wl"
     ],
     "card_mov4et7fpt7kr_2026-05-10": [],
-    "card_mov4et7fpt7kr_2026-05-11": []
+    "card_mov4et7fpt7kr_2026-05-11": [
+      "mpbacrohkh6jf"
+    ]
   },
   "categories": [
     {
