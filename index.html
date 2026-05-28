@@ -5164,7 +5164,7 @@ function txnTable(txns, withActions) {
     return {t, cat, amtCls, sign, sysTags, userTagBadges, feeBadge, hasML, mlBadge, layerBadge, isOver};
   });
 
-  const total = txns.reduce((s,t)=>s+t.amount,0);
+  const total = txns.reduce((s,t)=>s+t.amount-(t.fee&&t.amount<0?t.fee:0),0);
 
   // ══ 桌面版 TABLE ══════════════════════════════════
   prevDate = null;
