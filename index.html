@@ -633,6 +633,14 @@
                 <button class="btn btn-ghost btn-sm" onclick="showCleanupModal()">🗑 清除舊記錄</button>
               </div>
             </div>
+            <div style="border-top:2px solid rgba(255,45,85,.3);padding-top:14px;margin-top:14px">
+              <div style="font-size:11px;color:#ff2d55;font-weight:600;margin-bottom:8px">⚠ 危險操作</div>
+              <div style="font-size:11px;color:var(--tx-muted);margin-bottom:10px">清除所有交易記錄與初始金額，保留帳戶卡片架構，無法復原。</div>
+              <button class="btn btn-sm" onclick="resetDataStep1()"
+                style="width:100%;background:linear-gradient(135deg,#ff2d55,#c8102e);color:#fff;font-size:13px;font-weight:700;padding:11px;border-radius:var(--r);border:none;letter-spacing:1px;box-shadow:0 4px 18px rgba(255,45,85,.4);cursor:pointer">
+                🔄 重置記帳資料
+              </button>
+            </div>
           </div>
         </div>
 
@@ -947,34 +955,6 @@
           </div>
           <div class="settings-section-body" style="padding:12px 18px">
             <div id="ruleList"></div>
-          </div>
-        </div>
-
-        <!-- ══ 重置記帳資料（獨立危險區）══ -->
-        <div class="settings-section" style="border:2px solid #ff2d55;border-radius:var(--r-lg);background:linear-gradient(135deg,rgba(255,45,85,.08),rgba(200,16,46,.04));margin-top:8px">
-          <div class="settings-section-header" style="border-bottom:1px solid rgba(255,45,85,.25)">
-            <div class="settings-section-icon" style="background:rgba(255,45,85,.18);font-size:20px">⚠️</div>
-            <div style="flex:1">
-              <div class="settings-section-title" style="color:#ff2d55;font-size:15px;letter-spacing:1px">重置記帳資料</div>
-              <div class="settings-section-desc" style="color:rgba(255,45,85,.8)">清除所有交易記錄與初始金額，保留帳戶卡片架構</div>
-            </div>
-          </div>
-          <div class="settings-section-body">
-            <div style="background:rgba(255,45,85,.07);border:1px solid rgba(255,45,85,.2);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
-              <div style="font-size:12px;color:#ff2d55;font-weight:600;margin-bottom:6px">⚠ 此操作將清除以下資料，無法復原：</div>
-              <div style="font-size:11px;color:var(--tx-secondary);display:flex;flex-direction:column;gap:4px">
-                <span>• 所有消費 / 收入 / 轉帳記錄</span>
-                <span>• 信用卡與銀行帳戶所有分層初始金額</span>
-                <span>• 信用卡分層每月分期金額（monthlyAmt）</span>
-                <span>• 固定消費已生成記錄</span>
-                <span>• 薪水撥入記錄</span>
-              </div>
-              <div style="font-size:11px;color:var(--tx-muted);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,45,85,.15)">✅ 保留：卡片、帳戶、分層架構、類別、固定消費設定、訂閱、規則、外觀設定</div>
-            </div>
-            <button class="btn btn-sm" onclick="resetDataStep1()"
-              style="width:100%;background:linear-gradient(135deg,#ff2d55,#c8102e);color:#fff;font-size:14px;font-weight:700;padding:13px;border-radius:var(--r);border:none;letter-spacing:1.5px;box-shadow:0 4px 18px rgba(255,45,85,.45);cursor:pointer">
-              🔄 開始重置記帳資料
-            </button>
           </div>
         </div>
 
