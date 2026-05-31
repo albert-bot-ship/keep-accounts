@@ -1717,9 +1717,10 @@ function generateSubscriptionTxns() {
   if (!DB.generatedFixed) DB.generatedFixed = {};
   let added = 0;
 
+  let skipped = 0;
   subs.forEach(sub => {
     // 沒設扣款帳戶 → 不自動記帳
-    if (!sub.srcId || !sub.nextDate) return;
+    if (!sub.srcId || !sub.nextDate) { skipped++; return; }
     // 今天還沒到扣款日 → 不生成
     if (sub.nextDate > todayStr) return;
 
@@ -1759,7 +1760,12 @@ function generateSubscriptionTxns() {
     added++;
   });
 
-  if (added) { saveDB(); toast('已自動新增 ' + added + ' 筆訂閱消費', 'info'); }
+  if (added) {
+    saveDB();
+    toast('已自動新增 ' + added + ' 筆訂閱消費', 'info');
+    renderTxns && renderTxns();
+    renderAccounts && renderAccounts();
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -6795,6 +6801,7 @@ function saveSub() {
     toast('訂閱新增成功','success');
   }
   saveDB(); closeModal(); renderSubscriptions();
+  generateSubscriptionTxns();
 }
 
 function saveCard() {
