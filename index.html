@@ -1094,7 +1094,7 @@ function checkStorageWarning() {
     localStorage.setItem('mwallet_storage_pct', pct);
     if (pct >= 80) {
       const lastWarn = localStorage.getItem('mwallet_storage_warned');
-      const today    = new Date().toISOString().slice(0,10);
+      const today    = (function(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); })();
       if (lastWarn !== today) {
         localStorage.setItem('mwallet_storage_warned', today);
         setTimeout(showStorageWarningModal, 500);
@@ -1288,7 +1288,7 @@ function ensureTags() { if (!DB.userTags) DB.userTags = []; }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function fmt(n) { return 'NT$' + Math.abs(Math.round(n)).toLocaleString('zh-TW'); }
 function fmtDecimal(n, dec=2) { return Math.abs(n).toLocaleString('zh-TW',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
-function today() { return new Date().toISOString().slice(0,10); }
+function today() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function nowYM() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 
 // 薪水發放日：每月25日，若為六(6)提前2天，若為日(0)提前1天
@@ -1557,12 +1557,12 @@ function rangedTxns() {
     return DB.transactions.filter(t=>t.date===t0);
   if (dashRange === '7') {
     const d = new Date(now); d.setDate(d.getDate()-6);
-    const from = d.toISOString().slice(0,10);
+    const from = (d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
     return DB.transactions.filter(t=>t.date>=from&&t.date<=t0);
   }
   if (dashRange === '30') {
     const d = new Date(now); d.setDate(d.getDate()-29);
-    const from = d.toISOString().slice(0,10);
+    const from = (d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
     return DB.transactions.filter(t=>t.date>=from&&t.date<=t0);
   }
   if (dashRange === 'month')
@@ -2292,7 +2292,7 @@ function renderHeatmap(year) {
   while (cur <= endDate || cur.getDay() !== 0) {
     const week = [];
     for (let d=0;d<7;d++) {
-      const iso = cur.toISOString().slice(0,10);
+      const iso = (cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0')+'-'+String(cur.getDate()).padStart(2,'0'));
       const amt = dayMap[iso]||0;
       const inYear = iso >= year+'-01-01' && iso <= year+'-12-31';
       const alpha = inYear && amt>0 ? 0.12 + (amt/maxDay)*0.88 : 0;
@@ -3262,7 +3262,7 @@ function scheduleMonthlyReport() {
   window._monthlyReportTimer = setTimeout(()=>{
     // 確認今天是否已發過
     const lastSent = localStorage.getItem('mwallet_last_report_date');
-    const todayStr = new Date().toISOString().slice(0,10);
+    const todayStr = today();
     if (lastSent !== todayStr) {
       sendMonthlyReport();
       localStorage.setItem('mwallet_last_report_date', todayStr);
@@ -3399,9 +3399,9 @@ function sendMonthlyReport() {
 function showCleanupModal() {
   const now     = new Date();
   const ranges  = [
-    { label:'2 年前', year:2, date:new Date(now.getFullYear()-2, now.getMonth(), now.getDate()).toISOString().slice(0,10) },
-    { label:'1 年前', year:1, date:new Date(now.getFullYear()-1, now.getMonth(), now.getDate()).toISOString().slice(0,10) },
-    { label:'6 個月前', year:0.5, date:new Date(now.getFullYear(), now.getMonth()-6, now.getDate()).toISOString().slice(0,10) },
+    { label:'2 年前', year:2, date:(function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})(new Date(now.getFullYear()-2, now.getMonth(), now.getDate())) },
+    { label:'1 年前', year:1, date:(function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})(new Date(now.getFullYear()-1, now.getMonth(), now.getDate())) },
+    { label:'6 個月前', year:0.5, date:(function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})(new Date(now.getFullYear(), now.getMonth()-6, now.getDate())) },
   ];
   const counts  = ranges.map(r => DB.transactions.filter(t=>t.date < r.date).length);
   document.getElementById('modalTitle').textContent = '🗑 清除舊記錄';
@@ -4005,7 +4005,7 @@ function renderNotificationCenter() {
   const wrap = document.getElementById('notificationCenter');
   if (!wrap) return;
   const now = new Date();
-  const todayStr = now.toISOString().slice(0,10);
+  const todayStr = today();
   const items = [];
 
   // 信用卡繳款到期
@@ -4506,7 +4506,7 @@ function renderDashboard() {
   } else if (dashRange==='today') {
     daysElapsed = 1;
   } else {
-    daysElapsed = Math.max(1, Math.round((now3 - new Date(DB.transactions.reduce((m,t)=>t.date<m?t.date:m, now3.toISOString().slice(0,10))+'T00:00:00')) / 86400000) + 1);
+    daysElapsed = Math.max(1, Math.round((now3 - new Date(DB.transactions.reduce((m,t)=>t.date<m?t.date:m, (now3.getFullYear()+'-'+String(now3.getMonth()+1).padStart(2,'0')+'-'+String(now3.getDate()).padStart(2,'0')))+'T00:00:00')) / 86400000) + 1);
   }
   const dailyAvgSpend = spend > 0 ? Math.round(spend / daysElapsed) : 0;
   const dailySub = spend > 0 ? `日均 ${fmt(dailyAvgSpend)}（已過 ${daysElapsed} 天）` : '';
@@ -5742,7 +5742,7 @@ function renderAnalytics() {
   // 上期：同樣30天往前推一個月
   const prevFrom = new Date(curFrom); prevFrom.setMonth(prevFrom.getMonth()-1);
   const prevTo   = new Date(curTo);   prevTo.setMonth(prevTo.getMonth()-1);
-  const pf = prevFrom.toISOString().slice(0,10), pt = prevTo.toISOString().slice(0,10);
+  const pf = (prevFrom.getFullYear()+'-'+String(prevFrom.getMonth()+1).padStart(2,'0')+'-'+String(prevFrom.getDate()).padStart(2,'0')), pt = (prevTo.getFullYear()+'-'+String(prevTo.getMonth()+1).padStart(2,'0')+'-'+String(prevTo.getDate()).padStart(2,'0'));
   const prevSpend = Math.abs(DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount<0).reduce((s,t)=>s+t.amount,0));
   const prevInc   = DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount>0).reduce((s,t)=>s+t.amount,0);
   const spDiff = prevSpend>0 ? Math.round((curSpend-prevSpend)/prevSpend*100) : null;
