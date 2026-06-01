@@ -7173,7 +7173,11 @@ function doTransfer() {
 
   DB.transactions.push({id:outId,date,amount:-Math.abs(amt),desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true,layerId:fromLayerId,layerAmounts:fromLayerAmounts||undefined,transferPairId:pairId,transferPairTxnId:inId});
   DB.transactions.push({id:inId,date,amount:+Math.abs(amt),desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true,layerId:toLayerId,layerAmounts:toLayerAmounts||undefined,transferPairId:pairId,transferPairTxnId:outId});
-  saveDB();closeModal();renderAccounts();toast('轉帳成功！','success');
+  saveDB();
+  closeModal();
+  renderAccounts();
+  renderDashboard();
+  toast('轉帳成功！ 轉入帳戶：'+(to?.name||toId)+' +'+fmt(amt),'success');
 }
 // ════════════════════════════════════════════════════════════════
 // 固定消費分層管理（Modal 內 inline）
