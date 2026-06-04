@@ -25,7 +25,8 @@
           "color": "#FF8F00"
         }
       ],
-      "cardTheme": "emerald"
+      "cardTheme": "emerald",
+      "graceDays": 2
     },
     {
       "id": "mov4hexngandg",
@@ -46,7 +47,8 @@
           "monthlyAmt": null
         }
       ],
-      "cardTheme": "rose"
+      "cardTheme": "rose",
+      "graceDays": 2
     },
     {
       "id": "mov4i6w2jfqzb",
@@ -67,7 +69,8 @@
           "monthlyAmt": null
         }
       ],
-      "cardTheme": "carbon"
+      "cardTheme": "carbon",
+      "graceDays": 2
     },
     {
       "id": "mov4j2lhbf7rv",
@@ -88,7 +91,8 @@
           "monthlyAmt": null
         }
       ],
-      "cardTheme": "white"
+      "cardTheme": "white",
+      "graceDays": 2
     }
   ],
   "bankAccounts": [
