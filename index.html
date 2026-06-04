@@ -1514,6 +1514,28 @@ function cardLayerOutstanding(cardId, layerId) {
 
   return Math.max(0, Math.round((totalLayerAmt - redeemAmt) * (1-paidRatio)));
 }
+// 儀表板專用：信用卡分層扣除計算（只扣折抵，不扣現金繳款）
+function cardLayerDashboardDeduct(cardId, layerId) {
+  const card  = getCard(cardId); if (!card) return 0;
+  const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
+  // 有 monthlyAmt → 直接用固定金額
+  if (layer.monthlyAmt!=null && layer.monthlyAmt!=='') return layer.monthlyAmt||0;
+  // 取帳單週期（含 graceDays / startExtDays）
+  const { periodStart, periodEnd } = cardBillingPeriod(card) || { periodStart: nowYM()+'-01', periodEnd: nowYM()+'-31' };
+  // 此分層當期消費（含手續費）
+  const txAmt = DB.transactions
+    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===layerId&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
+    .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0)
+    + DB.transactions
+    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerAmounts&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
+    .reduce((s,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===layerId);return s+(la?Math.abs(la.amount):0);},0);
+  // 折抵（isRedemption）扣除，現金繳款不扣
+  const redeemAmt = DB.transactions
+    .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===layerId&&t.isRedemption&&t.amount>0&&t.date>=periodStart&&t.date<=periodEnd)
+    .reduce((s,t)=>s+t.amount,0);
+  return Math.max(0, txAmt - redeemAmt);
+}
+
 // 信用卡分層：直接取分層的手動輸入金額
 function cardLayerDynamicBalance(cardId, layerId) {
   const card = getCard(cardId); if (!card) return 0;
@@ -4493,7 +4515,7 @@ function renderDashboard() {
         return s + (card.layers||[]).reduce((ss,layer) => {
           if (!selectedCCLayers.has(card.id+'_'+layer.id)) return ss;
           if (layer.monthlyAmt != null && layer.monthlyAmt !== '') return ss + (layer.monthlyAmt||0);
-          return ss + cardLayerOutstanding(card.id, layer.id);
+          return ss + cardLayerDashboardDeduct(card.id, layer.id);
         }, 0);
       }, 0)
     : 0;
