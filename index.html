@@ -1638,11 +1638,18 @@ function cardBillingPeriod(card) {
     periodStart = localDate(new Date(now.getFullYear(), now.getMonth(), billingDay+1));
     periodEnd   = localDate(new Date(now.getFullYear(), now.getMonth()+1, billingDay));
   }
-  // 套用緩衝天數：periodEnd 往前縮 graceDays 天
+  // 套用結尾緩衝：periodEnd 往前縮 graceDays 天
   if (graceDays > 0) {
     const endDate = new Date(periodEnd + 'T00:00:00');
     endDate.setDate(endDate.getDate() - graceDays);
     periodEnd = localDate(endDate);
+  }
+  // 套用開頭延伸：periodStart 往前延伸 startExtDays 天
+  const startExtDays = card.startExtDays || 0;
+  if (startExtDays > 0) {
+    const startDate = new Date(periodStart + 'T00:00:00');
+    startDate.setDate(startDate.getDate() - startExtDays);
+    periodStart = localDate(startDate);
   }
   return { periodStart, periodEnd };
 }
@@ -6285,9 +6292,14 @@ function openModal(type,id,preCard,preAcc,extraId) {
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">結帳日前幾天算下一期（0=不啟用）</label>
+        <label class="form-label">結帳日前幾天算下一期（結尾緩衝，0=不啟用）</label>
         <input class="form-input" id="cGraceDays" type="number" min="0" max="7" value="${c?.graceDays||0}" placeholder="e.g. 2">
         <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">例如設 2，結帳日 5 號，則 3、4 號的消費自動計入下一期</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">帳單週期起始往前延伸幾天（開頭延伸，0=不啟用）</label>
+        <input class="form-input" id="cStartExtDays" type="number" min="0" max="7" value="${c?.startExtDays||0}" placeholder="e.g. 3">
+        <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">例如設 3，帳單週期起始日往前延 3 天，把提早請款的消費納入這期</div>
       </div>
     </div>
     <div class="form-row">
@@ -6849,7 +6861,7 @@ function saveCard() {
   const name=document.getElementById('cName').value.trim();
   if(!name){toast('請填入卡片名稱','danger');return;}
   const obj={name,color:v('cColor'),icon:v('cIcon'),limit:+v('cLimit')||0,
-    billingDay:+v('cBillingDay')||null, dueDay:+v('cDueDay')||null, graceDays:+v('cGraceDays')||0,
+    billingDay:+v('cBillingDay')||null, dueDay:+v('cDueDay')||null, graceDays:+v('cGraceDays')||0, startExtDays:+v('cStartExtDays')||0,
     cashbackRate:+v('cCashback')||0, pointRate:+v('cPtRate')||0,
     cardTheme: document.getElementById('cardThemeVal')?.value||'default'};
   if(modalType==='editCard'){Object.assign(getCard(editTarget),obj);toast('信用卡已更新','success');}
