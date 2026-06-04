@@ -1486,6 +1486,21 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mpyvjbb9f3tmp",
+      "date": "2026-06-04",
+      "amount": -100,
+      "desc": "轉老婆吃飯飯",
+      "category": "mowszknj43v9u",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt3b5ret5t3",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
