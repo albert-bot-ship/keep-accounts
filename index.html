@@ -1623,6 +1623,7 @@ function cardBillingPeriod(card) {
   const now = new Date();
   const today = now.getDate();
   const billingDay = card.billingDay || 1;
+  const graceDays  = card.graceDays  || 0;
   const localDate = d => {
     const y = d.getFullYear();
     const m = String(d.getMonth()+1).padStart(2,'0');
@@ -1636,6 +1637,12 @@ function cardBillingPeriod(card) {
   } else {
     periodStart = localDate(new Date(now.getFullYear(), now.getMonth(), billingDay+1));
     periodEnd   = localDate(new Date(now.getFullYear(), now.getMonth()+1, billingDay));
+  }
+  // 套用緩衝天數：periodEnd 往前縮 graceDays 天
+  if (graceDays > 0) {
+    const endDate = new Date(periodEnd + 'T00:00:00');
+    endDate.setDate(endDate.getDate() - graceDays);
+    periodEnd = localDate(endDate);
   }
   return { periodStart, periodEnd };
 }
@@ -6277,6 +6284,13 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <div class="form-group"><label class="form-label">繳款截止日（幾號）</label><input class="form-input" id="cDueDay" type="number" min="1" max="31" value="${c?.dueDay||''}" placeholder="e.g. 15"></div>
     </div>
     <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">結帳日前幾天算下一期（0=不啟用）</label>
+        <input class="form-input" id="cGraceDays" type="number" min="0" max="7" value="${c?.graceDays||0}" placeholder="e.g. 2">
+        <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">例如設 2，結帳日 5 號，則 3、4 號的消費自動計入下一期</div>
+      </div>
+    </div>
+    <div class="form-row">
       <div class="form-group"><label class="form-label">現金回饋率（%，0=不追蹤）</label><input class="form-input" id="cCashback" type="number" step="0.1" min="0" value="${c?.cashbackRate||0}" placeholder="e.g. 1.5"></div>
       <div class="form-group"><label class="form-label">點數換算（1點=NT$）</label><input class="form-input" id="cPtRate" type="number" step="0.01" value="${c?.pointRate||0}" placeholder="e.g. 0.5"></div>
     </div>
@@ -6835,7 +6849,7 @@ function saveCard() {
   const name=document.getElementById('cName').value.trim();
   if(!name){toast('請填入卡片名稱','danger');return;}
   const obj={name,color:v('cColor'),icon:v('cIcon'),limit:+v('cLimit')||0,
-    billingDay:+v('cBillingDay')||null, dueDay:+v('cDueDay')||null,
+    billingDay:+v('cBillingDay')||null, dueDay:+v('cDueDay')||null, graceDays:+v('cGraceDays')||0,
     cashbackRate:+v('cCashback')||0, pointRate:+v('cPtRate')||0,
     cardTheme: document.getElementById('cardThemeVal')?.value||'default'};
   if(modalType==='editCard'){Object.assign(getCard(editTarget),obj);toast('信用卡已更新','success');}
