@@ -6950,13 +6950,14 @@ function saveLayer() {
   saveDB();closeModal();renderAccounts();
 }
 function saveTxn() {
+  let tags=[];
+  try { tags=JSON.parse(v('tTagsVal')||'[]'); } catch(e){ tags=[]; }
   const date=v('tDate'),type=v('tType'),amt=+v('tAmt'),
         desc=document.getElementById('tDesc').value.trim(),
         catId=v('tCat'),srcVal=v('tSrc'),notes=v('tNotes'),
-        tags=JSON.parse(v('tTagsVal')||'[]'),
         fee=+(document.getElementById('tFee')?.value)||0;
   if(!date||!amt||!srcVal){toast('請填寫完整資訊','danger');return;}
-  const [sType,sId]=srcVal.split('_');
+  const srcParts=srcVal.split('_'),sType=srcParts[0],sId=srcParts.slice(1).join('_');
   const isRed = type==='redemption';
   const amount = type==='income'||isRed ? Math.abs(amt) : -Math.abs(amt);
 
