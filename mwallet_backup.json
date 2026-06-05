@@ -155,6 +155,20 @@
           "label": "活用金額",
           "amount": 401,
           "color": "#9929bd"
+        },
+        {
+          "id": "mq093tgjpxd1c",
+          "label": "租金",
+          "amount": 0,
+          "color": "#0057B8",
+          "goal": null
+        },
+        {
+          "id": "mq098n0nat4md",
+          "label": "備用金",
+          "amount": 0,
+          "color": "#2a842e",
+          "goal": null
         }
       ],
       "last4": "",
@@ -1554,6 +1568,51 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mq097fkqoqyzl",
+      "date": "2026-06-05",
+      "amount": 2500,
+      "desc": "老婆轉錢",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt8rfv4npge",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
+    },
+    {
+      "id": "mq09e0fv7dffi",
+      "date": "2026-06-05",
+      "amount": 3000,
+      "desc": "老婆的租金",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mq093tgjpxd1c",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
+    },
+    {
+      "id": "mq09euwbpb6he",
+      "date": "2026-06-05",
+      "amount": 1500,
+      "desc": "轉老婆跟何宥吃飯",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mq098n0nat4md",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
@@ -1798,6 +1857,17 @@
       "name": "利息",
       "budget": 0,
       "color": "#FF4081",
+      "icon": "",
+      "emoji": "",
+      "forType": "income",
+      "budgetStartDay": 8,
+      "budgetEndDay": 5
+    },
+    {
+      "id": "mq0967uv5w2s3",
+      "name": "轉入",
+      "budget": 0,
+      "color": "#f80db9",
       "icon": "",
       "emoji": "",
       "forType": "income",
