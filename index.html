@@ -7178,7 +7178,13 @@ function recalcTfMultiTotal(side) {
 function doTransfer() {
   const fromId=v('tfFrom'),toId=v('tfTo'),amt=+v('tfAmt'),date=v('tfDate'),notes=v('tfNotes');
   if(!fromId||!toId||!amt){toast('請填寫完整資訊','danger');return;}
-  if(fromId===toId){toast('不能轉帳到相同帳戶','danger');return;}
+  // 同帳戶：允許不同分層互轉，擋同帳戶同分層
+  if(fromId===toId){
+    const fLayer = v('tfFromLayer')||null;
+    const tLayer = v('tfToLayer')||null;
+    if(fLayer && tLayer && fLayer===tLayer){toast('不能轉帳到相同分層','danger');return;}
+    if(!fLayer||!tLayer){toast('同帳戶轉帳請選擇不同分層','danger');return;}
+  }
   const from=getAcc(fromId),to=getAcc(toId);
   const lastCat=DB.categories[DB.categories.length-1]?.id||'';
   const pairId=uid();
