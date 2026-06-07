@@ -1013,6 +1013,7 @@ let _readOnlyMode = true; // GitHub Pages 唯讀模式
 let selectedCCLayers  = new Set(); // 剩餘生活費勾選的信用卡分層
 let selectedBankLayers = new Set(); // 剩餘生活費勾選的銀行帳戶分層
 let dashRemainAmt = null; // 儀表板剩餘生活費計算結果（null=未勾選）
+let dashCCPeriodMode = 'current'; // 'current'=本期 'next'=下一期
 
 function defaultDB() {
   return {
@@ -1515,13 +1516,16 @@ function cardLayerOutstanding(cardId, layerId) {
   return Math.max(0, Math.round((totalLayerAmt - redeemAmt) * (1-paidRatio)));
 }
 // 儀表板專用：信用卡分層扣除計算（含折抵/回饋，不扣現金繳款）
-function cardLayerDashboardDeduct(cardId, layerId) {
+function cardLayerDashboardDeduct(cardId, layerId, mode) {
   const card  = getCard(cardId); if (!card) return 0;
   const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
   // 有 monthlyAmt → 直接用固定金額
   if (layer.monthlyAmt!=null && layer.monthlyAmt!=='') return layer.monthlyAmt||0;
-  // 取帳單週期（含 graceDays / startExtDays）
-  const { periodStart, periodEnd } = cardBillingPeriod(card) || {};
+  // 依 mode 決定用本期或下一期
+  const period = (mode||dashCCPeriodMode) === 'next'
+    ? cardNextBillingPeriod(card)
+    : cardBillingPeriod(card);
+  const { periodStart, periodEnd } = period || {};
   if (!periodStart || !periodEnd) return 0;
   // 加總所有非現金繳款的交易（支出為負、折抵/回饋為正），含手續費
   // 支出 - 折抵/回饋 = 實際扣除金額
@@ -1670,6 +1674,42 @@ function cardBillingPeriod(card) {
     const startDate = new Date(periodStart + 'T00:00:00');
     startDate.setDate(startDate.getDate() - startExtDays);
     periodStart = localDate(startDate);
+  }
+  return { periodStart, periodEnd };
+}
+function cardNextBillingPeriod(card) {
+  const cur = cardBillingPeriod(card);
+  if (!cur) return null;
+  const localDate = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  };
+  const billingDay   = card.billingDay || 1;
+  const graceDays    = card.graceDays  || 0;
+  const startExtDays = card.startExtDays || 0;
+  // 還原本期 periodEnd 的原始帳單日（graceDays 已縮短，還原回去）
+  const curEnd = new Date(cur.periodEnd + 'T00:00:00');
+  if (graceDays > 0) curEnd.setDate(curEnd.getDate() + graceDays);
+  // 下一期 periodStart = 原始帳單日 + 1
+  const nextStartRaw = new Date(curEnd);
+  nextStartRaw.setDate(nextStartRaw.getDate() + 1);
+  // 下一期 periodEnd = 再下一個帳單日
+  const nextEnd = new Date(nextStartRaw.getFullYear(), nextStartRaw.getMonth() + 1, billingDay);
+  let periodStart = localDate(nextStartRaw);
+  let periodEnd   = localDate(nextEnd);
+  // 套用 graceDays
+  if (graceDays > 0) {
+    const ed = new Date(periodEnd + 'T00:00:00');
+    ed.setDate(ed.getDate() - graceDays);
+    periodEnd = localDate(ed);
+  }
+  // 套用 startExtDays
+  if (startExtDays > 0) {
+    const sd = new Date(periodStart + 'T00:00:00');
+    sd.setDate(sd.getDate() - startExtDays);
+    periodStart = localDate(sd);
   }
   return { periodStart, periodEnd };
 }
@@ -4429,7 +4469,14 @@ function renderCCLayerSelector() {
 
   // 信用卡扣除區
   if (ccLayers.length > 0) {
-    html += '<div style="font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin-bottom:6px;font-family:var(--ff-display)">💳 扣除項目 — 選擇信用卡分層</div>';
+    const isCur  = dashCCPeriodMode === 'current';
+    const isNext = dashCCPeriodMode === 'next';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
+    html += '<div style="font-size:11px;color:var(--tx-secondary);letter-spacing:1px;font-family:var(--ff-display)">💳 扣除項目 — 選擇信用卡分層</div>';
+    html += '<div style="display:flex;gap:4px">';
+    html += `<button onclick="setDashCCPeriodMode('current')" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid ${isCur?'var(--m-blue)':'var(--bdr-subtle)'};background:${isCur?'rgba(0,87,184,0.15)':'transparent'};color:${isCur?'var(--tx-blue)':'var(--tx-muted)'};cursor:pointer">本期</button>`;
+    html += `<button onclick="setDashCCPeriodMode('next')" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid ${isNext?'var(--m-blue)':'var(--bdr-subtle)'};background:${isNext?'rgba(0,87,184,0.15)':'transparent'};color:${isNext?'var(--tx-blue)':'var(--tx-muted)'};cursor:pointer">下一期</button>`;
+    html += '</div></div>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">';
     ccLayers.forEach(l => {
       const key = l.cardId+'_'+l.layerId;
@@ -4478,6 +4525,11 @@ function toggleCCLayer(cardId, layerId, checked) {
   const key = cardId + '_' + layerId;
   if (checked) selectedCCLayers.add(key);
   else selectedCCLayers.delete(key);
+  renderCCLayerSelector();
+  renderDashboard();
+}
+function setDashCCPeriodMode(mode) {
+  dashCCPeriodMode = mode;
   renderCCLayerSelector();
   renderDashboard();
 }
