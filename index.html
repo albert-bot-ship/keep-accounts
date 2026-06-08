@@ -5955,9 +5955,9 @@ function renderAnalytics() {
 
   // ── 月度收支對比圖 ──────────────────────────────────────────
   if (charts.incomeExpense) { charts.incomeExpense.destroy(); delete charts.incomeExpense; }
-  const ieLabels = months.map(m=>m.slice(5)+'月');
-  const incomeData  = months.map(m=>DB.transactions.filter(t=>t.date.startsWith(m)&&t.amount>0&&!t.isTransfer&&!t.isPayment).reduce((s,t)=>s+t.amount,0));
-  const expenseData = months.map(m=>Math.abs(DB.transactions.filter(t=>t.date.startsWith(m)&&t.amount<0&&!t.isTransfer&&!t.isPayment).reduce((s,t)=>s+t.amount,0)));
+  const ieLabels = mLabels;
+  const incomeData  = months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount>0&&!t.isTransfer&&!t.isPayment).reduce((s,t)=>s+t.amount,0));
+  const expenseData = months.map(m=>Math.abs(DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!t.isTransfer&&!t.isPayment).reduce((s,t)=>s+t.amount,0)));
   const ieCtx = document.getElementById('incomeExpenseChart');
   if (ieCtx) charts.incomeExpense = new Chart(ieCtx.getContext('2d'),{
     type:'bar',
