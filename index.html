@@ -1528,8 +1528,7 @@ function cardLayerDashboardDeduct(cardId, layerId, mode) {
     : (mode||dashCCPeriodMode) === 'prev'
       ? cardPrevBillingPeriod(card)
       : cardBillingPeriod(card);
-  // 取帳單週期（含 graceDays / startExtDays）
-  const { periodStart, periodEnd } = cardBillingPeriod(card) || {};
+  const { periodStart, periodEnd } = period || {};
   if (!periodStart || !periodEnd) return 0;
   // 加總所有非現金繳款的交易（支出為負、折抵/回饋為正），含手續費
   // 支出 - 折抵/回饋 = 實際扣除金額
