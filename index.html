@@ -1013,6 +1013,8 @@ let _readOnlyMode = true; // GitHub Pages 唯讀模式
 let selectedCCLayers  = new Set(); // 剩餘生活費勾選的信用卡分層
 let selectedBankLayers = new Set(); // 剩餘生活費勾選的銀行帳戶分層
 let dashRemainAmt = null; // 儀表板剩餘生活費計算結果（null=未勾選）
+let ccLayerPeriodMode = new Map(); // 各信用卡分層獨立期別 key=cardId_layerId value='prev'|'current'|'next'
+let dashCCPeriodMode = 'current'; // 'current'=本期 'next'=下一期
 
 function defaultDB() {
   return {
@@ -1515,11 +1517,17 @@ function cardLayerOutstanding(cardId, layerId) {
   return Math.max(0, Math.round((totalLayerAmt - redeemAmt) * (1-paidRatio)));
 }
 // 儀表板專用：信用卡分層扣除計算（含折抵/回饋，不扣現金繳款）
-function cardLayerDashboardDeduct(cardId, layerId) {
+function cardLayerDashboardDeduct(cardId, layerId, mode) {
   const card  = getCard(cardId); if (!card) return 0;
   const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
   // 有 monthlyAmt → 直接用固定金額
   if (layer.monthlyAmt!=null && layer.monthlyAmt!=='') return layer.monthlyAmt||0;
+  // 依 mode 決定用本期、上一期或下一期
+  const period = (mode||dashCCPeriodMode) === 'next'
+    ? cardNextBillingPeriod(card)
+    : (mode||dashCCPeriodMode) === 'prev'
+      ? cardPrevBillingPeriod(card)
+      : cardBillingPeriod(card);
   // 取帳單週期（含 graceDays / startExtDays）
   const { periodStart, periodEnd } = cardBillingPeriod(card) || {};
   if (!periodStart || !periodEnd) return 0;
@@ -1532,6 +1540,70 @@ function cardLayerDashboardDeduct(cardId, layerId) {
     .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerAmounts&&!t.isPayment&&t.amount<0&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===layerId);return s+(la?Math.abs(la.amount):0);},0);
   return Math.max(0, net);
+}
+
+function cardNextBillingPeriod(card) {
+  const cur = cardBillingPeriod(card);
+  if (!cur) return null;
+  const localDate = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  };
+  const billingDay   = card.billingDay || 1;
+  const graceDays    = card.graceDays  || 0;
+  const startExtDays = card.startExtDays || 0;
+  const curEnd = new Date(cur.periodEnd + 'T00:00:00');
+  if (graceDays > 0) curEnd.setDate(curEnd.getDate() + graceDays);
+  const nextStartRaw = new Date(curEnd);
+  nextStartRaw.setDate(nextStartRaw.getDate() + 1);
+  const nextEnd = new Date(nextStartRaw.getFullYear(), nextStartRaw.getMonth() + 1, billingDay);
+  let periodStart = localDate(nextStartRaw);
+  let periodEnd   = localDate(nextEnd);
+  if (graceDays > 0) {
+    const ed = new Date(periodEnd + 'T00:00:00');
+    ed.setDate(ed.getDate() - graceDays);
+    periodEnd = localDate(ed);
+  }
+  if (startExtDays > 0) {
+    const sd = new Date(periodStart + 'T00:00:00');
+    sd.setDate(sd.getDate() - startExtDays);
+    periodStart = localDate(sd);
+  }
+  return { periodStart, periodEnd };
+}
+function cardPrevBillingPeriod(card) {
+  const cur = cardBillingPeriod(card);
+  if (!cur) return null;
+  const localDate = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  };
+  const billingDay   = card.billingDay || 1;
+  const graceDays    = card.graceDays  || 0;
+  const startExtDays = card.startExtDays || 0;
+  const curStart = new Date(cur.periodStart + 'T00:00:00');
+  if (startExtDays > 0) curStart.setDate(curStart.getDate() + startExtDays);
+  const prevEndRaw = new Date(curStart);
+  prevEndRaw.setDate(prevEndRaw.getDate() - 1);
+  const prevStartRaw = new Date(prevEndRaw.getFullYear(), prevEndRaw.getMonth() - 1, billingDay);
+  prevStartRaw.setDate(prevStartRaw.getDate() + 1);
+  let periodStart = localDate(prevStartRaw);
+  let periodEnd   = localDate(prevEndRaw);
+  if (graceDays > 0) {
+    const ed = new Date(periodEnd + 'T00:00:00');
+    ed.setDate(ed.getDate() - graceDays);
+    periodEnd = localDate(ed);
+  }
+  if (startExtDays > 0) {
+    const sd = new Date(periodStart + 'T00:00:00');
+    sd.setDate(sd.getDate() - startExtDays);
+    periodStart = localDate(sd);
+  }
+  return { periodStart, periodEnd };
 }
 
 // 信用卡分層：直接取分層的手動輸入金額
@@ -4399,7 +4471,11 @@ function renderCCLayerSelector() {
 
   // ── 合計 ──
   const bankTotal = bankLayers.filter(l => selectedBankLayers.has(l.accId+'_'+l.layerId)).reduce((s,l) => s+l.actual, 0);
-  const ccTotal   = ccLayers.filter(l => selectedCCLayers.has(l.cardId+'_'+l.layerId)).reduce((s,l) => s+(l.monthly!=null?l.monthly:l.actual), 0);
+  const ccTotal   = ccLayers.filter(l => selectedCCLayers.has(l.cardId+'_'+l.layerId)).reduce((s,l) => {
+    const key = l.cardId+'_'+l.layerId;
+    const m = ccLayerPeriodMode.get(key) || 'current';
+    return s + (l.monthly != null ? l.monthly : cardLayerDashboardDeduct(l.cardId, l.layerId, m));
+  }, 0);
   const remain    = bankTotal - ccTotal;
 
   const mkChip = (key, color, isSelected, label1, label2, amt, onchange) =>
@@ -4430,22 +4506,34 @@ function renderCCLayerSelector() {
   // 信用卡扣除區
   if (ccLayers.length > 0) {
     html += '<div style="font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin-bottom:6px;font-family:var(--ff-display)">💳 扣除項目 — 選擇信用卡分層</div>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">';
+    html += '<div style="display:flex;flex-direction:column;gap:6px">';
     ccLayers.forEach(l => {
       const key = l.cardId+'_'+l.layerId;
       const isSelected = selectedCCLayers.has(key);
-      const dispAmt = l.monthly != null ? l.monthly : l.actual;
+      const layerMode = ccLayerPeriodMode.get(key) || 'current';
+      const modeAmt = l.monthly != null ? l.monthly : cardLayerDashboardDeduct(l.cardId, l.layerId, layerMode);
       const dispSuffix = l.monthly != null ? '/月' : '';
-      html += '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;' +
-        'background:var(--bg-primary);border:1px solid '+(isSelected?l.cardColor:'var(--bdr-subtle)')+';' +
-        'border-radius:6px;padding:4px 10px;transition:border .2s">' +
-        '<input type="checkbox"'+(isSelected?' checked':'')+' style="cursor:pointer;accent-color:'+l.cardColor+'" onchange="toggleCCLayer(\''+l.cardId+'\',\''+l.layerId+'\',this.checked)">' +
-        '<span style="color:'+l.cardColor+';font-weight:600">'+escHtml(l.cardName)+'</span>' +
-        '<span style="color:var(--tx-secondary)"> / </span>' +
-        '<span>'+escHtml(l.label)+'</span>' +
-        '<span style="color:var(--tx-muted);margin-left:4px">NT$'+Math.abs(dispAmt).toLocaleString('zh-TW')+dispSuffix+'</span>' +
-        (l.monthly!=null?'<span style="font-size:10px;background:#1c69d422;color:#1c69d4;border-radius:3px;padding:1px 4px;margin-left:2px">分期</span>':'') +
-        '</label>';
+      const mkPBtn = (m, label) => {
+        const active = layerMode === m;
+        return `<button onclick="setCCLayerPeriodMode('${l.cardId}','${l.layerId}','${m}')" style="font-size:10px;padding:1px 6px;border-radius:3px;border:1px solid ${active?l.cardColor:'var(--bdr-subtle)'};background:${active?l.cardColor+'22':'transparent'};color:${active?l.cardColor:'var(--tx-muted)'};cursor:pointer;white-space:nowrap">${label}</button>`;
+      };
+      html += '<div style="display:flex;align-items:center;background:var(--bg-primary);border:1px solid '+(isSelected?l.cardColor:'var(--bdr-subtle)')+';border-radius:6px;padding:4px 10px;gap:6px">';
+      html += '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;flex:1;min-width:0">';
+      html += '<input type="checkbox"'+(isSelected?' checked':'')+' style="cursor:pointer;accent-color:'+l.cardColor+'" onchange="toggleCCLayer(\''+l.cardId+'\',\''+l.layerId+'\',this.checked)">';
+      html += '<span style="color:'+l.cardColor+';font-weight:600;white-space:nowrap">'+escHtml(l.cardName)+'</span>';
+      html += '<span style="color:var(--tx-secondary)"> / </span>';
+      html += '<span style="white-space:nowrap">'+escHtml(l.label)+'</span>';
+      html += '<span style="color:var(--tx-muted);margin-left:4px;white-space:nowrap">NT$'+Math.abs(modeAmt).toLocaleString('zh-TW')+dispSuffix+'</span>';
+      if (l.monthly!=null) html += '<span style="font-size:10px;background:#1c69d422;color:#1c69d4;border-radius:3px;padding:1px 4px;white-space:nowrap">分期</span>';
+      html += '</label>';
+      if (l.monthly == null) {
+        html += '<div style="display:flex;gap:3px;flex-shrink:0">';
+        html += mkPBtn('prev','上一期');
+        html += mkPBtn('current','本期');
+        html += mkPBtn('next','下一期');
+        html += '</div>';
+      }
+      html += '</div>';
     });
     html += '</div>';
   }
@@ -4478,6 +4566,11 @@ function toggleCCLayer(cardId, layerId, checked) {
   const key = cardId + '_' + layerId;
   if (checked) selectedCCLayers.add(key);
   else selectedCCLayers.delete(key);
+  renderCCLayerSelector();
+  renderDashboard();
+}
+function setCCLayerPeriodMode(cardId, layerId, mode) {
+  ccLayerPeriodMode.set(cardId+'_'+layerId, mode);
   renderCCLayerSelector();
   renderDashboard();
 }
