@@ -418,7 +418,7 @@
       </div>
       <div class="chart-box mt-4">
         <div class="chart-title">信用卡各卡消費比較</div>
-        <div style="font-size:10px;color:var(--tx-muted);margin:-6px 0 8px">長條圖｜本月各張信用卡消費金額比較</div>
+        <div style="font-size:10px;color:var(--tx-muted);margin:-6px 0 8px">長條圖｜本期（薪資週期）各張信用卡消費金額比較</div>
         <canvas id="cardCompareChart" height="120"></canvas>
       </div>
 
@@ -5970,23 +5970,21 @@ function renderAnalytics() {
               y:{beginAtZero:true,ticks:{color:'#8080A8',callback:v=>'NT$'+v.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}}}
   });
 
-  // ── 信用卡各卡消費比較 ──────────────────────────────────────
+  // ── 信用卡各卡消費比較（薪資週期）──────────────────────────
   if (charts.cardCompare) { charts.cardCompare.destroy(); delete charts.cardCompare; }
-  const now = new Date();
-  const curMonth = year+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const { from: cycleFrom, to: cycleTo } = getSalaryCycle();
   const cardLabels = DB.creditCards.map(c=>c.name);
-  // 篩選：year 年、本月、card 或 account 來源都算（sourceType==='card' 或有 cardId）
   const cardData   = DB.creditCards.map(c=>Math.abs(DB.transactions.filter(t=>
-    t.date.startsWith(curMonth)&&t.amount<0&&!t.isPayment&&
+    t.date>=cycleFrom&&t.date<=cycleTo&&t.amount<0&&!t.isPayment&&
     (t.sourceId===c.id||(t.cardId&&t.cardId===c.id))
   ).reduce((s,t)=>s+t.amount,0)));
   const ccCtx = document.getElementById('cardCompareChart');
   if (ccCtx) charts.cardCompare = new Chart(ccCtx.getContext('2d'),{
     type:'bar',
-    data:{labels:cardLabels,datasets:[{label:'本月消費',data:cardData,backgroundColor:DB.creditCards.map(c=>(c.color||'#0057B8')+'cc'),borderRadius:5}]},
-    options:{responsive:true,plugins:{legend:{display:false}},
+    data:{labels:cardLabels,datasets:[{label:'本期消費',data:cardData,backgroundColor:DB.creditCards.map(c=>(c.color||'#0057B8')+'cc'),borderRadius:5}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'NT$'+ctx.parsed.y.toLocaleString()}}},
       scales:{x:{ticks:{color:'#8080A8'},grid:{display:false}},
-              y:{ticks:{color:'#8080A8',callback:v=>'NT$'+v.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}}}
+              y:{beginAtZero:true,ticks:{color:'#8080A8',callback:v=>'NT$'+v.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}}}
   });
 }
 
