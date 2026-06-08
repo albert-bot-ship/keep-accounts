@@ -1912,6 +1912,21 @@
       "layerId": "mowtbbfi5phoq",
       "transferPairId": "mq4kwwkq3hyrk",
       "transferPairTxnId": "mq4kwwkq12dsk"
+    },
+    {
+      "id": "mq4o5xqu7q1w2",
+      "date": "2026-06-08",
+      "amount": 1700,
+      "desc": "發票中獎",
+      "category": "mq4o5bm2us4mn",
+      "sourceId": "mov6j2tiejhek",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowtd8jpngynv",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
@@ -2156,6 +2171,17 @@
       "name": "利息",
       "budget": 0,
       "color": "#FF4081",
+      "icon": "",
+      "emoji": "",
+      "forType": "income",
+      "budgetStartDay": 8,
+      "budgetEndDay": 5
+    },
+    {
+      "id": "mq4o5bm2us4mn",
+      "name": "獎金",
+      "budget": 0,
+      "color": "#fff700",
       "icon": "",
       "emoji": "",
       "forType": "income",
