@@ -1011,10 +1011,8 @@ let dashRecentLimit = 5;
 let selectedTxns = new Set();
 let _readOnlyMode = true; // GitHub Pages 唯讀模式
 let selectedCCLayers  = new Set(); // 剩餘生活費勾選的信用卡分層
-let ccLayerPeriodMode = new Map(); // 各信用卡分層獨立期別 key=cardId_layerId value='prev'|'current'|'next'
 let selectedBankLayers = new Set(); // 剩餘生活費勾選的銀行帳戶分層
 let dashRemainAmt = null; // 儀表板剩餘生活費計算結果（null=未勾選）
-let dashCCPeriodMode = 'current'; // 'current'=本期 'next'=下一期
 
 function defaultDB() {
   return {
@@ -1517,18 +1515,13 @@ function cardLayerOutstanding(cardId, layerId) {
   return Math.max(0, Math.round((totalLayerAmt - redeemAmt) * (1-paidRatio)));
 }
 // 儀表板專用：信用卡分層扣除計算（含折抵/回饋，不扣現金繳款）
-function cardLayerDashboardDeduct(cardId, layerId, mode) {
+function cardLayerDashboardDeduct(cardId, layerId) {
   const card  = getCard(cardId); if (!card) return 0;
   const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
   // 有 monthlyAmt → 直接用固定金額
   if (layer.monthlyAmt!=null && layer.monthlyAmt!=='') return layer.monthlyAmt||0;
-  // 依 mode 決定用本期或下一期
-  const period = (mode||dashCCPeriodMode) === 'next'
-    ? cardNextBillingPeriod(card)
-    : (mode||dashCCPeriodMode) === 'prev'
-      ? cardPrevBillingPeriod(card)
-      : cardBillingPeriod(card);
-  const { periodStart, periodEnd } = period || {};
+  // 取帳單週期（含 graceDays / startExtDays）
+  const { periodStart, periodEnd } = cardBillingPeriod(card) || {};
   if (!periodStart || !periodEnd) return 0;
   // 加總所有非現金繳款的交易（支出為負、折抵/回饋為正），含手續費
   // 支出 - 折抵/回饋 = 實際扣除金額
@@ -1677,79 +1670,6 @@ function cardBillingPeriod(card) {
     const startDate = new Date(periodStart + 'T00:00:00');
     startDate.setDate(startDate.getDate() - startExtDays);
     periodStart = localDate(startDate);
-  }
-  return { periodStart, periodEnd };
-}
-function cardNextBillingPeriod(card) {
-  const cur = cardBillingPeriod(card);
-  if (!cur) return null;
-  const localDate = d => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const day = String(d.getDate()).padStart(2,'0');
-    return `${y}-${m}-${day}`;
-  };
-  const billingDay   = card.billingDay || 1;
-  const graceDays    = card.graceDays  || 0;
-  const startExtDays = card.startExtDays || 0;
-  // 還原本期 periodEnd 的原始帳單日（graceDays 已縮短，還原回去）
-  const curEnd = new Date(cur.periodEnd + 'T00:00:00');
-  if (graceDays > 0) curEnd.setDate(curEnd.getDate() + graceDays);
-  // 下一期 periodStart = 原始帳單日 + 1
-  const nextStartRaw = new Date(curEnd);
-  nextStartRaw.setDate(nextStartRaw.getDate() + 1);
-  // 下一期 periodEnd = 再下一個帳單日
-  const nextEnd = new Date(nextStartRaw.getFullYear(), nextStartRaw.getMonth() + 1, billingDay);
-  let periodStart = localDate(nextStartRaw);
-  let periodEnd   = localDate(nextEnd);
-  // 套用 graceDays
-  if (graceDays > 0) {
-    const ed = new Date(periodEnd + 'T00:00:00');
-    ed.setDate(ed.getDate() - graceDays);
-    periodEnd = localDate(ed);
-  }
-  // 套用 startExtDays
-  if (startExtDays > 0) {
-    const sd = new Date(periodStart + 'T00:00:00');
-    sd.setDate(sd.getDate() - startExtDays);
-    periodStart = localDate(sd);
-  }
-  return { periodStart, periodEnd };
-}
-function cardPrevBillingPeriod(card) {
-  const cur = cardBillingPeriod(card);
-  if (!cur) return null;
-  const localDate = d => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const day = String(d.getDate()).padStart(2,'0');
-    return `${y}-${m}-${day}`;
-  };
-  const billingDay   = card.billingDay || 1;
-  const graceDays    = card.graceDays  || 0;
-  const startExtDays = card.startExtDays || 0;
-  // 還原本期 periodStart 的原始起始日（startExtDays 已提前，還原回去）
-  const curStart = new Date(cur.periodStart + 'T00:00:00');
-  if (startExtDays > 0) curStart.setDate(curStart.getDate() + startExtDays);
-  // 上一期 periodEnd = 本期原始起始日 - 1 = 上一期帳單日
-  const prevEndRaw = new Date(curStart);
-  prevEndRaw.setDate(prevEndRaw.getDate() - 1);
-  // 上一期 periodStart = 再往前一個帳單週期的原始起始日
-  const prevStartRaw = new Date(prevEndRaw.getFullYear(), prevEndRaw.getMonth() - 1, billingDay);
-  prevStartRaw.setDate(prevStartRaw.getDate() + 1);
-  let periodStart = localDate(prevStartRaw);
-  let periodEnd   = localDate(prevEndRaw);
-  // 套用 graceDays
-  if (graceDays > 0) {
-    const ed = new Date(periodEnd + 'T00:00:00');
-    ed.setDate(ed.getDate() - graceDays);
-    periodEnd = localDate(ed);
-  }
-  // 套用 startExtDays
-  if (startExtDays > 0) {
-    const sd = new Date(periodStart + 'T00:00:00');
-    sd.setDate(sd.getDate() - startExtDays);
-    periodStart = localDate(sd);
   }
   return { periodStart, periodEnd };
 }
@@ -4479,11 +4399,7 @@ function renderCCLayerSelector() {
 
   // ── 合計 ──
   const bankTotal = bankLayers.filter(l => selectedBankLayers.has(l.accId+'_'+l.layerId)).reduce((s,l) => s+l.actual, 0);
-  const ccTotal   = ccLayers.filter(l => selectedCCLayers.has(l.cardId+'_'+l.layerId)).reduce((s,l) => {
-    const key = l.cardId+'_'+l.layerId;
-    const m = ccLayerPeriodMode.get(key) || 'current';
-    return s + (l.monthly!=null ? l.monthly : cardLayerDashboardDeduct(l.cardId, l.layerId, m));
-  }, 0);
+  const ccTotal   = ccLayers.filter(l => selectedCCLayers.has(l.cardId+'_'+l.layerId)).reduce((s,l) => s+(l.monthly!=null?l.monthly:l.actual), 0);
   const remain    = bankTotal - ccTotal;
 
   const mkChip = (key, color, isSelected, label1, label2, amt, onchange) =>
@@ -4514,36 +4430,22 @@ function renderCCLayerSelector() {
   // 信用卡扣除區
   if (ccLayers.length > 0) {
     html += '<div style="font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin-bottom:6px;font-family:var(--ff-display)">💳 扣除項目 — 選擇信用卡分層</div>';
-    html += '<div style="display:flex;flex-direction:column;gap:6px">';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">';
     ccLayers.forEach(l => {
       const key = l.cardId+'_'+l.layerId;
       const isSelected = selectedCCLayers.has(key);
-      const layerMode = ccLayerPeriodMode.get(key) || 'current';
-      const modeAmt = l.monthly != null ? l.monthly : cardLayerDashboardDeduct(l.cardId, l.layerId, layerMode);
+      const dispAmt = l.monthly != null ? l.monthly : l.actual;
       const dispSuffix = l.monthly != null ? '/月' : '';
-      const mkPBtn = (m, label) => {
-        const active = layerMode === m;
-        return `<button onclick="setCCLayerPeriodMode('${l.cardId}','${l.layerId}','${m}')" style="font-size:10px;padding:1px 6px;border-radius:3px;border:1px solid ${active?l.cardColor:'var(--bdr-subtle)'};background:${active?l.cardColor+'22':'transparent'};color:${active?l.cardColor:'var(--tx-muted)'};cursor:pointer;white-space:nowrap">${label}</button>`;
-      };
-      html += '<div style="display:flex;align-items:center;background:var(--bg-primary);border:1px solid '+(isSelected?l.cardColor:'var(--bdr-subtle)')+';border-radius:6px;padding:4px 10px;gap:6px">';
-      // 左側：勾選 + 名稱 + 金額
-      html += '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;flex:1;min-width:0">';
-      html += '<input type="checkbox"'+(isSelected?' checked':'')+' style="cursor:pointer;accent-color:'+l.cardColor+'" onchange="toggleCCLayer(\''+l.cardId+'\',\''+l.layerId+'\',this.checked)">';
-      html += '<span style="color:'+l.cardColor+';font-weight:600;white-space:nowrap">'+escHtml(l.cardName)+'</span>';
-      html += '<span style="color:var(--tx-secondary)"> / </span>';
-      html += '<span style="white-space:nowrap">'+escHtml(l.label)+'</span>';
-      html += '<span style="color:var(--tx-muted);margin-left:4px;white-space:nowrap">NT$'+Math.abs(modeAmt).toLocaleString('zh-TW')+dispSuffix+'</span>';
-      if (l.monthly!=null) html += '<span style="font-size:10px;background:#1c69d422;color:#1c69d4;border-radius:3px;padding:1px 4px;white-space:nowrap">分期</span>';
-      html += '</label>';
-      // 右側：期別按鈕（固定金額分層不顯示）
-      if (l.monthly == null) {
-        html += '<div style="display:flex;gap:3px;flex-shrink:0">';
-        html += mkPBtn('prev','上一期');
-        html += mkPBtn('current','本期');
-        html += mkPBtn('next','下一期');
-        html += '</div>';
-      }
-      html += '</div>';
+      html += '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;' +
+        'background:var(--bg-primary);border:1px solid '+(isSelected?l.cardColor:'var(--bdr-subtle)')+';' +
+        'border-radius:6px;padding:4px 10px;transition:border .2s">' +
+        '<input type="checkbox"'+(isSelected?' checked':'')+' style="cursor:pointer;accent-color:'+l.cardColor+'" onchange="toggleCCLayer(\''+l.cardId+'\',\''+l.layerId+'\',this.checked)">' +
+        '<span style="color:'+l.cardColor+';font-weight:600">'+escHtml(l.cardName)+'</span>' +
+        '<span style="color:var(--tx-secondary)"> / </span>' +
+        '<span>'+escHtml(l.label)+'</span>' +
+        '<span style="color:var(--tx-muted);margin-left:4px">NT$'+Math.abs(dispAmt).toLocaleString('zh-TW')+dispSuffix+'</span>' +
+        (l.monthly!=null?'<span style="font-size:10px;background:#1c69d422;color:#1c69d4;border-radius:3px;padding:1px 4px;margin-left:2px">分期</span>':'') +
+        '</label>';
     });
     html += '</div>';
   }
@@ -4579,11 +4481,6 @@ function toggleCCLayer(cardId, layerId, checked) {
   renderCCLayerSelector();
   renderDashboard();
 }
-function setCCLayerPeriodMode(cardId, layerId, mode) {
-  ccLayerPeriodMode.set(cardId+'_'+layerId, mode);
-  renderCCLayerSelector();
-  renderDashboard();
-}
 
 function renderDashboard() {
   renderCCLayerSelector();
@@ -4616,8 +4513,7 @@ function renderDashboard() {
         return s + (card.layers||[]).reduce((ss,layer) => {
           if (!selectedCCLayers.has(card.id+'_'+layer.id)) return ss;
           if (layer.monthlyAmt != null && layer.monthlyAmt !== '') return ss + (layer.monthlyAmt||0);
-          const m = ccLayerPeriodMode.get(card.id+'_'+layer.id) || 'current';
-          return ss + cardLayerDashboardDeduct(card.id, layer.id, m);
+          return ss + cardLayerDashboardDeduct(card.id, layer.id);
         }, 0);
       }, 0)
     : 0;
@@ -5944,7 +5840,7 @@ function renderAnalytics() {
   if (charts.cat) charts.cat.destroy();
   charts.cat=new Chart(document.getElementById('catChart').getContext('2d'),{
     type:'doughnut',data:{labels:DB.categories.map(c=>c.name),datasets:[{data:catSp,backgroundColor:DB.categories.map(c=>c.color),borderWidth:2,borderColor:'#1A1A2E'}]},
-    options:{responsive:true,plugins:{legend:{labels:{color:'#8080A8',font:{size:11}},position:'bottom'}}}
+    options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{labels:{color:'#8080A8',font:{size:10},boxWidth:12,padding:8},position:'right'}}}
   });
 
   const catYr=DB.categories.map(c=>Math.abs(DB.transactions.filter(t=>t.category===c.id&&t.date.startsWith(year)&&t.amount<0).reduce((s,t)=>s+t.amount,0)));
@@ -5989,19 +5885,69 @@ function renderAnalytics() {
     </div>`;
   };
 
+  // ── 消費週期二維熱力表（月份×日期）
+  const monthNames2 = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  // 建立 [月][日] 二維統計 (month 0-11, day 0-30)
+  const grid = Array.from({length:12}, ()=>Array(31).fill(0));
+  ytxnSpend.forEach(t => {
+    const mo = parseInt(t.date.slice(5,7)) - 1;
+    const da = parseInt(t.date.slice(8)) - 1;
+    if (mo>=0&&mo<12&&da>=0&&da<31) grid[mo][da] += Math.abs(t.amount);
+  });
+  const gridMax = Math.max(...grid.flat(), 1);
+
+  // 星期分布列（保留，移到下方）
+  const wdRow = wdTotals.map((v,i)=>{
+    const ratio=v/wdMax; const alpha=ratio<0.05?0.06:0.1+ratio*0.75;
+    const bg=`rgba(0,87,184,${alpha.toFixed(2)})`;
+    const tc=ratio>0.6?'#fff':'var(--tx-secondary)';
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="width:100%;padding:5px 0;border-radius:5px;background:${bg};text-align:center">
+        <div style="font-size:10px;color:${tc};font-weight:700">${v>0?'$'+Math.round(v/1000)+'K':''}</div>
+      </div>
+      <div style="font-size:10px;color:var(--tx-muted)">週${wdNames[i]}</div>
+      <div style="font-size:9px;color:var(--tx-muted)">${wdCounts[i]}筆</div>
+    </div>`;
+  }).join('');
+
+  // 月×日 二維熱力表
+  const dayHeaders = Array.from({length:31},(_,i)=>`<div style="text-align:center;font-size:9px;color:var(--tx-muted);padding:2px 0;min-width:0">${i+1}</div>`).join('');
+  const gridRows = grid.map((row, mo) => {
+    const cells = row.map((v,da) => {
+      const ratio=v/gridMax; const alpha=ratio<0.05?0.04:0.08+ratio*0.78;
+      const bg=v>0?`rgba(0,87,184,${alpha.toFixed(2)})`:'transparent';
+      const bdr=v>0?`rgba(0,87,184,${(alpha*0.5).toFixed(2)})`:'rgba(255,255,255,0.04)';
+      const tc=ratio>0.55?'#fff':'var(--tx-secondary)';
+      const label=v>0?'$'+Math.round(v/1000)+'K':'';
+      return `<div title="${mo+1}月${da+1}日 NT$${Math.round(v).toLocaleString()}" style="aspect-ratio:1;border-radius:3px;background:${bg};border:1px solid ${bdr};display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden">
+        <span style="font-size:8px;color:${tc};font-weight:700;line-height:1">${label}</span>
+      </div>`;
+    }).join('');
+    const isCurrentMonth = (parseInt(year)===new Date().getFullYear() && mo===new Date().getMonth());
+    const labelStyle = isCurrentMonth ? 'color:var(--m-blue);font-weight:700' : 'color:var(--tx-muted)';
+    return `<div style="display:contents">
+      <div style="display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;${labelStyle};white-space:nowrap">${monthNames2[mo]}</div>
+      <div style="display:grid;grid-column:2;grid-template-columns:repeat(31,1fr);gap:2px">${cells}</div>
+    </div>`;
+  }).join('');
+
   const patBox = document.getElementById('spendPatternContent');
   if (patBox) patBox.innerHTML = `
-    <div style="margin-bottom:16px">
+    <div style="margin-bottom:14px">
       <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:8px">星期消費分布</div>
-      <div style="display:flex;gap:4px">${wdTotals.map((v,i)=>heatCell(v,wdMax,'週'+wdNames[i],wdCounts[i]+'筆')).join('')}</div>
+      <div style="display:flex;gap:4px">${wdRow}</div>
     </div>
     <div>
-      <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:8px">日期消費分布（1～31日）</div>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
-        ${dayTotals.map((v,i)=>heatCell(v,dayMax,i+1+'日','')).join('')}
+      <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:6px">月份 × 日期消費熱力表</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <div style="display:grid;grid-template-columns:32px 1fr;gap:3px 0;min-width:500px">
+          <div></div>
+          <div style="display:grid;grid-template-columns:repeat(31,1fr);gap:2px;margin-bottom:3px">${dayHeaders}</div>
+          ${gridRows}
+        </div>
       </div>
-    </div>
-    <div style="font-size:10px;color:var(--tx-muted);margin-top:10px;text-align:right">顏色越深代表消費金額越高　年度：${year}</div>`;
+      <div style="font-size:10px;color:var(--tx-muted);margin-top:8px">顏色越深 = 消費金額越高　藍色月份標籤 = 本月　hover 格子可見金額　年度：${year}</div>
+    </div>`;
   renderHeatmap(year);
   renderSankey();
   initMonthCompare();
@@ -6021,14 +5967,19 @@ function renderAnalytics() {
     ]},
     options:{responsive:true,plugins:{legend:{labels:{color:'#8080A8'}}},
       scales:{x:{ticks:{color:'#8080A8'},grid:{display:false}},
-              y:{ticks:{color:'#8080A8',callback:v=>'NT$'+v.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}}}
+              y:{beginAtZero:true,min:0,ticks:{color:'#8080A8',callback:v=>'NT$'+v.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}}}
   });
 
   // ── 信用卡各卡消費比較 ──────────────────────────────────────
   if (charts.cardCompare) { charts.cardCompare.destroy(); delete charts.cardCompare; }
-  const curMonth = year+'-'+String(new Date().getMonth()+1).padStart(2,'0');
+  const now = new Date();
+  const curMonth = year+'-'+String(now.getMonth()+1).padStart(2,'0');
   const cardLabels = DB.creditCards.map(c=>c.name);
-  const cardData   = DB.creditCards.map(c=>Math.abs(DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.date.startsWith(curMonth)&&t.amount<0&&!t.isPayment).reduce((s,t)=>s+t.amount,0)));
+  // 篩選：year 年、本月、card 或 account 來源都算（sourceType==='card' 或有 cardId）
+  const cardData   = DB.creditCards.map(c=>Math.abs(DB.transactions.filter(t=>
+    t.date.startsWith(curMonth)&&t.amount<0&&!t.isPayment&&
+    (t.sourceId===c.id||(t.cardId&&t.cardId===c.id))
+  ).reduce((s,t)=>s+t.amount,0)));
   const ccCtx = document.getElementById('cardCompareChart');
   if (ccCtx) charts.cardCompare = new Chart(ccCtx.getContext('2d'),{
     type:'bar',
@@ -7559,8 +7510,15 @@ function openGoalModal(editId) {
   document.getElementById('modalTitle').innerHTML =
     `<span style="font-size:15px;letter-spacing:1px">${g ? '✏️ 編輯目標' : '🎯 新增財務目標'}</span>`;
   // 產生帳戶分層選項
-  const layerOpts = DB.bankAccounts.filter(a=>a.accType!=='證券').flatMap(a=>
-    (a.layers||[]).map(l=>`<option value="${a.id}|${l.id}"${(g?.linkedLayers||[]).includes(a.id+'|'+l.id)?' selected':''}>${escHtml(a.name)} / ${escHtml(l.label)}</option>`)
+  const layerCheckboxes = DB.bankAccounts.filter(a=>a.accType!=='證券').flatMap(a=>
+    (a.layers||[]).map(l=>{
+      const val = `${a.id}|${l.id}`;
+      const checked = (g?.linkedLayers||[]).includes(val) ? 'checked' : '';
+      return `<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r);background:var(--bg-secondary);border:1px solid var(--bdr-subtle);cursor:pointer;font-size:13px;color:var(--tx-primary)">
+        <input type="checkbox" name="goalLayer" value="${val}" ${checked} style="width:16px;height:16px;accent-color:var(--m-blue);cursor:pointer;flex-shrink:0">
+        <span>${escHtml(a.name)} / ${escHtml(l.label)}</span>
+      </label>`;
+    })
   ).join('');
   const isLinked = g?.savedMode === 'link';
 
@@ -7584,8 +7542,8 @@ function openGoalModal(editId) {
           <input class="form-input" id="goalSaved" type="number" min="0" placeholder="0" value="${g?.savedMode!=='link'?g?.saved||0:0}">
         </div>
         <div id="goalLinkWrap" style="${!isLinked?'display:none':''}">
-          <select class="form-input" id="goalLinkedLayers" multiple style="height:120px;font-size:12px">${layerOpts}</select>
-          <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">可多選，系統自動加總所選分層餘額</div>
+          <div id="goalLinkedLayers" style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;padding:2px">${layerCheckboxes}</div>
+          <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">勾選分層，系統自動加總所選分層餘額</div>
         </div>
       </div>
       <div>
@@ -7632,8 +7590,8 @@ function saveGoal() {
   const savedMode = document.getElementById('goalSavedMode')?.value||'manual';
   let saved, linkedLayers=[];
   if (savedMode==='link') {
-    const sel = document.getElementById('goalLinkedLayers');
-    linkedLayers = sel ? [...sel.selectedOptions].map(o=>o.value) : [];
+    const cbs = document.querySelectorAll('#goalLinkedLayers input[name="goalLayer"]:checked');
+    linkedLayers = [...cbs].map(cb=>cb.value);
     saved = getLinkedLayerBalance(linkedLayers);
   } else {
     saved = parseFloat(document.getElementById('goalSaved')?.value)||0;
@@ -8016,47 +7974,71 @@ function renderInvest() {
 // 重置記帳資料
 // ════════════════════════════════════════════════════════════════
 function resetDataStep1() {
-  // 第一層彈窗：警告 + 建議備份
   openModal('_resetStep1');
   document.getElementById('modalTitle').innerHTML =
     '<span style="color:#ff2d55;font-size:16px;letter-spacing:1px">⚠️ 重置記帳資料</span>';
-  document.getElementById('modalBody').innerHTML = `
-    <div style="background:rgba(255,45,85,.08);border:1px solid rgba(255,45,85,.3);border-radius:var(--r);padding:14px 16px;margin-bottom:16px">
-      <div style="font-size:13px;color:#ff2d55;font-weight:700;margin-bottom:8px">此操作將永久清除所有交易記錄與初始金額</div>
-      <div style="font-size:12px;color:var(--tx-secondary);line-height:1.8">
-        • 所有消費 / 收入 / 轉帳記錄<br>
-        • 所有分層初始金額與分期金額<br>
-        • 固定消費已生成記錄<br>
-        • 薪水撥入記錄
+  const items = [
+    {id:'rst_txn',    label:'所有消費 / 收入 / 轉帳記錄',      sub:''},
+    {id:'rst_stock',  label:'投資交易記錄',                      sub:''},
+    {id:'rst_fixed',  label:'固定消費已生成記錄',                sub:''},
+    {id:'rst_alloc',  label:'薪水撥入記錄',                      sub:''},
+    {id:'rst_bank',   label:'銀行帳戶分層金額歸零',              sub:'分層初始金額設為 0'},
+    {id:'rst_card',   label:'信用卡分層金額歸零',                sub:'分層金額與分期金額設為 0'},
+  ];
+  const checkboxes = items.map(it=>`
+    <label style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-radius:var(--r);background:var(--bg-secondary);border:1px solid var(--bdr-subtle);cursor:pointer">
+      <input type="checkbox" id="${it.id}" checked style="width:16px;height:16px;margin-top:2px;accent-color:#ff2d55;flex-shrink:0">
+      <div>
+        <div style="font-size:13px;color:var(--tx-primary)">${it.label}</div>
+        ${it.sub?`<div style="font-size:11px;color:var(--tx-muted)">${it.sub}</div>`:''}
       </div>
+    </label>`).join('');
+  document.getElementById('modalBody').innerHTML = `
+    <div style="background:rgba(255,45,85,.08);border:1px solid rgba(255,45,85,.3);border-radius:var(--r);padding:10px 14px;margin-bottom:14px">
+      <div style="font-size:12px;color:#ff2d55;font-weight:700">⚠ 以下被勾選的項目將永久清除，無法復原</div>
     </div>
-    <div style="font-size:13px;color:var(--tx-primary);margin-bottom:12px;font-weight:600">建議先匯出備份，確保資料安全。</div>
-    <button class="btn btn-ghost btn-sm" onclick="exportData()" style="width:100%;margin-bottom:8px;border:1px solid var(--bdr-normal)">
-      📤 先匯出 JSON 備份
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">${checkboxes}</div>
+    <button class="btn btn-ghost btn-sm" onclick="exportData()" style="width:100%;border:1px solid var(--bdr-normal)">
+      📤 先匯出 JSON 備份（建議）
     </button>`;
   document.getElementById('modalFooter').innerHTML = `
-    <button class="btn btn-ghost" onclick="closeModal()">取消，我再想想</button>
+    <button class="btn btn-ghost" onclick="closeModal()">取消</button>
     <button class="btn btn-sm" onclick="resetDataStep2()"
       style="background:linear-gradient(135deg,#ff2d55,#c8102e);color:#fff;font-weight:700;border:none;padding:8px 18px;border-radius:var(--r);cursor:pointer">
-      我已備份，繼續 →
+      繼續 →
     </button>`;
   document.getElementById('modalOverlay').classList.add('active');
 }
 
 function resetDataStep2() {
-  // 第二層彈窗：輸入今日日期確認
+  // 收集勾選項目
+  const ids = ['rst_txn','rst_stock','rst_fixed','rst_alloc','rst_bank','rst_card'];
+  const sel = ids.filter(id=>document.getElementById(id)?.checked);
+  if (!sel.length) { toast('請至少勾選一個項目','warn'); return; }
+  const selJson = JSON.stringify(sel);
   const now = new Date();
   const ymd = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  const labelMap = {
+    rst_txn:'所有消費 / 收入 / 轉帳記錄', rst_stock:'投資交易記錄',
+    rst_fixed:'固定消費已生成記錄', rst_alloc:'薪水撥入記錄',
+    rst_bank:'銀行帳戶分層金額歸零', rst_card:'信用卡分層金額歸零'
+  };
+  const selList = sel.map(id=>`<li style="font-size:12px;color:#ff2d55">${labelMap[id]}</li>`).join('');
   document.getElementById('modalTitle').innerHTML =
     '<span style="color:#ff2d55;font-size:16px;letter-spacing:1px">⚠️ 最終確認</span>';
   document.getElementById('modalBody').innerHTML = `
-    <div style="font-size:13px;color:var(--tx-primary);margin-bottom:14px;line-height:1.8">
-      請輸入<strong style="color:#ff2d55">今天的日期</strong>確認執行重置：<br>
+    <div style="background:rgba(255,45,85,.08);border:1px solid rgba(255,45,85,.3);border-radius:var(--r);padding:10px 14px;margin-bottom:12px">
+      <div style="font-size:12px;color:#ff2d55;font-weight:700;margin-bottom:6px">即將清除以下項目：</div>
+      <ul style="margin:0;padding-left:16px;line-height:1.9">${selList}</ul>
+    </div>
+    <div style="font-size:13px;color:var(--tx-primary);margin-bottom:10px;line-height:1.8">
+      請輸入<strong style="color:#ff2d55">今天的日期</strong>確認執行：<br>
       <span style="font-size:11px;color:var(--tx-muted)">格式：YYYYMMDD，例如 ${ymd}</span>
     </div>
     <input class="form-input" id="resetDateInput" type="text" maxlength="8"
       placeholder="${ymd}"
       style="font-size:20px;letter-spacing:4px;text-align:center;border:2px solid rgba(255,45,85,.4);font-family:var(--ff-display)">
+    <input type="hidden" id="resetSelJson" value='${selJson}'>
     <div id="resetDateErr" style="font-size:11px;color:#ff2d55;margin-top:6px;display:none">⚠ 日期不正確，請重新輸入</div>`;
   document.getElementById('modalFooter').innerHTML = `
     <button class="btn btn-ghost" onclick="closeModal()">取消</button>
@@ -8075,30 +8057,27 @@ function doResetData(expectedYmd) {
     if (errEl) errEl.style.display = '';
     return;
   }
-  // 執行重置
-  // 1. 清空交易記錄
-  DB.transactions = [];
-  // 1b. 清空投資交易記錄
-  DB.stockTrades = [];
-  // 2. 清空固定消費已生成記錄
-  DB.generatedFixed = {};
-  // 3. 清空薪水撥入記錄
-  DB.layerAllocations = [];
-  // 4. 銀行帳戶所有分層金額歸零
-  DB.bankAccounts.forEach(a => {
-    (a.layers || []).forEach(l => { l.amount = 0; });
-  });
-  // 5. 信用卡所有分層金額 & monthlyAmt 歸零
-  DB.creditCards.forEach(c => {
-    (c.layers || []).forEach(l => {
-      l.amount = 0;
-      if (l.monthlyAmt !== undefined) l.monthlyAmt = '';
-    });
-  });
+  let sel = [];
+  try { sel = JSON.parse(document.getElementById('resetSelJson')?.value||'[]'); } catch(e) {}
+  if (!sel.length) { toast('找不到勾選項目，請重新操作','warn'); return; }
+
+  const done = [];
+  if (sel.includes('rst_txn'))   { DB.transactions = []; done.push('交易記錄'); }
+  if (sel.includes('rst_stock')) { DB.stockTrades = []; done.push('投資記錄'); }
+  if (sel.includes('rst_fixed')) { DB.generatedFixed = {}; done.push('固定消費記錄'); }
+  if (sel.includes('rst_alloc')) { DB.layerAllocations = []; done.push('薪水撥入記錄'); }
+  if (sel.includes('rst_bank'))  {
+    DB.bankAccounts.forEach(a => { (a.layers||[]).forEach(l => { l.amount = 0; }); });
+    done.push('銀行分層金額');
+  }
+  if (sel.includes('rst_card'))  {
+    DB.creditCards.forEach(c => { (c.layers||[]).forEach(l => { l.amount=0; if(l.monthlyAmt!==undefined) l.monthlyAmt=''; }); });
+    done.push('信用卡分層金額');
+  }
   saveDB();
   closeModal();
   navigateTo('dashboard');
-  toast('✅ 重置完成，所有記錄已清除，架構保留', 'success');
+  toast(`✅ 已清除：${done.join('、')}`, 'success');
 }
 // ════════════════════════════════════════════════════════════════
 // HELPERS FOR MODALS
