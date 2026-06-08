@@ -1869,6 +1869,21 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mq4iwn9xn9oog",
+      "date": "2026-06-08",
+      "amount": 12,
+      "desc": "小樹點",
+      "category": "movlnwb2fjdqd",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
