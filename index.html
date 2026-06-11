@@ -4503,7 +4503,7 @@ function renderCCLayerSelector() {
         if (lastAccId !== null) {
           html += '<div style="height:4px"></div>';
         }
-        html += '<div style="font-size:11px;font-weight:700;color:'+(l.accColor||'#1c69d4')+';padding:2px 4px;letter-spacing:0.5px">— '+escHtml(l.accName)+' —</div>';
+        html += '<div style="font-size:11px;font-weight:700;color:var(--tx-primary);padding:2px 4px;letter-spacing:0.5px">— '+escHtml(l.accName)+' —</div>';
         lastAccId = l.accId;
       }
       html += '<div style="display:flex;align-items:center;background:var(--bg-primary);border:1px solid '+(isSelected?l.accColor||'#1c69d4':'var(--bdr-subtle)')+';border-radius:6px;padding:4px 10px;gap:6px">';
