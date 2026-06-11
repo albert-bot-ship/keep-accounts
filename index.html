@@ -4493,11 +4493,19 @@ function renderCCLayerSelector() {
   // 銀行薪水來源區
   if (bankLayers.length > 0) {
     html += '<div style="font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin-bottom:6px;font-family:var(--ff-display)">🏦 薪水來源 — 選擇銀行帳戶分層</div>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">';
     bankLayers.forEach(l => {
       const key = l.accId+'_'+l.layerId;
-      html += mkChip(key, l.accColor||'#1c69d4', selectedBankLayers.has(key), l.accName, l.label, l.actual,
-        'toggleBankLayer(\''+l.accId+'\',\''+l.layerId+'\',this.checked)');
+      const isSelected = selectedBankLayers.has(key);
+      html += '<div style="display:flex;align-items:center;background:var(--bg-primary);border:1px solid '+(isSelected?l.accColor||'#1c69d4':'var(--bdr-subtle)')+';border-radius:6px;padding:4px 10px;gap:6px">';
+      html += '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;flex:1;min-width:0">';
+      html += '<input type="checkbox"'+(isSelected?' checked':'')+' style="cursor:pointer;accent-color:'+(l.accColor||'#1c69d4')+'" onchange="toggleBankLayer(\''+l.accId+'\',\''+l.layerId+'\',this.checked)">';
+      html += '<span style="color:'+(l.accColor||'#1c69d4')+';font-weight:600;white-space:nowrap">'+escHtml(l.accName)+'</span>';
+      html += '<span style="color:var(--tx-secondary)"> / </span>';
+      html += '<span style="white-space:nowrap">'+escHtml(l.label)+'</span>';
+      html += '<span style="color:var(--tx-muted);margin-left:4px;white-space:nowrap">NT$'+l.actual.toLocaleString('zh-TW')+'</span>';
+      html += '</label>';
+      html += '</div>';
     });
     html += '</div>';
   }
