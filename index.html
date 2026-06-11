@@ -4494,9 +4494,18 @@ function renderCCLayerSelector() {
   if (bankLayers.length > 0) {
     html += '<div style="font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin-bottom:6px;font-family:var(--ff-display)">🏦 薪水來源 — 選擇銀行帳戶分層</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">';
+    let lastAccId = null;
     bankLayers.forEach(l => {
       const key = l.accId+'_'+l.layerId;
       const isSelected = selectedBankLayers.has(key);
+      // 每個新帳戶前插入群組標題
+      if (l.accId !== lastAccId) {
+        if (lastAccId !== null) {
+          html += '<div style="height:4px"></div>';
+        }
+        html += '<div style="font-size:11px;font-weight:700;color:'+(l.accColor||'#1c69d4')+';padding:2px 4px;letter-spacing:0.5px">— '+escHtml(l.accName)+' —</div>';
+        lastAccId = l.accId;
+      }
       html += '<div style="display:flex;align-items:center;background:var(--bg-primary);border:1px solid '+(isSelected?l.accColor||'#1c69d4':'var(--bdr-subtle)')+';border-radius:6px;padding:4px 10px;gap:6px">';
       html += '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;flex:1;min-width:0">';
       html += '<input type="checkbox"'+(isSelected?' checked':'')+' style="cursor:pointer;accent-color:'+(l.accColor||'#1c69d4')+'" onchange="toggleBankLayer(\''+l.accId+'\',\''+l.layerId+'\',this.checked)">';
