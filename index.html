@@ -92,6 +92,24 @@
   <link rel="apple-touch-icon" href="icon.png">
 </head>
 <body id="appBody">
+
+<!-- ══ PASSWORD GATE ══ -->
+<div id="pwdGate" style="display:none;position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">
+  <div style="width:100%;max-width:360px">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-family:var(--ff-display);font-size:28px;font-weight:900;letter-spacing:2px;color:var(--tx)">M WALLET</div>
+      <div style="font-size:12px;color:var(--tx-muted);margin-top:4px;letter-spacing:1px">BMW M POWER</div>
+    </div>
+    <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:var(--r);padding:24px">
+      <div style="font-size:13px;color:var(--tx-secondary);margin-bottom:16px;text-align:center">請輸入密碼以繼續</div>
+      <div id="pwdHintDisplay" style="display:none;background:var(--tag-bg);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--tx-muted);text-align:center"></div>
+      <input class="form-input" type="password" id="pwdInput" placeholder="輸入密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitPwd()" style="margin-bottom:12px;font-size:16px">
+      <div id="pwdError" style="display:none;color:var(--tx-red);font-size:12px;text-align:center;margin-bottom:10px"></div>
+      <button class="btn btn-primary" style="width:100%;font-size:15px" onclick="submitPwd()">🔓 解鎖</button>
+    </div>
+  </div>
+</div>
+
 <div id="mPowerBorder" aria-hidden="true"></div>
 <canvas id="particleCanvas"></canvas>
 <!-- ══ DYNAMIC ISLAND ══ -->
@@ -556,6 +574,9 @@
         <button class="settings-tab" id="stab-theme" onclick="switchSettingsTab('theme')">
           <span class="stab-icon">🎨</span><span>外觀主題</span>
         </button>
+        <button class="settings-tab" id="stab-security" onclick="switchSettingsTab('security')">
+          <span class="stab-icon">🔐</span><span>安全</span>
+        </button>
       </div>
 
       <!-- ── 類別 Tab ── -->
@@ -946,6 +967,50 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- 安全設定面板 -->
+      <div class="settings-tab-panel" id="spanel-security">
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <div class="settings-section-icon" style="background:rgba(0,87,184,.12)">🔐</div>
+            <div>
+              <div class="settings-section-title">密碼保護</div>
+              <div class="settings-section-desc">開啟後每次啟動需輸入密碼，同一 session 只需輸入一次</div>
+            </div>
+          </div>
+          <div class="settings-section-body" style="padding:14px 18px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <span style="font-size:13px">啟用密碼保護</span>
+              <label style="position:relative;display:inline-block;width:44px;height:24px">
+                <input type="checkbox" id="pwdEnabled" onchange="onPwdEnabledChange()" style="opacity:0;width:0;height:0">
+                <span id="pwdToggle" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--bdr);border-radius:24px;transition:.3s"></span>
+              </label>
+            </div>
+            <div id="pwdSetupArea" style="display:none">
+              <div class="form-group">
+                <label class="form-label">目前密碼（修改時填，初次設定留空）</label>
+                <input class="form-input" type="password" id="pwdCurrent" placeholder="留空表示初次設定" autocomplete="current-password">
+              </div>
+              <div class="form-group">
+                <label class="form-label">新密碼（英文、數字、符號皆可）</label>
+                <input class="form-input" type="password" id="pwdNew" placeholder="輸入新密碼" autocomplete="new-password">
+              </div>
+              <div class="form-group">
+                <label class="form-label">確認新密碼</label>
+                <input class="form-input" type="password" id="pwdConfirm" placeholder="再輸入一次" autocomplete="new-password">
+              </div>
+              <div class="form-group">
+                <label class="form-label">密碼提示（只有你看得懂就好）</label>
+                <input class="form-input" type="text" id="pwdHint" placeholder="例如：我的第一台車">
+              </div>
+              <button class="btn btn-primary" style="width:100%" onclick="savePwd()">💾 儲存密碼設定</button>
+              <div style="margin-top:12px">
+                <button class="btn btn-danger btn-sm" style="width:100%" onclick="removePwd()">🗑 移除密碼保護</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ── 自動分類規則 Tab ── -->
@@ -8996,6 +9061,150 @@ function updateThemeCards() {
   const toHM=v=>{const hh=Math.floor(v),mm=Math.round((v-hh)*60);return hh+':'+String(mm).padStart(2,'0');};
   status.innerHTML='台中今日日出 <strong>'+toHM(sunrise)+'</strong>，日落 <strong>'+toHM(sunset)+'</strong>。<br>目前<strong>'+(isDay?'白天 ☀️':'夜間 🌙')+'</strong>，自動模式顯示<strong>'+(isDay?'淺色':'深色')+'</strong>主題。';
 }
+// ══ PASSWORD GATE ══════════════════════════════════════════
+const PWD_HASH_KEY   = 'mwallet_pwd_hash';
+const PWD_HINT_KEY   = 'mwallet_pwd_hint';
+const PWD_ENABLED_KEY= 'mwallet_pwd_enabled';
+const PWD_LOCK_KEY   = 'mwallet_pwd_lock';
+const PWD_FAIL_KEY   = 'mwallet_pwd_fails';
+const SESSION_KEY    = 'mwallet_unlocked';
+const MAX_FAILS = 3;
+const LOCK_MS   = 60 * 1000; // 1 分鐘
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function isPwdEnabled() { return localStorage.getItem(PWD_ENABLED_KEY) === '1'; }
+function isUnlocked()   { return sessionStorage.getItem(SESSION_KEY) === '1'; }
+
+function checkPwdGate() {
+  if (!isPwdEnabled() || isUnlocked()) { hidePwdGate(); return; }
+  showPwdGate();
+}
+
+function showPwdGate() {
+  const gate = document.getElementById('pwdGate');
+  if (gate) { gate.style.display = 'flex'; }
+  const hint = localStorage.getItem(PWD_HINT_KEY);
+  const hintEl = document.getElementById('pwdHintDisplay');
+  if (hintEl && hint) { hintEl.style.display = 'block'; hintEl.textContent = '提示：' + hint; }
+  checkLockStatus();
+  setTimeout(()=>{ const inp=document.getElementById('pwdInput'); if(inp)inp.focus(); }, 100);
+}
+
+function hidePwdGate() {
+  const gate = document.getElementById('pwdGate');
+  if (gate) gate.style.display = 'none';
+}
+
+function checkLockStatus() {
+  const lockUntil = parseInt(localStorage.getItem(PWD_LOCK_KEY) || '0');
+  const now = Date.now();
+  const inp = document.getElementById('pwdInput');
+  const btn = document.querySelector('#pwdGate .btn-primary');
+  const errEl = document.getElementById('pwdError');
+  if (lockUntil > now) {
+    const sec = Math.ceil((lockUntil - now) / 1000);
+    if (errEl) { errEl.style.display='block'; errEl.textContent = '錯誤次數過多，請等待 ' + sec + ' 秒後再試'; }
+    if (inp) inp.disabled = true;
+    if (btn) btn.disabled = true;
+    setTimeout(checkLockStatus, 1000);
+  } else {
+    if (inp) inp.disabled = false;
+    if (btn) btn.disabled = false;
+    if (parseInt(localStorage.getItem(PWD_FAIL_KEY)||'0') === 0 && errEl) errEl.style.display = 'none';
+  }
+}
+
+async function submitPwd() {
+  const lockUntil = parseInt(localStorage.getItem(PWD_LOCK_KEY) || '0');
+  if (lockUntil > Date.now()) return;
+  const inp = document.getElementById('pwdInput');
+  const errEl = document.getElementById('pwdError');
+  const val = inp ? inp.value : '';
+  if (!val) { if(errEl){errEl.style.display='block';errEl.textContent='請輸入密碼';} return; }
+  const hash = await sha256(val);
+  const stored = localStorage.getItem(PWD_HASH_KEY);
+  if (hash === stored) {
+    localStorage.setItem(PWD_FAIL_KEY, '0');
+    localStorage.removeItem(PWD_LOCK_KEY);
+    sessionStorage.setItem(SESSION_KEY, '1');
+    hidePwdGate();
+  } else {
+    const fails = parseInt(localStorage.getItem(PWD_FAIL_KEY)||'0') + 1;
+    localStorage.setItem(PWD_FAIL_KEY, fails);
+    if (fails >= MAX_FAILS) {
+      localStorage.setItem(PWD_LOCK_KEY, Date.now() + LOCK_MS);
+      localStorage.setItem(PWD_FAIL_KEY, '0');
+      if(errEl){errEl.style.display='block';errEl.textContent='錯誤 3 次，鎖定 1 分鐘';}
+      checkLockStatus();
+    } else {
+      if(errEl){errEl.style.display='block';errEl.textContent='密碼錯誤（第 '+fails+' 次，共 '+MAX_FAILS+' 次）';}
+    }
+    if(inp) inp.value='';
+  }
+}
+
+// 設定頁：啟用/停用 toggle
+function onPwdEnabledChange() {
+  const cb = document.getElementById('pwdEnabled');
+  const area = document.getElementById('pwdSetupArea');
+  const toggle = document.getElementById('pwdToggle');
+  if (cb && area) area.style.display = cb.checked ? 'block' : 'none';
+  if (toggle) toggle.style.background = cb && cb.checked ? 'var(--accent)' : 'var(--bdr)';
+}
+
+async function savePwd() {
+  const cur  = document.getElementById('pwdCurrent')?.value || '';
+  const nw   = document.getElementById('pwdNew')?.value || '';
+  const conf = document.getElementById('pwdConfirm')?.value || '';
+  const hint = document.getElementById('pwdHint')?.value || '';
+  const existing = localStorage.getItem(PWD_HASH_KEY);
+  if (!nw) { toast('請輸入新密碼','danger'); return; }
+  if (nw !== conf) { toast('兩次密碼不一致','danger'); return; }
+  if (existing) {
+    const curHash = await sha256(cur);
+    if (curHash !== existing) { toast('目前密碼錯誤','danger'); return; }
+  }
+  const newHash = await sha256(nw);
+  localStorage.setItem(PWD_HASH_KEY, newHash);
+  localStorage.setItem(PWD_ENABLED_KEY, '1');
+  if (hint) localStorage.setItem(PWD_HINT_KEY, hint);
+  else localStorage.removeItem(PWD_HINT_KEY);
+  document.getElementById('pwdCurrent').value='';
+  document.getElementById('pwdNew').value='';
+  document.getElementById('pwdConfirm').value='';
+  toast('密碼設定成功 🔐','success');
+}
+
+function removePwd() {
+  if (!confirm('確定要移除密碼保護嗎？')) return;
+  localStorage.removeItem(PWD_HASH_KEY);
+  localStorage.removeItem(PWD_HINT_KEY);
+  localStorage.removeItem(PWD_ENABLED_KEY);
+  localStorage.removeItem(PWD_LOCK_KEY);
+  localStorage.removeItem(PWD_FAIL_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+  const cb = document.getElementById('pwdEnabled');
+  if(cb) { cb.checked=false; onPwdEnabledChange(); }
+  toast('密碼保護已移除','success');
+}
+
+function initSecurityPanel() {
+  const enabled = isPwdEnabled();
+  const cb = document.getElementById('pwdEnabled');
+  const toggle = document.getElementById('pwdToggle');
+  const area = document.getElementById('pwdSetupArea');
+  if(cb) cb.checked = enabled;
+  if(toggle) toggle.style.background = enabled ? 'var(--accent)' : 'var(--bdr)';
+  if(area) area.style.display = enabled ? 'block' : 'none';
+  const hint = localStorage.getItem(PWD_HINT_KEY);
+  if(hint) { const h=document.getElementById('pwdHint'); if(h) h.value=hint; }
+}
+// ═══════════════════════════════════════════════════════════
+
 function switchSettingsTab(tab) {
   document.querySelectorAll('.settings-tab').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.settings-tab-panel').forEach(p=>p.classList.remove('active'));
@@ -9008,6 +9217,7 @@ function switchSettingsTab(tab) {
   if(tab==='data'||tab==='theme') checkStorageCapacity();
   if(tab==='data') refreshDataTabBtns();
   if(tab==='rules') renderRuleList();
+  if(tab==='security') initSecurityPanel();
 }
 
 function refreshDataTabBtns() {
@@ -9355,6 +9565,8 @@ async function init() {
   checkStorageCapacity();
   // 7. 股票
   fetchStockPrices();
+  // 8. 密碼保護
+  checkPwdGate();
 }
 document.addEventListener('DOMContentLoaded', init);
 
