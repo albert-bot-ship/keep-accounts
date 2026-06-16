@@ -8490,14 +8490,15 @@ function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
           // 分期分層：直接顯示手動維護的剩餘總額
           display = fmt(l.amount || 0);
         } else {
-          // 一般分層：消費合計 − 繳款合計 = 未繳餘額
+          // 一般分層：只計算本期帳單週期內的消費（未繳款）
+          const card = getCard(cardId);
+          const { periodStart, periodEnd } = card?.billingDay
+            ? cardBillingPeriod(card)
+            : { periodStart: nowYM()+'-01', periodEnd: nowYM()+'-31' };
           const consumed = DB.transactions
-            .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
+            .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
             .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
-          const paid = DB.transactions
-            .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount>0&&t.isPayment)
-            .reduce((s,t)=>s+t.amount,0);
-          display = fmt(Math.max(0, consumed - paid));
+          display = fmt(consumed);
         }
       }
       return `<option value="${l.id}"${l.id===preLayerId?' selected':''}>${l.label}（${display}）</option>`;
