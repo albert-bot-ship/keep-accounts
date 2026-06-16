@@ -8486,10 +8486,19 @@ function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
         display = fmt(layerDynamicBalance(accId, l.id));
       } else {
         const cardId = srcVal.split('_')[1];
-        const txAmt = DB.transactions
-          .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
-          .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
-        display = fmt((l.amount||0) + txAmt);
+        if (l.monthlyAmt != null && l.monthlyAmt !== '') {
+          // 分期分層：直接顯示手動維護的剩餘總額
+          display = fmt(l.amount || 0);
+        } else {
+          // 一般分層：消費合計 − 繳款合計 = 未繳餘額
+          const consumed = DB.transactions
+            .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
+            .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
+          const paid = DB.transactions
+            .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount>0&&t.isPayment)
+            .reduce((s,t)=>s+t.amount,0);
+          display = fmt(Math.max(0, consumed - paid));
+        }
       }
       return `<option value="${l.id}"${l.id===preLayerId?' selected':''}>${l.label}（${display}）</option>`;
     }).join('');
