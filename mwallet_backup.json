@@ -2196,6 +2196,21 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mqg87kncpizfj",
+      "date": "2026-06-16",
+      "amount": -1160,
+      "desc": "新光影城",
+      "category": "mov4018zi207l",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
