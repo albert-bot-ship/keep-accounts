@@ -94,19 +94,24 @@
 <body id="appBody">
 
 <!-- ══ PASSWORD GATE ══ -->
-<div id="pwdGate" style="display:none;position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">
-  <div style="width:100%;max-width:360px">
-    <div style="text-align:center;margin-bottom:32px">
-      <div style="font-family:var(--ff-display);font-size:28px;font-weight:900;letter-spacing:2px;color:var(--tx)">M WALLET</div>
-      <div style="font-size:12px;color:var(--tx-muted);margin-top:4px;letter-spacing:1px">BMW M POWER</div>
-    </div>
-    <div style="background:var(--card-bg);border:1px solid var(--bdr);border-radius:var(--r);padding:24px">
-      <div style="font-size:13px;color:var(--tx-secondary);margin-bottom:16px;text-align:center">請輸入密碼以繼續</div>
-      <div id="pwdHintDisplay" style="display:none;background:var(--tag-bg);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--tx-muted);text-align:center"></div>
-      <input class="form-input" type="password" id="pwdInput" placeholder="輸入密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitPwd()" style="margin-bottom:12px;font-size:16px">
-      <div id="pwdError" style="display:none;color:var(--tx-red);font-size:12px;text-align:center;margin-bottom:10px"></div>
-      <button class="btn btn-primary" style="width:100%;font-size:15px" onclick="submitPwd()">🔓 解鎖</button>
-    </div>
+<div id="pwdGate" style="display:none;position:fixed;inset:0;z-index:99999;background:#07070F;flex-direction:column;align-items:center;justify-content:center;padding:32px;opacity:0;transition:opacity .3s ease">
+  <!-- M badge -->
+  <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--m-blue,#0057B8),var(--m-violet,#6F2CA7));display:flex;align-items:center;justify-content:center;font-family:var(--ff-display,'Rajdhani'),sans-serif;font-size:26px;font-weight:900;color:#fff;margin-bottom:14px;box-shadow:0 4px 20px rgba(111,44,167,.4)">M</div>
+  <!-- Logo -->
+  <div style="font-family:var(--ff-display,'Rajdhani'),sans-serif;font-size:32px;font-weight:900;letter-spacing:8px;color:#fff;margin-bottom:4px">M WALLET</div>
+  <div style="font-size:11px;color:rgba(255,255,255,.35);letter-spacing:3px;margin-bottom:8px">BMW M POWER FINANCE TRACKER</div>
+  <!-- M 三色條 -->
+  <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:36px">
+    <div style="width:48px;height:3px;border-radius:2px;background:#0057B8"></div>
+    <div style="width:48px;height:3px;border-radius:2px;background:#6F2CA7"></div>
+    <div style="width:48px;height:3px;border-radius:2px;background:#C8102E"></div>
+  </div>
+  <!-- 輸入區 -->
+  <div style="width:100%;max-width:320px">
+    <div id="pwdHintDisplay" style="display:none;font-size:12px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:12px;letter-spacing:.5px"></div>
+    <input id="pwdInput" type="password" placeholder="輸入密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitPwd()" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:14px 16px;font-size:16px;color:#fff;outline:none;margin-bottom:10px;letter-spacing:2px;-webkit-text-fill-color:#fff">
+    <div id="pwdError" style="display:none;color:#ff6b6b;font-size:12px;text-align:center;margin-bottom:10px"></div>
+    <button onclick="submitPwd()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0057B8,#6F2CA7);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:1px;font-family:var(--ff-display,'Rajdhani'),sans-serif">🔓 解鎖</button>
   </div>
 </div>
 
@@ -2600,11 +2605,17 @@ function initSplash() {
   const stripes = document.getElementById('splashStripes');
   setTimeout(()=>{ stripes?.classList.add('vibe'); }, 580);
 
-  // 1秒後淡出
+  // 1秒後：若需要密碼則直接轉換成密碼頁，否則正常淡出
   setTimeout(()=>{
-    splash.style.transition = 'opacity .25s ease';
-    splash.style.opacity = '0';
-    setTimeout(()=>{ splash.style.display='none'; }, 250);
+    if (isPwdEnabled() && !isUnlocked()) {
+      // Splash 與密碼頁背景同色（#07070F），直接隱藏 Splash 顯示密碼頁，視覺無縫
+      splash.style.display = 'none';
+      showPwdGate();
+    } else {
+      splash.style.transition = 'opacity .25s ease';
+      splash.style.opacity = '0';
+      setTimeout(()=>{ splash.style.display='none'; }, 250);
+    }
   }, 1000);
 }
 
@@ -9101,17 +9112,22 @@ function checkPwdGate() {
 
 function showPwdGate() {
   const gate = document.getElementById('pwdGate');
-  if (gate) { gate.style.display = 'flex'; }
+  if (gate) {
+    gate.style.display = 'flex';
+    requestAnimationFrame(()=>{ gate.style.opacity = '1'; });
+  }
   const hint = localStorage.getItem(PWD_HINT_KEY);
   const hintEl = document.getElementById('pwdHintDisplay');
   if (hintEl && hint) { hintEl.style.display = 'block'; hintEl.textContent = '提示：' + hint; }
   checkLockStatus();
-  setTimeout(()=>{ const inp=document.getElementById('pwdInput'); if(inp)inp.focus(); }, 100);
+  setTimeout(()=>{ const inp=document.getElementById('pwdInput'); if(inp)inp.focus(); }, 300);
 }
 
 function hidePwdGate() {
   const gate = document.getElementById('pwdGate');
-  if (gate) gate.style.display = 'none';
+  if (!gate) return;
+  gate.style.opacity = '0';
+  setTimeout(()=>{ gate.style.display = 'none'; }, 300);
 }
 
 function checkLockStatus() {
@@ -9597,10 +9613,12 @@ async function init() {
   checkStorageCapacity();
   // 7. 股票
   fetchStockPrices();
-  // 8. 密碼保護（Splash 結束後才顯示，避免衝突）
-  const _splashShown = sessionStorage.getItem('mw_splash');
-  const _needPwd = isPwdEnabled() && !isUnlocked();
-  setTimeout(checkPwdGate, (_needPwd && !_splashShown) ? 1300 : 0);
+  // 8. 密碼保護（由 initSplash 結束時觸發，這裡只處理重新整理的情況）
+  if (!sessionStorage.getItem('mw_splash')) {
+    // 首次開啟由 initSplash 處理，不重複呼叫
+  } else {
+    checkPwdGate();
+  }
 }
 document.addEventListener('DOMContentLoaded', init);
 
