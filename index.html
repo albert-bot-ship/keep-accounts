@@ -1008,10 +1008,11 @@
 
             <!-- 已設定時：變更 / 移除按鈕 -->
             <div id="pwdAreaSet" style="display:none">
-              <div style="display:flex;gap:10px">
+              <div style="display:flex;gap:10px;margin-bottom:10px">
                 <button class="btn btn-ghost" style="flex:1" onclick="openPwdForm('change')">🔑 變更密碼</button>
                 <button class="btn btn-danger btn-sm" style="flex:1" onclick="removePwd()">🗑 移除密碼</button>
               </div>
+              <button class="btn btn-warning" style="width:100%" onclick="lockNow()">🔒 立即鎖定</button>
             </div>
 
             <!-- 表單區（設定/變更共用，預設隱藏） -->
@@ -9277,6 +9278,13 @@ function removePwd() {
   closePwdForm();
   updatePwdStatusUI();
   toast('密碼保護已移除','success');
+}
+
+function lockNow() {
+  if (!isPwdEnabled()) return;
+  clearTimeout(_idleTimer);
+  sessionStorage.removeItem(SESSION_KEY);
+  showPwdGate();
 }
 
 function saveIdleMin() {
