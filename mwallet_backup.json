@@ -2139,6 +2139,48 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mqg0ts8ydj4ko",
+      "date": "2026-06-15",
+      "amount": -94,
+      "desc": "勁戰",
+      "category": "mov787fj4o49i",
+      "sourceId": "mov4j2lhbf7rv",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mpdhz2emh2a28",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
+    },
+    {
+      "id": "mqg0vdilsjh90",
+      "date": "2026-06-16",
+      "amount": -8942,
+      "desc": "信用卡繳款 — CUBE",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "layerId": "mowt7wruf1yp4",
+      "transferPairTxnId": "mqg0vdilltaz8"
+    },
+    {
+      "id": "mqg0vdilltaz8",
+      "date": "2026-06-16",
+      "amount": 8942,
+      "desc": "繳款入帳 — CUBE",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "transferPairTxnId": "mqg0vdilsjh90"
     }
   ],
   "fixedExpenses": [],
