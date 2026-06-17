@@ -87,6 +87,10 @@
     transition: transform .2s;
   }
   #ptr-indicator.releasing #ptr-arrow { transform: rotate(180deg); }
+  /* 移除所有 number input 的上下箭頭 spinner */
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+  input[type=number] { -moz-appearance:textfield; appearance:textfield; }
   </style>
   <link rel="icon" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
@@ -9205,22 +9209,28 @@ function isPwdEnabled() { return localStorage.getItem(PWD_ENABLED_KEY) === '1'; 
 function isUnlocked()   { return sessionStorage.getItem(SESSION_KEY) === '1'; }
 function getIdleMin()   { return parseInt(localStorage.getItem(PWD_IDLE_KEY) || '20'); }
 
+let _idleDebounce = null;
 function resetIdleTimer() {
   if (!isPwdEnabled()) return;
-  localStorage.setItem(PWD_LAST_ACT, Date.now());
-  clearTimeout(_idleTimer);
-  const ms = getIdleMin() * 60 * 1000;
-  _idleTimer = setTimeout(()=>{
-    if (isPwdEnabled() && isUnlocked()) {
-      sessionStorage.removeItem(SESSION_KEY);
-      showPwdGate();
-    }
-  }, ms);
+  // debounce：500ms 內只重設一次，避免每次按鍵都觸發
+  if (_idleDebounce) return;
+  _idleDebounce = setTimeout(()=>{
+    _idleDebounce = null;
+    clearTimeout(_idleTimer);
+    const ms = getIdleMin() * 60 * 1000;
+    _idleTimer = setTimeout(()=>{
+      if (isPwdEnabled() && isUnlocked()) {
+        sessionStorage.removeItem(SESSION_KEY);
+        showPwdGate();
+      }
+    }, ms);
+  }, 500);
 }
 
 function startIdleWatcher() {
   if (!isPwdEnabled()) return;
-  ['click','touchstart','keydown','scroll','mousemove'].forEach(ev=>{
+  // 移除 mousemove（太頻繁），只保留有意義的互動事件
+  ['click','touchstart','keydown','scroll'].forEach(ev=>{
     document.addEventListener(ev, resetIdleTimer, { passive: true });
   });
   resetIdleTimer();
