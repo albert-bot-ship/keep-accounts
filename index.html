@@ -5486,7 +5486,7 @@ function txnTable(txns, withActions) {
     return `${groupRow}<tr class="txn-row" ${rowClick}>
       ${chk}
       <td style="white-space:nowrap">${t.date}</td>
-      <td>${escHtml(t.desc)}${sysTags}${mlBadge}${layerBadge}${feeBadge}${userTagBadges}</td>
+      <td>${escHtml(t.desc)}${t.fxCurrency&&t.fxAmount?' <span style="font-size:10px;color:var(--tx-muted)">'+t.fxCurrency+' '+t.fxAmount.toLocaleString()+'</span>':''}${sysTags}${mlBadge}${layerBadge}${feeBadge}${userTagBadges}</td>
       <td><span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span></td>
       <td style="white-space:nowrap">${sourceName(t)}</td>
       <td class="${amtCls}" style="white-space:nowrap">${sign}${fmt(Math.abs(t.amount))}</td>
@@ -5539,7 +5539,7 @@ function txnTable(txns, withActions) {
     return `${groupHdr}<div class="txn-card-mobile" ${rowClick}>
       <div class="txn-card-top">
         ${chkBox}
-        <div class="txn-card-desc">${escHtml(t.desc||'（未填）')}</div>
+        <div class="txn-card-desc">${escHtml(t.desc||'（未填）')}${t.fxCurrency&&t.fxAmount?`<span style="font-size:10px;color:var(--tx-muted);margin-left:6px">${t.fxCurrency} ${t.fxAmount.toLocaleString()}</span>`:''}</div>
         <div class="txn-card-amount ${amtCls}">${sign}${fmt(Math.abs(t.amount))}</div>
         ${actBtns}
       </div>
@@ -6703,6 +6703,25 @@ function openModal(type,id,preCard,preAcc,extraId) {
     <div class="form-group"><label class="form-label">帳戶 / 卡片</label>
       <select class="form-select" id="tSrc" onchange="onTxnSrcChange(this.value)"><option value="">請選擇</option>${srcOpts('both')}</select>
     </div>
+    <div class="form-group" id="tFxGroup" style="display:none">
+      <label class="form-label">外幣金額</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select class="form-select" id="tFxCurrency" onchange="calcTxnFx()" style="width:110px">
+          <option value="USD">🇺🇸 USD</option>
+          <option value="JPY">🇯🇵 JPY</option>
+          <option value="EUR">🇪🇺 EUR</option>
+          <option value="HKD">🇭🇰 HKD</option>
+          <option value="GBP">🇬🇧 GBP</option>
+          <option value="CNY">🇨🇳 CNY</option>
+          <option value="KRW">🇰🇷 KRW</option>
+          <option value="AUD">🇦🇺 AUD</option>
+          <option value="SGD">🇸🇬 SGD</option>
+          <option value="MYR">🇲🇾 MYR</option>
+        </select>
+        <input class="form-input" id="tFxAmt" type="number" placeholder="外幣金額" style="flex:1" oninput="calcTxnFx()">
+      </div>
+      <div id="tFxResult" style="font-size:12px;color:var(--tx-muted);margin-top:6px;min-height:18px"></div>
+    </div>
     <div class="form-group" id="tLayerGroup" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <label class="form-label" style="margin:0">分層設定</label>
@@ -7266,7 +7285,14 @@ function saveTxn() {
   }
   // 薪水收入：layerId 和 layerAmounts 都維持 null，不連結分層
 
-  const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0};
+  // 外幣資訊
+  const fxCurrency = document.getElementById('tFxCurrency')?.value || '';
+  const fxAmtRaw   = parseFloat(document.getElementById('tFxAmt')?.value) || 0;
+  const fxGroup    = document.getElementById('tFxGroup');
+  const hasFx      = fxGroup && fxGroup.style.display !== 'none' && fxAmtRaw > 0;
+
+  const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0,
+    ...(hasFx ? {fxCurrency, fxAmount: fxAmtRaw} : {})};
   if(modalType==='editTxn'){
     const thisTxn = DB.transactions.find(t=>t.id===editTarget);
     Object.assign(thisTxn, txnObj);
@@ -8472,9 +8498,33 @@ function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
   const group = document.getElementById('tLayerGroup');
   const sel   = document.getElementById('tLayer');
   const feeGroup = document.getElementById('tFeeGroup');
+  const fxGroup  = document.getElementById('tFxGroup');
   if (!group || !sel) return;
 
   if (feeGroup) feeGroup.style.display = srcVal.startsWith('card_') ? '' : 'none';
+
+  // 外幣帳戶偵測
+  if (fxGroup) {
+    let isFx = false;
+    if (srcVal.startsWith('account_')) {
+      const acc = getAcc(srcVal.split('_')[1]);
+      if (acc?.accType === '外幣') {
+        isFx = true;
+        // 預設幣別填入帳戶設定的幣別
+        const cur = acc.currency || 'USD';
+        const sel = document.getElementById('tFxCurrency');
+        if (sel) sel.value = cur;
+      }
+    }
+    fxGroup.style.display = isFx ? '' : 'none';
+    if (!isFx) {
+      const fxAmt = document.getElementById('tFxAmt');
+      if (fxAmt) fxAmt.value = '';
+      const fxRes = document.getElementById('tFxResult');
+      if (fxRes) fxRes.textContent = '';
+    }
+  }
+
   if (!srcVal) { group.style.display='none'; return; }
 
   let layers = [];
@@ -8851,6 +8901,25 @@ function getRateTWD(currency) {
 }
 
 // Format foreign currency with proper decimals
+function calcTxnFx() {
+  const cur    = document.getElementById('tFxCurrency')?.value;
+  const fxAmt  = parseFloat(document.getElementById('tFxAmt')?.value) || 0;
+  const resEl  = document.getElementById('tFxResult');
+  const amtEl  = document.getElementById('tAmt');
+  if (!cur || !fxAmt) {
+    if (resEl) resEl.textContent = '';
+    return;
+  }
+  const rate = exchangeRates[cur];
+  if (!rate) {
+    if (resEl) resEl.textContent = '匯率資料尚未載入，請稍後再試';
+    return;
+  }
+  const twd = Math.round(fxAmt * rate);
+  if (amtEl) amtEl.value = twd;
+  if (resEl) resEl.textContent = cur + ' ' + fxAmt.toLocaleString() + ' ≈ NT$' + twd.toLocaleString();
+}
+
 function fmtFX(amount, currency) {
   if (!currency || currency === 'TWD') return fmt(amount);
   const noDecimal = ['JPY','KRW','IDR','VND'].includes(currency.toUpperCase());
