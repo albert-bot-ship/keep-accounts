@@ -6685,7 +6685,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">金額（NT$）</label>
+      <div class="form-group" id="tAmtGroup"><label class="form-label">金額（NT$）</label>
         <div style="display:flex;gap:6px;align-items:center">
           <input class="form-input" id="tAmt" type="number" value="${txn?Math.abs(txn.amount):''}" placeholder="0" style="flex:1">
           <button type="button" class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:16px;padding:6px 10px" onclick="openBigAmt('tAmt','輸入金額')" title="大字輸入">⌨</button>
@@ -6706,7 +6706,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
     <div class="form-group" id="tFxGroup" style="display:none">
       <label class="form-label">外幣金額</label>
       <div style="display:flex;gap:8px;align-items:center">
-        <select class="form-select" id="tFxCurrency" onchange="calcTxnFx()" style="width:110px">
+        <select class="form-select" id="tFxCurrency" onchange="calcTxnFx()" style="width:100px">
           <option value="USD">🇺🇸 USD</option>
           <option value="JPY">🇯🇵 JPY</option>
           <option value="EUR">🇪🇺 EUR</option>
@@ -8517,6 +8517,8 @@ function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
       }
     }
     fxGroup.style.display = isFx ? '' : 'none';
+    const amtGroup = document.getElementById('tAmtGroup');
+    if (amtGroup) amtGroup.style.display = isFx ? 'none' : '';
     if (!isFx) {
       const fxAmt = document.getElementById('tFxAmt');
       if (fxAmt) fxAmt.value = '';
@@ -8908,6 +8910,7 @@ function calcTxnFx() {
   const amtEl  = document.getElementById('tAmt');
   if (!cur || !fxAmt) {
     if (resEl) resEl.textContent = '';
+    if (amtEl) amtEl.value = '';
     return;
   }
   const rate = exchangeRates[cur];
@@ -8916,8 +8919,10 @@ function calcTxnFx() {
     return;
   }
   const twd = Math.round(fxAmt * rate);
+  // 台幣欄隱藏但自動填入，供統計使用
   if (amtEl) amtEl.value = twd;
-  if (resEl) resEl.textContent = cur + ' ' + fxAmt.toLocaleString() + ' ≈ NT$' + twd.toLocaleString();
+  // 換算結果只顯示在提示文字
+  if (resEl) resEl.innerHTML = '<span style="color:var(--tx-secondary)">' + cur + ' ' + fxAmt.toLocaleString() + '</span> ≈ <span style="color:var(--accent)">NT$' + twd.toLocaleString() + '</span>';
 }
 
 function fmtFX(amount, currency) {
