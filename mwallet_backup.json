@@ -2288,9 +2288,9 @@
     {
       "id": "mqhofaukbte9t",
       "date": "2026-06-17",
-      "amount": -4996,
+      "amount": 4996,
       "desc": "換美元",
-      "category": "mov787fj4o49i",
+      "category": "mq0967uv5w2s3",
       "sourceId": "movb6b0nsne13",
       "sourceType": "account",
       "notes": "",
@@ -2332,6 +2332,36 @@
       "isRedemption": false,
       "tags": [],
       "fee": 0
+    },
+    {
+      "id": "mqhosgg48oq46",
+      "date": "2026-06-17",
+      "amount": -5000,
+      "desc": "換美元",
+      "category": "mowszknj43v9u",
+      "sourceId": "mov4sadxpcepw",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt9nf0j6och",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
+    },
+    {
+      "id": "mqhosrbge26cr",
+      "date": "2026-06-17",
+      "amount": -1000,
+      "desc": "",
+      "category": "mowt158jjsaq7",
+      "sourceId": "mov6n7tlob32s",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": null,
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
