@@ -2362,6 +2362,21 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mqkd5vb1fw0os",
+      "date": "2026-06-19",
+      "amount": -367,
+      "desc": "Line bank",
+      "category": "mowszknj43v9u",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mpco4ljzg8q79",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
