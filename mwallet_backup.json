@@ -302,25 +302,6 @@
       ]
     },
     {
-      "id": "movb6b0nsne13",
-      "name": "國泰外幣帳戶",
-      "color": "#2ecc71",
-      "icon": "",
-      "last4": "",
-      "accType": "外幣",
-      "minBalance": 0,
-      "currency": "USD",
-      "notes": "",
-      "layers": [
-        {
-          "id": "movb6b0n46glq",
-          "label": "初始餘額",
-          "amount": 3336.86,
-          "color": "#2ecc71"
-        }
-      ]
-    },
-    {
       "id": "moybhs9taicha",
       "name": "永豐證券戶",
       "color": "#FF4081",
@@ -527,21 +508,6 @@
       "notes": "",
       "isRedemption": false,
       "layerId": "mowt8rfv4npge",
-      "tags": [],
-      "fee": 0,
-      "isFixed": false
-    },
-    {
-      "id": "mpakjmlor7k7q",
-      "date": "2026-05-18",
-      "amount": -1040,
-      "desc": "保誠",
-      "category": "mp9mudorweuu2",
-      "sourceId": "movb6b0nsne13",
-      "sourceType": "account",
-      "notes": "",
-      "isRedemption": false,
-      "layerId": "movb6b0n46glq",
       "tags": [],
       "fee": 0,
       "isFixed": false
@@ -2222,23 +2188,6 @@
       "layerId": "mpco4ljzg8q79",
       "transferPairId": "mqhj3g6znwtjg",
       "transferPairTxnId": "mqhj3g6z2a7a3"
-    },
-    {
-      "id": "mqhofaukbte9t",
-      "date": "2026-06-17",
-      "amount": 4996,
-      "desc": "換美元",
-      "category": "mq0967uv5w2s3",
-      "sourceId": "movb6b0nsne13",
-      "sourceType": "account",
-      "notes": "",
-      "isRedemption": false,
-      "layerId": null,
-      "tags": [],
-      "fee": 0,
-      "fxCurrency": "USD",
-      "fxAmount": 158.33,
-      "isFixed": false
     },
     {
       "id": "mqhofxl49kfsf",
