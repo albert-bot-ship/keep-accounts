@@ -270,24 +270,6 @@
       "layers": []
     },
     {
-      "id": "mov6r8erh99a8",
-      "name": "永豐銀行",
-      "color": "#ee3224",
-      "icon": "data:image/png;base64,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",
-      "last4": "",
-      "accType": "活存",
-      "minBalance": 0,
-      "notes": "",
-      "layers": [
-        {
-          "id": "mowte7rpcis6j",
-          "label": "投資金額",
-          "amount": 2159,
-          "color": "#ff2600"
-        }
-      ]
-    },
-    {
       "id": "mov74st8ti4ry",
       "name": "郵局",
       "color": "#1e5df1",
@@ -1218,36 +1200,6 @@
       "notes": "",
       "isRedemption": false,
       "layerId": "mowt8rfv4npge",
-      "tags": [],
-      "fee": 0,
-      "isFixed": false
-    },
-    {
-      "id": "mpmsb6yv1z0oi",
-      "date": "2026-05-26",
-      "amount": -1916,
-      "desc": "0050",
-      "category": "mp9mudorweuu2",
-      "sourceId": "mov6r8erh99a8",
-      "sourceType": "account",
-      "notes": "",
-      "isRedemption": false,
-      "layerId": "mowte7rpcis6j",
-      "tags": [],
-      "fee": 0,
-      "isFixed": false
-    },
-    {
-      "id": "mpmsdljbslrgc",
-      "date": "2026-05-26",
-      "amount": 2,
-      "desc": "",
-      "category": "mpmsd41fqkl4o",
-      "sourceId": "mov6r8erh99a8",
-      "sourceType": "account",
-      "notes": "",
-      "isRedemption": false,
-      "layerId": "mowte7rpcis6j",
       "tags": [],
       "fee": 0,
       "isFixed": false
@@ -2270,20 +2222,6 @@
       "layerId": "mpco4ljzg8q79",
       "transferPairId": "mqhj3g6znwtjg",
       "transferPairTxnId": "mqhj3g6z2a7a3"
-    },
-    {
-      "id": "mqhj3g6z2a7a3",
-      "date": "2026-06-17",
-      "amount": 1999,
-      "desc": "轉入 ← 台灣銀行",
-      "category": "mq0967uv5w2s3",
-      "sourceId": "mov6r8erh99a8",
-      "sourceType": "account",
-      "notes": "",
-      "isTransfer": true,
-      "layerId": "mowte7rpcis6j",
-      "transferPairId": "mqhj3g6znwtjg",
-      "transferPairTxnId": "mqhj3g6zes9g3"
     },
     {
       "id": "mqhofaukbte9t",
