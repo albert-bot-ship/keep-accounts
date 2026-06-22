@@ -1001,9 +1001,9 @@
     {
       "id": "mpk1jo85phdck",
       "date": "2026-05-24",
-      "amount": -630,
+      "amount": -636,
       "desc": "Claude ai",
-      "category": "mp9msdpowi02o",
+      "category": "mov787fj4o49i",
       "sourceId": "mov4hexngandg",
       "sourceType": "card",
       "notes": "",
@@ -2435,6 +2435,43 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mqpef1hkg73i9",
+      "date": "2026-06-22",
+      "amount": -636,
+      "desc": "信用卡繳款 — 兆豐-嘎嘎龍",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "layerId": null,
+      "layerAmounts": [
+        {
+          "layerId": "mpco4ljzg8q79",
+          "amount": -6
+        },
+        {
+          "layerId": "mq8v1xxlmsfhq",
+          "amount": -630
+        }
+      ],
+      "transferPairTxnId": "mqpef1hkhuz8x"
+    },
+    {
+      "id": "mqpef1hkhuz8x",
+      "date": "2026-06-22",
+      "amount": 636,
+      "desc": "繳款入帳 — 兆豐-嘎嘎龍",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4hexngandg",
+      "sourceType": "card",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "transferPairTxnId": "mqpef1hkg73i9"
     }
   ],
   "fixedExpenses": [],
