@@ -2711,9 +2711,12 @@ function renderNetWorth() {
   const assets = DB.bankAccounts.map(a => {
     let bal = accountBalance(a.id);
     if (a.accType==='證券') {
-      bal = (a.holdings||[]).reduce((s,h)=>{
-        const sp=stockPrices[h.symbol?.toUpperCase()];
-        return s+(sp?(h.shares||0)*sp.price:(h.totalCost||0));
+      const hMap = computeHoldings();
+      const accSymbols = [...new Set((DB.stockTrades||[]).filter(t=>t.accId===a.id).map(t=>t.symbol.toUpperCase()))];
+      bal = accSymbols.reduce((s,sym)=>{
+        const h = hMap[sym]; if(!h||h.shares<=0) return s;
+        const sp = stockPrices[sym];
+        return s+(sp ? h.shares*sp.price : h.totalCost);
       },0);
     }
     return {name:a.name, color:a.color, val:bal, type:a.accType||'一般'};
