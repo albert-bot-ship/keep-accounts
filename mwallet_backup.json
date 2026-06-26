@@ -146,6 +146,13 @@
           "amount": 0,
           "color": "#ff8fcb",
           "goal": null
+        },
+        {
+          "id": "mquh4t2tofm0s",
+          "label": "轉出(爸/美/郵)",
+          "amount": 0,
+          "color": "#e61986",
+          "goal": null
         }
       ],
       "last4": "",
@@ -1223,6 +1230,34 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mquh55cybocn5",
+      "date": "2026-06-26",
+      "amount": -17500,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "mquh55cyde0kb",
+      "transferPairTxnId": "mquh55cyy6xgh"
+    },
+    {
+      "id": "mquh55cyy6xgh",
+      "date": "2026-06-26",
+      "amount": 17500,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mquh4t2tofm0s",
+      "transferPairId": "mquh55cyde0kb",
+      "transferPairTxnId": "mquh55cybocn5"
     }
   ],
   "fixedExpenses": [],
