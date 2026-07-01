@@ -176,7 +176,7 @@
         {
           "id": "mowt8rfv4npge",
           "label": "活用金額",
-          "amount": 2,
+          "amount": 6,
           "color": "#9929bd",
           "goal": null
         },
@@ -1470,6 +1470,62 @@
       "layerId": "mowtfdp3hzho9",
       "transferPairId": "mr05qsnlhxii2",
       "transferPairTxnId": "mr05qsnl4jfe6"
+    },
+    {
+      "id": "mr2bagn1gccwu",
+      "date": "2026-07-01",
+      "amount": -165,
+      "desc": "Apple（訂閱）",
+      "category": "mov4018zsf3sq",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isFixed": false,
+      "fee": 2,
+      "layerId": "mowvgma9od1k8"
+    },
+    {
+      "id": "mr2bbc9ixfoas",
+      "date": "2026-07-02",
+      "amount": -1000,
+      "desc": "轉帳 → 台新銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "mr2bbc9iboywm",
+      "transferPairTxnId": "mr2bbc9i9ofv1"
+    },
+    {
+      "id": "mr2bbc9i9ofv1",
+      "date": "2026-07-02",
+      "amount": 1000,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov6n7tlob32s",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null,
+      "transferPairId": "mr2bbc9iboywm",
+      "transferPairTxnId": "mr2bbc9ixfoas"
+    },
+    {
+      "id": "mr2bc7sfzxvj7",
+      "date": "2026-07-02",
+      "amount": -1000,
+      "desc": "",
+      "category": "mowt158jjsaq7",
+      "sourceId": "mov6n7tlob32s",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": null,
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
@@ -1491,6 +1547,10 @@
     ],
     "sub_mpnngiv8dmk9t_2026-06-24": [
       "mpnngiv8dmk9t"
+    ],
+    "2026-07": [],
+    "sub_mpnnfir9wzefb_2026-07-01": [
+      "mpnnfir9wzefb"
     ]
   },
   "categories": [
@@ -1788,7 +1848,7 @@
       "amount": 165,
       "fee": 2,
       "cycle": "month",
-      "nextDate": "2026-07-01",
+      "nextDate": "2026-08-01",
       "color": "#00BCD4",
       "icon": "🎵",
       "srcId": "card_mov4et7fpt7kr",
