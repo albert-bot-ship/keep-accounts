@@ -1592,7 +1592,7 @@
       "sourceId": "mov4et7fpt7kr",
       "sourceType": "card",
       "notes": "",
-      "isRedemption": false,
+      "isRedemption": true,
       "layerId": "mowvgma9od1k8",
       "tags": [],
       "fee": 0,
