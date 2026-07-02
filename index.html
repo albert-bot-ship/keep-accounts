@@ -2711,12 +2711,9 @@ function renderNetWorth() {
   const assets = DB.bankAccounts.map(a => {
     let bal = accountBalance(a.id);
     if (a.accType==='證券') {
-      const hMap = computeHoldings();
-      const accSymbols = [...new Set((DB.stockTrades||[]).filter(t=>t.accId===a.id).map(t=>t.symbol.toUpperCase()))];
-      bal = accSymbols.reduce((s,sym)=>{
-        const h = hMap[sym]; if(!h||h.shares<=0) return s;
-        const sp = stockPrices[sym];
-        return s+(sp ? h.shares*sp.price : h.totalCost);
+      bal = (a.holdings||[]).reduce((s,h)=>{
+        const sp=stockPrices[h.symbol?.toUpperCase()];
+        return s+(sp?(h.shares||0)*sp.price:(h.totalCost||0));
       },0);
     }
     return {name:a.name, color:a.color, val:bal, type:a.accType||'一般'};
@@ -8556,7 +8553,7 @@ function doResetData(expectedYmd) {
 // 切換支出/收入時，重載類別選項
 function reloadTxnCats(typeVal) {
   const sel = document.getElementById('tCat'); if (!sel) return;
-  const forType = typeVal === 'income' ? 'income' : 'expense';
+  const forType = typeVal === 'expense' ? 'expense' : 'income';
   const cur = sel.value;
   sel.innerHTML = catOpts(cur, forType);
   if (!sel.value) sel.selectedIndex = 0;
@@ -8570,7 +8567,7 @@ function reloadTxnCats(typeVal) {
 }
 function reloadQaCats(typeVal) {
   const sel = document.getElementById('qaCat'); if (!sel) return;
-  const forType = typeVal === 'income' ? 'income' : 'expense';
+  const forType = typeVal === 'expense' ? 'expense' : 'income';
   const cur = sel.value;
   sel.innerHTML = catOpts(cur, forType);
   if (!sel.value) sel.selectedIndex = 0;
