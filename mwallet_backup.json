@@ -1642,6 +1642,21 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mr5422dn3tunq",
+      "date": "2026-07-03",
+      "amount": 2880,
+      "desc": "",
+      "category": "mpxw9wjdge9tt",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mp76aznhv0bb6",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
