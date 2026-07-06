@@ -1704,6 +1704,61 @@ function cardPrevBillingPeriod(card) {
   return { periodStart, periodEnd };
 }
 
+// cardPrevBillingPeriod() 是相對「目前帳單週期」往回推一期；這裡需要能從「任一期」往回推一期
+function cardPrevBillingPeriodFrom(card, fromPeriod) {
+  const localDate = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  };
+  const billingDay   = card.billingDay || 1;
+  const graceDays    = card.graceDays  || 0;
+  const startExtDays = card.startExtDays || 0;
+  const curStart = new Date(fromPeriod.periodStart + 'T00:00:00');
+  if (startExtDays > 0) curStart.setDate(curStart.getDate() + startExtDays);
+  const prevEndRaw = new Date(curStart);
+  prevEndRaw.setDate(prevEndRaw.getDate() - 1);
+  const prevStartRaw = new Date(prevEndRaw.getFullYear(), prevEndRaw.getMonth() - 1, billingDay);
+  prevStartRaw.setDate(prevStartRaw.getDate() + 1);
+  let periodStart = localDate(prevStartRaw);
+  let periodEnd   = localDate(prevEndRaw);
+  if (graceDays > 0) {
+    const ed = new Date(periodEnd + 'T00:00:00');
+    ed.setDate(ed.getDate() - graceDays);
+    periodEnd = localDate(ed);
+  }
+  if (startExtDays > 0) {
+    const sd = new Date(periodStart + 'T00:00:00');
+    sd.setDate(sd.getDate() - startExtDays);
+    periodStart = localDate(sd);
+  }
+  return { periodStart, periodEnd };
+}
+
+// 列出某張信用卡「有交易記錄」的所有帳單週期（供選擇性刪除單月帳單用）
+// 從目前週期往回推，直到沒有更早的交易為止（安全上限 36 期，約 3 年）
+function cardTxPeriods(cardId) {
+  const card = getCard(cardId);
+  if (!card) return [];
+  const cardTx = DB.transactions.filter(t => t.sourceType === 'card' && t.sourceId === cardId);
+  if (!cardTx.length) return [];
+  const earliestDate = cardTx.reduce((min, t) => (t.date < min ? t.date : min), cardTx[0].date);
+
+  const periods = [];
+  let cur = card.billingDay ? cardBillingPeriod(card) : cardBillingPeriod({ ...card, billingDay: 1 });
+  if (!cur) return [];
+  const MAX_PERIODS = 36;
+  for (let i = 0; i < MAX_PERIODS; i++) {
+    if (!cur) break;
+    const count = cardTx.filter(t => t.date >= cur.periodStart && t.date <= cur.periodEnd).length;
+    if (count > 0) periods.push({ periodStart: cur.periodStart, periodEnd: cur.periodEnd, count });
+    if (cur.periodStart <= earliestDate) break;
+    cur = cardPrevBillingPeriodFrom(card, cur);
+  }
+  return periods;
+}
+
 // 信用卡分層：直接取分層的手動輸入金額
 function cardLayerDynamicBalance(cardId, layerId) {
   const card = getCard(cardId); if (!card) return 0;
@@ -8316,12 +8371,28 @@ function resetDataStep1() {
   document.getElementById('modalTitle').innerHTML =
     '<span style="color:#ff2d55;font-size:16px;letter-spacing:1px">⚠️ 重置記帳資料</span>';
 
-  // 建立信用卡子清單
-  const cardItems = (DB.creditCards||[]).map(c=>`
-    <label style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--r);background:var(--bg-card);border:1px solid var(--bdr-subtle);cursor:pointer;margin-top:4px">
-      <input type="checkbox" class="rst-card-chk" data-id="${c.id}" checked style="width:15px;height:15px;accent-color:#ff2d55;flex-shrink:0">
-      <span style="font-size:12px;color:var(--tx-primary)">${c.name}</span>
-    </label>`).join('');
+  // 建立信用卡子清單（含每張卡可展開的「特定月份帳單」選項）
+  const cardItems = (DB.creditCards||[]).map(c=>{
+    const periods = cardTxPeriods(c.id);
+    const periodRows = periods.map(p=>`
+      <label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--r);background:var(--bg-card);cursor:pointer;margin-top:3px">
+        <input type="checkbox" class="rst-period-chk" data-card="${c.id}" data-start="${p.periodStart}" data-end="${p.periodEnd}" onchange="onRstPeriodToggle('${c.id}')" style="width:14px;height:14px;accent-color:#ff2d55;flex-shrink:0">
+        <span style="font-size:11px;color:var(--tx-secondary)">${p.periodStart} ～ ${p.periodEnd}（${p.count} 筆）</span>
+      </label>`).join('');
+    return `
+    <div style="border-radius:var(--r);background:var(--bg-card);border:1px solid var(--bdr-subtle);margin-top:4px;overflow:hidden">
+      <label style="display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer">
+        <input type="checkbox" class="rst-card-chk" data-id="${c.id}" checked onchange="onRstCardWholeToggle('${c.id}')" style="width:15px;height:15px;accent-color:#ff2d55;flex-shrink:0">
+        <span style="font-size:12px;color:var(--tx-primary);flex:1">${c.name}</span>
+        ${periods.length ? `<span style="font-size:10px;color:var(--tx-muted);cursor:pointer" onclick="event.preventDefault();event.stopPropagation();toggleRstCardPeriods('${c.id}')">▶ 只選月份</span>` : ''}
+      </label>
+      ${periods.length ? `
+      <div id="rst_periods_${c.id}" style="display:none;padding:2px 10px 8px 32px;border-top:1px solid var(--bdr-subtle)">
+        <div style="font-size:10px;color:var(--tx-muted);margin:4px 0">勾選後，「整卡」勾選會自動取消，只刪除下列勾選的月份帳單</div>
+        ${periodRows}
+      </div>` : ''}
+    </div>`;
+  }).join('');
 
   // 建立銀行帳戶子清單
   const bankItems = (DB.bankAccounts||[]).map(a=>`
@@ -8364,6 +8435,13 @@ function resetDataStep1() {
             <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 10px" onclick="rstGroupSelectAll('card',false)">全不選</button>
           </div>
           ${cardItems||'<div style="font-size:12px;color:var(--tx-muted);padding:6px 0">尚無信用卡</div>'}
+          <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;margin-top:8px;border-top:1px dashed var(--bdr-subtle);cursor:pointer">
+            <input type="checkbox" id="rst_period_zero_layer" style="width:14px;height:14px;margin-top:2px;accent-color:#ff2d55;flex-shrink:0">
+            <div>
+              <div style="font-size:12px;color:var(--tx-primary)">同時歸零這些卡片的分層金額</div>
+              <div style="font-size:10px;color:var(--tx-muted);margin-top:2px">⚠ 只對上面「只選月份」的卡片生效；分層金額不分月份，勾選會歸零整卡分層金額（不影響 monthlyAmt 分期設定）</div>
+            </div>
+          </label>
         </div>
       </div>
 
@@ -8420,19 +8498,48 @@ function rstGroupSelectAll(type, val) {
   if (master) master.checked = val;
 }
 
+// 展開/收合單張卡片的「只選月份」清單
+function toggleRstCardPeriods(cardId) {
+  const box = document.getElementById('rst_periods_' + cardId);
+  if (!box) return;
+  box.style.display = box.style.display === 'none' ? '' : 'none';
+}
+
+// 勾選「整卡」時，該卡的月份勾選一律清空（避免同一張卡同時套用兩種刪除邏輯）
+function onRstCardWholeToggle(cardId) {
+  const wholeChk = document.querySelector('.rst-card-chk[data-id="'+cardId+'"]');
+  if (wholeChk && wholeChk.checked) {
+    document.querySelectorAll('.rst-period-chk[data-card="'+cardId+'"]').forEach(c => { c.checked = false; });
+  }
+}
+
+// 勾選某個月份時，該卡的「整卡」勾選一律取消（避免同一張卡同時套用兩種刪除邏輯）
+function onRstPeriodToggle(cardId) {
+  const anyChecked = [...document.querySelectorAll('.rst-period-chk[data-card="'+cardId+'"]')].some(c => c.checked);
+  if (anyChecked) {
+    const wholeChk = document.querySelector('.rst-card-chk[data-id="'+cardId+'"]');
+    if (wholeChk) wholeChk.checked = false;
+  }
+}
+
 function resetDataStep2() {
-  // 收集信用卡選擇
+  // 收集信用卡選擇（整卡）
   const selCardIds = [...document.querySelectorAll('.rst-card-chk:checked')].map(c=>c.dataset.id);
   // 收集銀行帳戶選擇
   const selBankIds = [...document.querySelectorAll('.rst-bank-chk:checked')].map(c=>c.dataset.id);
+  // 收集信用卡「單月帳單」選擇（排除已勾整卡的卡片，避免重複邏輯）
+  const selCardPeriods = [...document.querySelectorAll('.rst-period-chk:checked')]
+    .map(c=>({ cardId:c.dataset.card, periodStart:c.dataset.start, periodEnd:c.dataset.end }))
+    .filter(p=>!selCardIds.includes(p.cardId));
+  const doZeroLayerForPeriods = !!document.getElementById('rst_period_zero_layer')?.checked;
   const doStock = document.getElementById('rst_stock')?.checked;
   const doAlloc = document.getElementById('rst_alloc')?.checked;
 
-  if (!doStock && !doAlloc && !selCardIds.length && !selBankIds.length) {
+  if (!doStock && !doAlloc && !selCardIds.length && !selBankIds.length && !selCardPeriods.length) {
     toast('請至少勾選一個項目','warn'); return;
   }
 
-  const payload = { selCardIds, selBankIds, doStock:!!doStock, doAlloc:!!doAlloc };
+  const payload = { selCardIds, selBankIds, selCardPeriods, doZeroLayerForPeriods, doStock:!!doStock, doAlloc:!!doAlloc };
   const selJson = JSON.stringify(payload);
 
   const now = new Date();
@@ -8445,6 +8552,15 @@ function resetDataStep2() {
   if (selCardIds.length) {
     const names = selCardIds.map(id=>(DB.creditCards||[]).find(c=>c.id===id)?.name||id).join('、');
     lines.push(`信用卡：${names}（交易記錄 + 分層金額）`);
+  }
+  if (selCardPeriods.length) {
+    const byCard = {};
+    selCardPeriods.forEach(p=>{ (byCard[p.cardId]=byCard[p.cardId]||[]).push(p); });
+    Object.keys(byCard).forEach(cardId=>{
+      const cardName = (DB.creditCards||[]).find(c=>c.id===cardId)?.name||cardId;
+      const periodsTxt = byCard[cardId].map(p=>`${p.periodStart}～${p.periodEnd}`).join('、');
+      lines.push(`信用卡：${cardName} 指定月份帳單（${periodsTxt}）${doZeroLayerForPeriods?'＋歸零該卡分層金額':''}`);
+    });
   }
   if (selBankIds.length) {
     const names = selBankIds.map(id=>(DB.bankAccounts||[]).find(a=>a.id===id)?.name||id).join('、');
@@ -8487,7 +8603,7 @@ function doResetData(expectedYmd) {
   }
   let payload = {};
   try { payload = JSON.parse(document.getElementById('resetSelJson')?.value||'{}'); } catch(e) {}
-  const { selCardIds=[], selBankIds=[], doStock=false, doAlloc=false } = payload;
+  const { selCardIds=[], selBankIds=[], selCardPeriods=[], doZeroLayerForPeriods=false, doStock=false, doAlloc=false } = payload;
 
   const done = [];
 
@@ -8519,6 +8635,30 @@ function doResetData(expectedYmd) {
     });
     const names = selCardIds.map(id=>(DB.creditCards||[]).find(c=>c.id===id)?.name||id).join('、');
     done.push('信用卡（'+names+'）');
+  }
+
+  // 信用卡：指定月份帳單（已在 resetDataStep2 排除掉勾了整卡的卡片，不會重複刪除）
+  if (selCardPeriods.length) {
+    const affectedCardIds = new Set();
+    const periodLabels = [];
+    selCardPeriods.forEach(p => {
+      DB.transactions = DB.transactions.filter(t =>
+        !(t.sourceType==='card' && t.sourceId===p.cardId && t.date>=p.periodStart && t.date<=p.periodEnd)
+      );
+      // 精準清除該期別的固定消費生成記錄，否則之後不會重新產生該期固定消費
+      delete DB.generatedFixed['card_' + p.cardId + '_' + p.periodStart];
+      affectedCardIds.add(p.cardId);
+      const cardName = (DB.creditCards||[]).find(c=>c.id===p.cardId)?.name || p.cardId;
+      periodLabels.push(`${cardName}(${p.periodStart}～${p.periodEnd})`);
+    });
+    // 分層金額歸零：僅在使用者勾選「同時歸零」時才執行，且只動 amount，不動 monthlyAmt（monthlyAmt 是常態分期設定，非月份資料）
+    if (doZeroLayerForPeriods) {
+      DB.creditCards.forEach(c => {
+        if (!affectedCardIds.has(c.id)) return;
+        (c.layers||[]).forEach(l => { l.amount = 0; });
+      });
+    }
+    done.push('信用卡指定月份帳單：' + periodLabels.join('、') + (doZeroLayerForPeriods ? '（含分層金額歸零）' : ''));
   }
 
   // 銀行帳戶
