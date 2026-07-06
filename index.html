@@ -320,7 +320,7 @@
             </div>
           </div>
           <!-- 可收合篩選面板 -->
-          <div id="txnFilterPanel" class="txn-filter-panel">
+          <div id="txnFilterPanel" class="txn-filter-panel" onkeydown="if(event.key==='Enter'){event.preventDefault();applyTxnFilter();}">
             <div style="display:flex;gap:4px;flex-wrap:wrap;padding-bottom:6px;border-bottom:1px solid var(--bdr-subtle);margin-bottom:4px">
               <span style="font-size:11px;color:var(--tx-muted);align-self:center;margin-right:2px">快選：</span>
               <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="setQuickDateFilter('salary')">本期</button>
@@ -347,6 +347,7 @@
               <option value="">全部標籤</option>
             </select>
             <button class="btn btn-ghost btn-sm" onclick="clearTxnFilters()">✕ 清除篩選</button>
+            <button class="btn btn-primary btn-sm" onclick="applyTxnFilter()">✓ 確定</button>
           </div>
         </div>
         <div id="txnTableWrap"></div>
@@ -4590,6 +4591,13 @@ function clearTxnFilters() {
   ['filterSource','filterCat','filterType','filterTag'].forEach(id=>{const el=document.getElementById(id);if(el)el.selectedIndex=0;});
   updateFilterBtn();
   renderTxns();
+}
+
+// 手動套用篩選（給「確定」按鈕與 Enter 鍵用；各欄位原本的 onchange 即時篩選維持不變，兩者並存）
+function applyTxnFilter() {
+  updateFilterBtn();
+  renderTxns();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 }
 
 // ════════════════════════════════════════════════════════════════
