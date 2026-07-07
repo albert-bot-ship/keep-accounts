@@ -1275,6 +1275,21 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mravh16pcqgp2",
+      "date": "2026-07-08",
+      "amount": 7,
+      "desc": "",
+      "category": "movlnwb2fjdqd",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": true,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
