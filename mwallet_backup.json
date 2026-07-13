@@ -14,7 +14,7 @@
         {
           "id": "mowulbb3xlf57",
           "label": "南山年繳",
-          "amount": 3237,
+          "amount": 1270,
           "color": "#54b02d",
           "monthlyAmt": 1967
         },
@@ -1565,6 +1565,33 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mrirtx8moplpg",
+      "date": "2026-07-13",
+      "amount": -10282,
+      "desc": "信用卡繳款 — CUBE",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "layerId": "mowt7wruf1yp4",
+      "transferPairTxnId": "mrirtx8m0rxjh"
+    },
+    {
+      "id": "mrirtx8m0rxjh",
+      "date": "2026-07-13",
+      "amount": 10282,
+      "desc": "繳款入帳 — CUBE",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "transferPairTxnId": "mrirtx8moplpg"
     }
   ],
   "fixedExpenses": [],
