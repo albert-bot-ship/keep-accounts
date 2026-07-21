@@ -1873,6 +1873,21 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mrute2wkcn8qg",
+      "date": "2026-07-18",
+      "amount": 1,
+      "desc": "",
+      "category": "movsn4i6e4c2p",
+      "sourceId": "mov4hexngandg",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": true,
+      "layerId": "mpdhyksqitpev",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
