@@ -1888,6 +1888,21 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mrutl22yusfjk",
+      "date": "2026-07-21",
+      "amount": 1,
+      "desc": "",
+      "category": "mpmsd41fqkl4o",
+      "sourceId": "mov6j2tiejhek",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowtd8jpngynv",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
