@@ -1946,6 +1946,36 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mrwxbsfk2zmiy",
+      "date": "2026-07-23",
+      "amount": -1000,
+      "desc": "轉老婆",
+      "category": "mowszknj43v9u",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mq0cktfww1enz",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
+    },
+    {
+      "id": "mrwxo6ve6j97y",
+      "date": "2026-07-23",
+      "amount": -9498,
+      "desc": "房租",
+      "category": "mowszknj43v9u",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mp76aznhv0bb6",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
