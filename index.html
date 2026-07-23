@@ -5483,18 +5483,45 @@ function renderTxns() {
   if (txnCurrentPage > totalPages2) txnCurrentPage = Math.max(1, totalPages2);
   const start2 = (txnCurrentPage - 1) * TXN_PAGE_SIZE;
   const pagedTxns = txns.slice(start2, start2 + TXN_PAGE_SIZE);
+  // 篩選單一信用卡時，計算該卡本期/上一期帳單週期，供列表分組標示
+  let periodInfo = null;
+  if (srcVal && srcVal.startsWith('card_')) {
+    const _pCard = getCard(srcVal.slice(5));
+    if (_pCard) {
+      const _cur = cardBillingPeriod(_pCard);
+      const _prev = cardPrevBillingPeriod(_pCard);
+      if (_cur && _prev) periodInfo = { curStart:_cur.periodStart, curEnd:_cur.periodEnd, prevStart:_prev.periodStart, prevEnd:_prev.periodEnd };
+    }
+  }
   document.getElementById('txnTableWrap').innerHTML =
-    txnTable(pagedTxns, true) + renderTxnPager(txns.length);
+    txnTable(pagedTxns, true, periodInfo) + renderTxnPager(txns.length);
   updateBatchUI();
   // 每次渲染完捲到頂部
   const mainEl = document.querySelector('.main-content');
   if (mainEl) mainEl.scrollTop = 0;
 }
 
-function txnTable(txns, withActions) {
+function txnTable(txns, withActions, periodInfo) {
   if (!txns.length) return emptyState('📋','無消費記錄','點擊「新增記錄」開始記帳','txns');
   const weekdays = ['日','一','二','三','四','五','六'];
   let prevDate = null;
+  // 本期/上一期 判斷（僅在篩選單一信用卡時傳入 periodInfo）
+  const periodLabelForDate = (date) => {
+    if (!periodInfo) return null;
+    if (date >= periodInfo.curStart && date <= periodInfo.curEnd) return 'cur';
+    if (date >= periodInfo.prevStart && date <= periodInfo.prevEnd) return 'prev';
+    return null;
+  };
+  const periodHeaderHtml = (label, mobile) => {
+    const isCur = label === 'cur';
+    const text = isCur
+      ? `📌 本期消費　${periodInfo.curStart.slice(5)} ～ ${periodInfo.curEnd.slice(5)}`
+      : `📋 上一期　${periodInfo.prevStart.slice(5)} ～ ${periodInfo.prevEnd.slice(5)}`;
+    const style = 'padding:10px 12px 4px;font-weight:700;font-size:12px;color:var(--tx-primary);background:var(--bg-secondary);border-top:2px solid var(--bdr-subtle)';
+    return mobile
+      ? `<div class="txn-period-group-row" style="${style}">${text}</div>`
+      : `<tr class="txn-period-group-row"><td colspan="${withActions?7:5}" style="${style}">${text}</td></tr>`;
+  };
 
   // ── 共用資料處理 ──────────────────────────────────
   const processed = txns.map(t => {
@@ -5527,7 +5554,16 @@ function txnTable(txns, withActions) {
 
   // ══ 桌面版 TABLE ══════════════════════════════════
   prevDate = null;
+  let lastPeriodDesktop = 'INIT';
   const rows = processed.map(({t, cat, amtCls, sign, sysTags, userTagBadges, feeBadge, hasML, mlBadge, layerBadge}) => {
+    let periodRow = '';
+    if (periodInfo) {
+      const pLabel = periodLabelForDate(t.date);
+      if (pLabel !== lastPeriodDesktop && (pLabel === 'cur' || pLabel === 'prev')) {
+        periodRow = periodHeaderHtml(pLabel, false);
+      }
+      lastPeriodDesktop = pLabel;
+    }
     let groupRow = '';
     if (withActions && t.date !== prevDate) {
       const d = new Date(t.date+'T00:00:00');
@@ -5552,7 +5588,7 @@ function txnTable(txns, withActions) {
       ?`<td style="white-space:nowrap"><button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editTxn','${t.id}')">✏️</button><button class="btn btn-danger btn-icon btn-sm" onclick="deleteTxn('${t.id}')">🗑</button></td>`
       :(withActions?'<td></td>':'');
     const rowClick = batchMode?`onclick="toggleRowSelect(this)" style="cursor:pointer"`:'';
-    return `${groupRow}<tr class="txn-row" ${rowClick}>
+    return `${periodRow}${groupRow}<tr class="txn-row" ${rowClick}>
       ${chk}
       <td style="white-space:nowrap">${t.date}</td>
       <td>${escHtml(t.desc)}${t.fxCurrency&&t.fxAmount?' <span style="font-size:10px;color:var(--tx-muted)">'+t.fxCurrency+' '+t.fxAmount.toLocaleString()+'</span>':''}${sysTags}${mlBadge}${layerBadge}${feeBadge}${userTagBadges}</td>
@@ -5579,7 +5615,16 @@ function txnTable(txns, withActions) {
 
   // ══ 手機版 CARDS ══════════════════════════════════
   prevDate = null;
+  let lastPeriodMobile = 'INIT';
   const cards = processed.map(({t, cat, amtCls, sign, sysTags, userTagBadges, feeBadge, hasML, mlBadge, layerBadge}) => {
+    let periodHdr = '';
+    if (periodInfo) {
+      const pLabel = periodLabelForDate(t.date);
+      if (pLabel !== lastPeriodMobile && (pLabel === 'cur' || pLabel === 'prev')) {
+        periodHdr = periodHeaderHtml(pLabel, true);
+      }
+      lastPeriodMobile = pLabel;
+    }
     let groupHdr = '';
     if (withActions && t.date !== prevDate) {
       const d = new Date(t.date+'T00:00:00');
@@ -5605,7 +5650,7 @@ function txnTable(txns, withActions) {
         </div>`
       :'';
     const rowClick = batchMode?`onclick="toggleRowSelect(this)" style="cursor:pointer"`:'';
-    return `${groupHdr}<div class="txn-card-mobile" ${rowClick}>
+    return `${periodHdr}${groupHdr}<div class="txn-card-mobile" ${rowClick}>
       <div class="txn-card-top">
         ${chkBox}
         <div class="txn-card-desc">${escHtml(t.desc||'（未填）')}${t.fxCurrency&&t.fxAmount?`<span style="font-size:10px;color:var(--tx-muted);margin-left:6px">${t.fxCurrency} ${t.fxAmount.toLocaleString()}</span>`:''}</div>
