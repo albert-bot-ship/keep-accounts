@@ -1976,6 +1976,33 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mrwy9ql281u3u",
+      "date": "2026-07-23",
+      "amount": -1530,
+      "desc": "信用卡繳款 — 玉山中友卡",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov74st8ti4ry",
+      "sourceType": "account",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "layerId": "mowtfdp3hzho9",
+      "transferPairTxnId": "mrwy9ql2kvxxp"
+    },
+    {
+      "id": "mrwy9ql2kvxxp",
+      "date": "2026-07-23",
+      "amount": 1530,
+      "desc": "繳款入帳 — 玉山中友卡",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4i6w2jfqzb",
+      "sourceType": "card",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "transferPairTxnId": "mrwy9ql281u3u"
     }
   ],
   "fixedExpenses": [],
