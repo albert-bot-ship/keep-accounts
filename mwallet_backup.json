@@ -2046,6 +2046,33 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "mry9n2nsh8yq1",
+      "date": "2026-07-24",
+      "amount": -646,
+      "desc": "信用卡繳款 — 兆豐-嘎嘎龍",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "layerId": "mq8v1xxlmsfhq",
+      "transferPairTxnId": "mry9n2ns7fi6r"
+    },
+    {
+      "id": "mry9n2ns7fi6r",
+      "date": "2026-07-24",
+      "amount": 646,
+      "desc": "繳款入帳 — 兆豐-嘎嘎龍",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4hexngandg",
+      "sourceType": "card",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "transferPairTxnId": "mry9n2nsh8yq1"
     }
   ],
   "fixedExpenses": [],
