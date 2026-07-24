@@ -2003,6 +2003,49 @@
       "isPayment": true,
       "isTransfer": false,
       "transferPairTxnId": "mrwy9ql281u3u"
+    },
+    {
+      "id": "mry943tdnr048",
+      "date": "2026-07-24",
+      "amount": -90,
+      "desc": "iCloud+（訂閱）",
+      "category": "mov4018zsf3sq",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isFixed": false,
+      "fee": 1,
+      "layerId": "mowvgma9od1k8"
+    },
+    {
+      "id": "mry9cdecezr4q",
+      "date": "2026-07-24",
+      "amount": 816,
+      "desc": "",
+      "category": "mp9msdpowi02o",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mq8v1xxlmsfhq",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
+    },
+    {
+      "id": "mry9fsxmrn1st",
+      "date": "2026-07-24",
+      "amount": 37876,
+      "desc": "",
+      "category": "mp9mrsge4di8n",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt3b5ret5t3",
+      "tags": [],
+      "fee": 0,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
@@ -2028,6 +2071,9 @@
     "2026-07": [],
     "sub_mpnnfir9wzefb_2026-07-01": [
       "mpnnfir9wzefb"
+    ],
+    "sub_mpnngiv8dmk9t_2026-07-24": [
+      "mpnngiv8dmk9t"
     ]
   },
   "categories": [
@@ -2338,7 +2384,7 @@
       "amount": 90,
       "fee": 1,
       "cycle": "month",
-      "nextDate": "2026-07-24",
+      "nextDate": "2026-08-24",
       "color": "#1abc9c",
       "icon": "☁️",
       "srcId": "card_mov4et7fpt7kr",
