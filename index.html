@@ -8412,9 +8412,9 @@ function renderInvest() {
   allSymbols.forEach(s=>{ totalRealized += (holdings[s]?.realizedPL||0); });
   const unrealized = totalMkt - totalCost;
   const unSign = unrealized >= 0 ? '+' : '';
-  const unColor = unrealized >= 0 ? 'var(--tx-green)' : 'var(--tx-red)';
+  const unColor = unrealized >= 0 ? 'var(--tx-red)' : 'var(--tx-green)';
   const rSign = totalRealized >= 0 ? '+' : '';
-  const rColor = totalRealized >= 0 ? 'var(--tx-green)' : 'var(--tx-red)';
+  const rColor = totalRealized >= 0 ? 'var(--tx-red)' : 'var(--tx-green)';
 
   const summary = document.getElementById('investSummary');
   if (summary) {
@@ -8449,7 +8449,7 @@ function renderInvest() {
         const pl   = mkt - h.totalCost;
         const plPct= h.totalCost > 0 ? pl/h.totalCost*100 : 0;
         const plSign = pl>=0?'+':'';
-        const plColor = pl>=0?'var(--tx-green)':'var(--tx-red)';
+        const plColor = pl>=0?'var(--tx-red)':'var(--tx-green)';
         const priceRow = sp
           ? `<span style="color:var(--tx-muted)">現價 $${sp.price.toFixed(2)}</span>`
           : `<span style="color:var(--tx-muted)">股價未載入</span>`;
