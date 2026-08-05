@@ -537,7 +537,12 @@
       "isTransfer": true,
       "layerId": "mowt9nf0j6och",
       "transferPairId": "mr05q0hakd1un",
-      "transferPairTxnId": "mr05q0harkvf1"
+      "transferPairTxnId": "mr05q0harkvf1",
+      "isRedemption": false,
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": true,
+      "isTransferOut": false
     },
     {
       "id": "mr05qsnl4jfe6",
@@ -1719,7 +1724,12 @@
       "isTransfer": true,
       "layerId": "mowt9nf0j6och",
       "transferPairId": "ms1squ8x1sp0d",
-      "transferPairTxnId": "ms1squ8xworuh"
+      "transferPairTxnId": "ms1squ8xworuh",
+      "isRedemption": false,
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": true,
+      "isTransferOut": false
     },
     {
       "id": "ms1sra5cc55do",
