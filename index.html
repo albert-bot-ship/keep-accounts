@@ -5656,7 +5656,8 @@ function txnTable(txns, withActions, periodInfo) {
                  + (t.isTransfer?'<span class="badge badge-blue" style="margin-left:4px">轉帳</span>':'')
                  + (t.isRedemption?'<span class="badge" style="margin-left:4px;background:#f39c1222;color:#f39c12;border:1px solid #f39c1244">折抵</span>':'')
                  + (reimbLayer?(t.reimbursed?'<span class="badge badge-green" style="margin-left:4px">✅ 已核銷</span>':'<span class="badge" style="margin-left:4px;background:#f39c1222;color:#f39c12;border:1px solid #f39c1244">🧾 待核銷</span>'):'')
-                 + (t.isSavingsAllocation?'<span class="badge" style="margin-left:4px;background:#1c69d422;color:#1c69d4;border:1px solid #1c69d444">📈 資產配置</span>':'');
+                 + (t.isSavingsAllocation?'<span class="badge" style="margin-left:4px;background:#1c69d422;color:#1c69d4;border:1px solid #1c69d444">📈 資產配置</span>':'')
+                 + (t.isTransferOut?'<span class="badge badge-blue" style="margin-left:4px">轉出</span>':'');
     const userTagBadges = (t.tags||[]).map(tid=>{
       const tg=(DB.userTags||[]).find(x=>x.id===tid);
       return tg?`<span class="user-tag-badge" style="background:${tg.color}22;color:${tg.color};border:1px solid ${tg.color}66">#${escHtml(tg.name)}</span>`:'';
@@ -6922,9 +6923,10 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tDate" type="date" value="${txn?.date||today()}"></div>
       <div class="form-group"><label class="form-label">類型</label>
         <select class="form-select" id="tType" onchange="reloadTxnCats(this.value)">
-          <option value="expense"${!isInc?' selected':''}>支出</option>
+          <option value="expense"${!isInc&&!txn?.isTransferOut?' selected':''}>支出</option>
           <option value="income"${isInc?' selected':''}>收入</option>
           <option value="redemption"${txn?.isRedemption?' selected':''}>點數/回饋折抵</option>
+          <option value="transferOut"${txn?.isTransferOut?' selected':''}>轉出（給他人）</option>
         </select>
       </div>
     </div>
@@ -7022,6 +7024,9 @@ function openModal(type,id,preCard,preAcc,extraId) {
       // 觸發上次同類提示
       const catEl = document.getElementById('tCat');
       if (catEl && catEl.value) showLastCatHint(catEl.value);
+      // 初始化「轉出」相關欄位顯示
+      const typeEl = document.getElementById('tType');
+      if (typeEl) reloadTxnCats(typeEl.value);
     },60);
   }
 
@@ -7554,7 +7559,11 @@ function saveTxn() {
   const fxGroup    = document.getElementById('tFxGroup');
   const hasFx      = fxGroup && fxGroup.style.display !== 'none' && fxAmtRaw > 0;
 
+  // 轉出（給他人）相關欄位
+  const isTransferOut = type === 'transferOut';
+
   const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0,isSavingsAllocation:!!document.getElementById('tIsSavings')?.checked,
+    isTransferOut,
     ...(hasFx ? {fxCurrency, fxAmount: fxAmtRaw} : {})};
   if(modalType==='editTxn'){
     const thisTxn = DB.transactions.find(t=>t.id===editTarget);
@@ -8884,15 +8893,15 @@ function doResetData(expectedYmd) {
 // 切換支出/收入時，重載類別選項
 function reloadTxnCats(typeVal) {
   const sel = document.getElementById('tCat'); if (!sel) return;
-  const forType = typeVal === 'expense' ? 'expense' : 'income';
+  const forType = (typeVal === 'expense' || typeVal === 'transferOut') ? 'expense' : 'income';
   const cur = sel.value;
   sel.innerHTML = catOpts(cur, forType);
   if (!sel.value) sel.selectedIndex = 0;
   // 切換 label 和 placeholder
   const descLabel = document.getElementById('tDescLabel');
   const descInput = document.getElementById('tDesc');
-  if (descLabel) descLabel.textContent = typeVal === 'income' ? '收入說明（選填）' : '消費內容（選填）';
-  if (descInput) descInput.placeholder = typeVal === 'income' ? '選填，e.g. 薪資匯入' : '選填，e.g. 全聯購物';
+  if (descLabel) descLabel.textContent = typeVal === 'income' ? '收入說明（選填）' : typeVal === 'transferOut' ? '轉出說明（選填）' : '消費內容（選填）';
+  if (descInput) descInput.placeholder = typeVal === 'income' ? '選填，e.g. 薪資匯入' : typeVal === 'transferOut' ? '選填，e.g. 借給小明' : '選填，e.g. 全聯購物';
   // 檢查薪水分配
   setTimeout(checkSalaryAlloc, 50);
 }
