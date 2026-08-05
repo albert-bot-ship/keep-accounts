@@ -2110,6 +2110,23 @@
       "tags": [],
       "fee": 0,
       "isFixed": false
+    },
+    {
+      "id": "msfmvubzflb1k",
+      "date": "2026-07-23",
+      "amount": -500,
+      "desc": "",
+      "category": "mov787fj4o49i",
+      "sourceId": "mov6j2tiejhek",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowtd8jpngynv",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": true,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
