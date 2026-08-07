@@ -2295,6 +2295,34 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "msjarkpvcajtm",
+      "date": "2026-08-08",
+      "amount": -1000,
+      "desc": "轉帳 → 國泰主帳戶",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mq093tgjpxd1c",
+      "transferPairId": "msjarkpv35ze2",
+      "transferPairTxnId": "msjarkpvk2695"
+    },
+    {
+      "id": "msjarkpvk2695",
+      "date": "2026-08-08",
+      "amount": 1000,
+      "desc": "轉入 ← 國泰主帳戶",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mq098n0nat4md",
+      "transferPairId": "msjarkpv35ze2",
+      "transferPairTxnId": "msjarkpvcajtm"
     }
   ],
   "fixedExpenses": [],
