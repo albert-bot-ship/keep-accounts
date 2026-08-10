@@ -1932,7 +1932,9 @@
       "layerId": "ms99d5blaff8x",
       "tags": [],
       "fee": 0,
-      "isFixed": false
+      "isFixed": false,
+      "reimbursed": true,
+      "reimbursedDate": "2026-08-10"
     },
     {
       "id": "ms974ivi9y9o3",
@@ -1962,7 +1964,9 @@
       "layerId": "ms9984ljuqk30",
       "tags": [],
       "fee": 0,
-      "isFixed": false
+      "isFixed": false,
+      "reimbursed": true,
+      "reimbursedDate": "2026-08-10"
     },
     {
       "id": "ms976sq4b6w60",
