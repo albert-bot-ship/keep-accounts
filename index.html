@@ -7037,17 +7037,25 @@ function openModal(type,id,preCard,preAcc,extraId) {
 
   else if (type==='addCardLayer'||type==='editCardLayer') {
     t=clayer?'編輯消費分層':'新增消費分層';
+    const boundInst = clayer?.boundInstallId ? (DB.installments||[]).find(i=>i.id===clayer.boundInstallId) : null;
+    const isBound = !!boundInst;
     b=`<input type="hidden" id="clCardId" value="${id}">
     <input type="hidden" id="clLayId" value="${extraId||''}">
     <div class="form-group"><label class="form-label">分層名稱</label><input class="form-input" id="clLabel" value="${escAttr(clayer?.label||'')}" placeholder="e.g. 日常、旅遊、餐飲"></div>
+    ${isBound?`
+    <div class="form-group" style="background:rgba(28,105,212,.08);border:1px solid rgba(28,105,212,.3);border-radius:var(--r);padding:10px 12px">
+      <div style="font-size:12px;color:var(--m-blue);font-weight:600">🔗 已綁定分期追蹤「${escHtml(boundInst.desc)}」</div>
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">支出金額／每月分期金額由分期追蹤自動同步，請至「分期追蹤」頁面編輯進度；如需手動調整此分層，請先解除綁定</div>
+      <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="unbindCardLayerInstall('${id}','${extraId}')">🔓 解除綁定</button>
+    </div>` : ''}
     <div class="form-group">
       <label class="form-label">支出金額（NT$）</label>
-      <input class="form-input" id="clAmt" type="number" step="any" value="${clayer?.amount||0}">
+      <input class="form-input" id="clAmt" type="number" step="any" value="${clayer?.amount||0}"${isBound?' readonly disabled':''}>
       <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 輸入此分層的支出總額，與快速記帳消費合計為信用卡消費總額</div>
     </div>
     <div class="form-group">
       <label class="form-label">每月分期金額（NT$）<span style="font-size:11px;color:var(--tx-muted);margin-left:4px">選填</span></label>
-      <input class="form-input" id="clMonthlyAmt" type="number" step="any" value="${clayer?.monthlyAmt||''}" placeholder="留空則以實際消費計算">
+      <input class="form-input" id="clMonthlyAmt" type="number" step="any" value="${clayer?.monthlyAmt||''}" placeholder="留空則以實際消費計算"${isBound?' readonly disabled':''}>
       <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">📅 填入後，儀表板「剩餘生活費」將以此每月金額計算，適合信用卡分期情境</div>
     </div>
     <div class="form-group"><label class="form-label">顏色</label>${colorPicker('clColor',clayer?.color||cardL?.color||'#C8102E')}</div>
@@ -9765,6 +9773,48 @@ function calcApply() {
 // INSTALLMENTS
 // ════════════════════════════════════════════════════════════════
 function ensureInstallments() { if (!DB.installments) DB.installments=[]; }
+
+// 將分期追蹤的進度同步到綁定的信用卡分層（每月分期金額 + 剩餘總額）
+// 繳完時自動清空該分層的分期欄位，避免儀表板「剩餘生活費」持續誤扣已結清的分期
+function syncInstallBoundLayer(instId) {
+  const inst = DB.installments.find(i=>i.id===instId);
+  if (!inst || !inst.boundCardId || !inst.boundLayerId) return;
+  const card = getCard(inst.boundCardId); if (!card) return;
+  const layer = (card.layers||[]).find(l=>l.id===inst.boundLayerId); if (!layer) return;
+  const paid = (inst.paidMonths||[]).length;
+  const isComplete = paid >= inst.months;
+  if (isComplete) {
+    layer.monthlyAmt = '';
+    layer.amount = 0;
+  } else {
+    const monthlyAmt = Math.round(inst.totalAmt / inst.months);
+    const remain = inst.months - paid;
+    layer.monthlyAmt = monthlyAmt;
+    layer.amount = remain * monthlyAmt;
+  }
+}
+
+// 解除分期追蹤與信用卡分層的綁定：清空分層的分期欄位與雙向參照，不留殘值
+function unbindInstallLayer(inst) {
+  if (!inst || !inst.boundCardId || !inst.boundLayerId) return;
+  const card = getCard(inst.boundCardId);
+  const layer = card && (card.layers||[]).find(l=>l.id===inst.boundLayerId);
+  if (layer) { layer.monthlyAmt = ''; layer.amount = 0; layer.boundInstallId = null; }
+  inst.boundCardId = null;
+  inst.boundLayerId = null;
+}
+
+// 供信用卡分層編輯畫面的「解除綁定」按鈕使用
+function unbindCardLayerInstall(cardId, layerId) {
+  const card = getCard(cardId); if (!card) return;
+  const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return;
+  if (!layer.boundInstallId) return;
+  const inst = DB.installments.find(i=>i.id===layer.boundInstallId);
+  if (inst) unbindInstallLayer(inst);
+  else { layer.monthlyAmt=''; layer.amount=0; layer.boundInstallId=null; }
+  saveDB(); closeModal(); renderCards(); toast('已解除分期綁定','info');
+}
+
 function renderInstall() {
   ensureInstallments();
   const wrap=document.getElementById('installList'); if(!wrap) return;
@@ -9794,11 +9844,14 @@ function payInstallMonth(id) {
     notes:'',isFixed:false,tags:[],installId:inst.id});
   if(!inst.paidMonths) inst.paidMonths=[];
   inst.paidMonths.push(curYM);
+  syncInstallBoundLayer(inst.id);
   saveDB(); renderInstall(); toast('已記帳本月分期 '+fmt(monthlyAmt),'success');
 }
 function deleteInstall(id) {
   ensureInstallments();
   if(!confirm('確定刪除此分期追蹤？')) return;
+  const inst = DB.installments.find(i=>i.id===id);
+  if (inst) unbindInstallLayer(inst); // 刪除前先解除綁定，避免分層留下殘值
   DB.installments=DB.installments.filter(i=>i.id!==id);
   saveDB(); renderInstall(); toast('分期追蹤已刪除','danger');
 }
@@ -9813,19 +9866,43 @@ function saveInstall() {
   if(!desc||!totalAmt||!months||!srcVal){toast('請填寫完整資訊','danger');return;}
   const [sType,sId]=srcVal.split('_');
   const obj={desc,totalAmt,months,day,category:catId,sourceId:sId,sourceType:sType,notes};
+  // 綁定信用卡分層（選填）：值格式為 "卡片id_分層id"，空字串代表不綁定
+  const boundVal=(document.getElementById('instBoundLayer')?.value||'').trim();
+  const [boundCardId,boundLayerId]=boundVal?boundVal.split('_'):[null,null];
+
   if(modalType==='editInstall'){
     const ex=DB.installments.find(i=>i.id===editTarget);
-    // 編輯時不動 paidMonths，保留原本已記錄的還款進度（修正過去編輯會把進度歸零的問題）
-    if(ex){Object.assign(ex,obj);toast('分期已更新','success');}
+    if(ex){
+      // 綁定有變更（含取消綁定、換到別的分層）：先解除舊的綁定，避免舊分層留下殘值
+      const oldBound = ex.boundCardId && ex.boundLayerId ? ex.boundCardId+'_'+ex.boundLayerId : '';
+      if (oldBound !== boundVal && oldBound) unbindInstallLayer(ex);
+      Object.assign(ex,obj); // 編輯時不動 paidMonths，保留原本已記錄的還款進度
+      if (boundCardId && boundLayerId) {
+        ex.boundCardId=boundCardId; ex.boundLayerId=boundLayerId;
+        const card=getCard(boundCardId), layer=card&&(card.layers||[]).find(l=>l.id===boundLayerId);
+        if (layer) layer.boundInstallId=ex.id;
+        syncInstallBoundLayer(ex.id);
+      }
+      toast('分期已更新','success');
+    }
   } else {
     // 新增時可預先設定「已付期數」，用不會撞到真實月份格式（YYYY-MM）的佔位字串塞入 paidMonths，
     // 讓進度條正確顯示「已付 N 期」，但不會反向補產生過去的交易記錄
     const paidCountRaw = +(document.getElementById('instPaidCount')?.value)||0;
     const paidCount = Math.max(0, Math.min(paidCountRaw, months));
     const paidMonths = Array.from({length:paidCount}, (_,i)=>'preset-'+i+'-'+uid());
-    DB.installments.push({id:uid(),...obj,paidMonths});toast('分期新增成功','success');
+    const newId=uid();
+    const newInst={id:newId,...obj,paidMonths};
+    if (boundCardId && boundLayerId) { newInst.boundCardId=boundCardId; newInst.boundLayerId=boundLayerId; }
+    DB.installments.push(newInst);
+    if (boundCardId && boundLayerId) {
+      const card=getCard(boundCardId), layer=card&&(card.layers||[]).find(l=>l.id===boundLayerId);
+      if (layer) layer.boundInstallId=newId;
+      syncInstallBoundLayer(newId);
+    }
+    toast('分期新增成功','success');
   }
-  saveDB(); closeModal(); renderInstall();
+  saveDB(); closeModal(); renderInstall(); renderCards();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -10353,7 +10430,8 @@ function _openInstallModal(type, id) {
     +'<select class="form-select" id="instCat">'+catOpts(inst?.category||DB.categories[0]?.id||'')+'</select></div>'
     +'</div>'
     +'<div class="form-group"><label class="form-label">扣款帳戶/卡片</label>'
-    +'<select class="form-select" id="instSrc"><option value="">請選擇</option>'+srcOpts('both')+'</select></div>'
+    +'<select class="form-select" id="instSrc" onchange="_refreshInstBoundLayerOptions()"><option value="">請選擇</option>'+srcOpts('both')+'</select></div>'
+    +'<div id="instBoundLayerWrap"></div>'
     +'<div class="form-group"><label class="form-label">備註（選填）</label>'
     +'<input class="form-input" id="instNotes" value="'+(inst?escAttr(inst.notes||''):'')+'" ></div>';
   document.getElementById('modalFooter').innerHTML=
@@ -10363,7 +10441,27 @@ function _openInstallModal(type, id) {
   setTimeout(()=>{
     const el=document.getElementById('instSrc');
     if(el&&inst) el.value=inst.sourceType+'_'+inst.sourceId;
+    const presetVal = inst&&inst.boundCardId&&inst.boundLayerId ? inst.boundCardId+'_'+inst.boundLayerId : '';
+    _refreshInstBoundLayerOptions(presetVal);
   },60);
+}
+
+// 依目前選擇的扣款來源，動態顯示「綁定信用卡分層」下拉選單（僅來源為信用卡時顯示）
+// 已被其他分期追蹤綁定的分層會排除，避免一個分層同時被兩筆分期綁定造成同步互相覆蓋
+function _refreshInstBoundLayerOptions(presetVal) {
+  const wrap = document.getElementById('instBoundLayerWrap'); if (!wrap) return;
+  const srcVal = document.getElementById('instSrc')?.value || '';
+  const [sType, sId] = srcVal.split('_');
+  if (sType !== 'card' || !sId) { wrap.innerHTML=''; return; }
+  const card = getCard(sId);
+  const layers = (card?.layers||[]) || [];
+  const curInstId = (modalType==='editInstall') ? editTarget : null;
+  const opts = layers
+    .filter(l => !l.boundInstallId || l.boundInstallId===curInstId)
+    .map(l => `<option value="${sId}_${l.id}">${escHtml(l.label)}</option>`).join('');
+  wrap.innerHTML = `<div class="form-group"><label class="form-label">綁定信用卡分層（選填）<span style="font-size:11px;color:var(--tx-muted);margin-left:4px">綁定後，該分層的分期金額會自動同步這筆分期追蹤的進度</span></label>
+    <select class="form-select" id="instBoundLayer"><option value="">不綁定</option>${opts}</select></div>`;
+  setTimeout(()=>{ const el=document.getElementById('instBoundLayer'); if (el && presetVal) el.value = presetVal; }, 0);
 }
 
 // ════════════════════════════════════════════════════════════════
