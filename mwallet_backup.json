@@ -169,6 +169,13 @@
           "amount": 0,
           "color": "#e61986",
           "goal": null
+        },
+        {
+          "id": "msoaaqi4bf9j2",
+          "label": "轉繳卡費用",
+          "amount": 0,
+          "color": "#0400fa",
+          "goal": null
         }
       ],
       "last4": "",
@@ -2660,6 +2667,34 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "msoabd7kr0rai",
+      "date": "2026-08-11",
+      "amount": -1000,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "秀泰影城",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "msoabd7kk1mvs",
+      "transferPairTxnId": "msoabd7kewwtv"
+    },
+    {
+      "id": "msoabd7kewwtv",
+      "date": "2026-08-11",
+      "amount": 1000,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "秀泰影城",
+      "isTransfer": true,
+      "layerId": "msoaaqi4bf9j2",
+      "transferPairId": "msoabd7kk1mvs",
+      "transferPairTxnId": "msoabd7kr0rai"
     }
   ],
   "fixedExpenses": [],
@@ -3089,5 +3124,8 @@
       "notes": "",
       "type": "buy"
     }
+  ],
+  "customColors": [
+    "#0400fa"
   ]
 }
