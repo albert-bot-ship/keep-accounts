@@ -7839,15 +7839,28 @@ function recalcTfMultiTotal(side) {
   if (amtEl && total>0) amtEl.value = total;
 }
 
+// 取得轉帳表單某一側（from/to）目前實際選中的分層 ID 清單（相容單選與多分層兩種模式）
+function getTfSelectedLayerIds(side) {
+  const isMulti = document.getElementById(side==='from'?'tfFromMultiToggle':'tfToMultiToggle')?.checked;
+  if (isMulti) {
+    const list = document.getElementById(side==='from'?'tfFromMultiList':'tfToMultiList');
+    if (!list) return [];
+    return [...list.querySelectorAll('input[type="checkbox"]:checked')]
+      .map(chk=>chk.id.slice(`tf${side}chk_`.length));
+  }
+  const val = v(side==='from'?'tfFromLayer':'tfToLayer');
+  return val ? [val] : [];
+}
+
 function doTransfer() {
   const fromId=v('tfFrom'),toId=v('tfTo'),amt=+v('tfAmt'),date=v('tfDate'),notes=v('tfNotes');
   if(!fromId||!toId||!amt){toast('請填寫完整資訊','danger');return;}
-  // 同帳戶：允許不同分層互轉，擋同帳戶同分層
+  // 同帳戶：允許不同分層互轉，擋同帳戶同分層（相容單選/多分層任意組合）
   if(fromId===toId){
-    const fLayer = v('tfFromLayer')||null;
-    const tLayer = v('tfToLayer')||null;
-    if(fLayer && tLayer && fLayer===tLayer){toast('不能轉帳到相同分層','danger');return;}
-    if(!fLayer||!tLayer){toast('同帳戶轉帳請選擇不同分層','danger');return;}
+    const fLayers = getTfSelectedLayerIds('from');
+    const tLayers = getTfSelectedLayerIds('to');
+    if(fLayers.length===0 || tLayers.length===0){toast('同帳戶轉帳請選擇分層','danger');return;}
+    if(fLayers.some(l=>tLayers.includes(l))){toast('不能轉帳到相同分層','danger');return;}
   }
   const from=getAcc(fromId),to=getAcc(toId);
   const lastCat=DB.categories[DB.categories.length-1]?.id||'';
