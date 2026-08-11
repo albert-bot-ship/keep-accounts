@@ -2639,6 +2639,23 @@
       "isSavingsAllocation": false,
       "isTransferOut": true,
       "isFixed": false
+    },
+    {
+      "id": "mso9dn6bv29ax",
+      "date": "2026-08-10",
+      "amount": 2,
+      "desc": "",
+      "category": "movlnwb2fjdqd",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": true,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
