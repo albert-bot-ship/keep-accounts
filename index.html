@@ -6742,9 +6742,14 @@ const SWATCHES=['#C8102E','#0057B8','#6F2CA7','#00C853','#FF8F00','#00BCD4','#FF
 function colorPicker(fid,cur) {
   cur=cur||'#0057B8';
   const sw=SWATCHES.map(c=>`<div class="c-swatch${cur===c?' sel':''}" style="background:${c}" onclick="selectColor('${fid}','${c}',this)"></div>`).join('');
+  const customColors = DB.customColors||[];
+  const customSw = customColors.map(c=>`<div class="c-swatch${cur===c?' sel':''}" style="background:${c}" title="自訂色（雙擊移除）" onclick="selectColor('${fid}','${c}',this)" ondblclick="event.stopPropagation();removeCustomColor('${c}',this)"></div>`).join('');
   return `<div class="color-picker-row" id="cpRow_${fid}">
     ${sw}
+    ${customSw}
     <div class="c-custom" title="自訂">＋<input type="color" value="${cur}" oninput="selectColor('${fid}',this.value,null)"></div>
+    <div class="c-custom" title="螢幕取色／拍照取色" onclick="pickColor('${fid}')">🎨</div>
+    <div class="c-custom" title="儲存目前顏色" onclick="saveCustomColor('${fid}')">💾</div>
     <input type="hidden" id="${fid}" value="${cur}">
     <div class="color-preview" id="cpPrev_${fid}" style="background:${cur}"></div>
   </div>`;
@@ -6755,6 +6760,104 @@ function selectColor(fid,color,swEl) {
   const row=document.getElementById('cpRow_'+fid);
   if(row) row.querySelectorAll('.c-swatch').forEach(s=>s.classList.remove('sel'));
   if(swEl) swEl.classList.add('sel');
+}
+
+// ── 取色：電腦版支援的瀏覽器（Chrome/Edge）用系統螢幕取色；其餘（含手機/Safari）改用「拍照/選照片取色」 ──
+function pickColor(fid) {
+  if (window.EyeDropper) pickWithEyeDropper(fid);
+  else openPhotoColorPicker(fid);
+}
+async function pickWithEyeDropper(fid) {
+  try {
+    const result = await new EyeDropper().open();
+    selectColor(fid, result.sRGBHex, null);
+  } catch(e) { /* 使用者按 Esc 取消，不用提示 */ }
+}
+function openPhotoColorPicker(fid) {
+  closePhotoColorPicker();
+  const overlay = document.createElement('div');
+  overlay.id = 'photoColorOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-secondary);border-radius:12px;padding:16px;max-width:420px;width:100%;max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:12px" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;font-size:15px">📷 從照片取色</span>
+        <span style="cursor:pointer;font-size:20px;line-height:1" onclick="closePhotoColorPicker()">×</span>
+      </div>
+      <div style="font-size:12px;color:var(--tx-muted)">選一張照片或現場拍照，接著點照片上想要的顏色即可套用</div>
+      <input type="file" accept="image/*" capture="environment" id="photoColorInput" style="display:none" onchange="loadPhotoForColorPick(event,'${fid}')">
+      <button class="btn btn-primary" onclick="document.getElementById('photoColorInput').click()">選擇照片／拍照</button>
+      <div id="photoColorCanvasWrap" style="display:none;text-align:center">
+        <canvas id="photoColorCanvas" style="max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none"></canvas>
+        <div style="font-size:11px;color:var(--tx-muted);margin-top:6px">點按照片上的位置來取那個點的顏色</div>
+      </div>
+    </div>`;
+  overlay.onclick = closePhotoColorPicker;
+  document.body.appendChild(overlay);
+}
+function closePhotoColorPicker() {
+  document.getElementById('photoColorOverlay')?.remove();
+}
+function loadPhotoForColorPick(evt, fid) {
+  const file = evt.target.files?.[0]; if (!file) return;
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.getElementById('photoColorCanvas');
+    const wrap = document.getElementById('photoColorCanvasWrap');
+    if (!canvas || !wrap) return;
+    const maxW = 360;
+    const scale = Math.min(1, maxW / img.width);
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    wrap.style.display = '';
+    canvas.onclick = (e) => sampleCanvasColor(e, fid);
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(file);
+}
+function sampleCanvasColor(e, fid) {
+  const canvas = document.getElementById('photoColorCanvas'); if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.max(0, Math.min(canvas.width-1, Math.floor((e.clientX - rect.left) * (canvas.width / rect.width))));
+  const y = Math.max(0, Math.min(canvas.height-1, Math.floor((e.clientY - rect.top) * (canvas.height / rect.height))));
+  const ctx = canvas.getContext('2d');
+  const [r,g,b] = ctx.getImageData(x, y, 1, 1).data;
+  const hex = '#' + [r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+  selectColor(fid, hex, null);
+  closePhotoColorPicker();
+  toast('已套用顏色 '+hex,'success');
+}
+
+// ── 儲存／移除自訂顏色（存在 DB.customColors，所有選色器共用） ──
+function saveCustomColor(fid) {
+  const val = document.getElementById(fid)?.value; if (!val) return;
+  DB.customColors = DB.customColors || [];
+  if (DB.customColors.includes(val)) { toast('這個顏色已經存過了','danger'); return; }
+  if (DB.customColors.length >= 16) { toast('自訂顏色最多存 16 個，請先雙擊移除一些','danger'); return; }
+  DB.customColors.push(val);
+  saveDB();
+  const row = document.getElementById('cpRow_'+fid);
+  if (row) {
+    const div = document.createElement('div');
+    div.className = 'c-swatch sel';
+    div.style.background = val;
+    div.title = '自訂色（雙擊移除）';
+    div.onclick = () => selectColor(fid, val, div);
+    div.ondblclick = (e) => { e.stopPropagation(); removeCustomColor(val, div); };
+    const customBtn = row.querySelector('.c-custom');
+    row.insertBefore(div, customBtn);
+    row.querySelectorAll('.c-swatch').forEach(s=>s.classList.remove('sel'));
+    div.classList.add('sel');
+  }
+  toast('顏色已儲存，之後選色都看得到','success');
+}
+function removeCustomColor(color, el) {
+  DB.customColors = (DB.customColors||[]).filter(c=>c!==color);
+  saveDB();
+  if (el && el.parentElement) el.remove();
+  toast('已移除自訂顏色','success');
 }
 function iconUpload(fid,cur) {
   cur=cur||'';
