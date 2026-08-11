@@ -1367,7 +1367,7 @@
     },
     {
       "id": "mru3i8dmu438e",
-      "date": "2026-07-21",
+      "date": "2026-07-19",
       "amount": -1168,
       "desc": "台中市月票汽車",
       "category": "mov4018zncy6t",
@@ -1378,11 +1378,13 @@
       "layerId": "mowvgma9od1k8",
       "tags": [],
       "fee": 0,
-      "isFixed": false
+      "isFixed": false,
+      "isSavingsAllocation": false,
+      "isTransferOut": false
     },
     {
       "id": "mru3irytlhots",
-      "date": "2026-07-21",
+      "date": "2026-07-19",
       "amount": -218,
       "desc": "台中市月票機車",
       "category": "mov4018zncy6t",
@@ -1393,7 +1395,9 @@
       "layerId": "mowvgma9od1k8",
       "tags": [],
       "fee": 0,
-      "isFixed": false
+      "isFixed": false,
+      "isSavingsAllocation": false,
+      "isTransferOut": false
     },
     {
       "id": "mru3mvwsh99sm",
