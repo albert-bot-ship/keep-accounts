@@ -5710,7 +5710,7 @@ function txnTable(txns, withActions, periodInfo) {
       groupRow = `<tr class="txn-date-group-row"><td colspan="7">${t.date.slice(5).replace('-','/')}　週${weekdays[d.getDay()]}</td></tr>`;
       prevDate = t.date;
     }
-    const mlDetailRow = hasML ? `<tr id="mldetail_${t.id}" style="display:none;background:var(--bg-secondary)">
+    const mlDetailRow = hasML ? `<tr id="mldetail_d_${t.id}" style="display:none;background:var(--bg-secondary)">
       <td colspan="${withActions?7:5}" style="padding:6px 16px 10px 40px">
         <div style="display:flex;flex-wrap:wrap;gap:6px">
           ${t.layerAmounts.map(la=>{
@@ -5774,7 +5774,7 @@ function txnTable(txns, withActions, periodInfo) {
     const chkBox = (withActions&&batchMode)
       ?`<input type="checkbox" class="txn-chk" data-id="${t.id}" onchange="updateBatchUI()" style="width:16px;height:16px;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation()">`
       :'';
-    const mlDetail = hasML?`<div id="mldetail_${t.id}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr-subtle)">
+    const mlDetail = hasML?`<div id="mldetail_m_${t.id}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr-subtle)">
       <div style="display:flex;flex-wrap:wrap;gap:4px">
         ${t.layerAmounts.map(la=>{
           const src=t.sourceType==='card'?getCard(t.sourceId):getAcc(t.sourceId);
@@ -9193,13 +9193,17 @@ function recalcMultiLayerTotal() {
   if (amtEl && total>0) amtEl.value = total;
 }
 function toggleMLDetail(txnId) {
-  const row = document.getElementById('mldetail_'+txnId);
-  if (!row) return;
-  const isHidden = row.style.display === 'none';
-  row.style.display = isHidden ? '' : 'none';
-  // 更新badge箭頭
-  const badge = document.querySelector(`[onclick*="toggleMLDetail('${txnId}')"]`);
-  if (badge) badge.textContent = badge.textContent.replace(isHidden?'▶':'▼', isHidden?'▼':'▶');
+  const rowD = document.getElementById('mldetail_d_'+txnId);
+  const rowM = document.getElementById('mldetail_m_'+txnId);
+  const ref = rowD || rowM;
+  if (!ref) return;
+  const isHidden = ref.style.display === 'none';
+  if (rowD) rowD.style.display = isHidden ? '' : 'none';
+  if (rowM) rowM.style.display = isHidden ? '' : 'none';
+  // 桌面/手機兩個 badge 的箭頭都要同步更新
+  document.querySelectorAll(`[onclick*="toggleMLDetail('${txnId}')"]`).forEach(badge=>{
+    badge.textContent = badge.textContent.replace(isHidden?'▶':'▼', isHidden?'▼':'▶');
+  });
 }
 
 function toggleCurrencyField(accType) {
