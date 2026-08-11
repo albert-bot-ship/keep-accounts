@@ -1740,6 +1740,31 @@ function cardPrevBillingPeriodFrom(card, fromPeriod) {
   return { periodStart, periodEnd };
 }
 
+// 列出某個銀行帳戶「有交易記錄」的所有日曆月份（供重置資料的「只選月份」功能使用）
+// 銀行帳戶沒有帳單日概念，改以日曆月（YYYY-MM-01 ～ 當月最後一天）分組，由新到舊排序
+function bankTxMonths(accId) {
+  const acc = getAcc(accId);
+  if (!acc) return [];
+  const accTx = DB.transactions.filter(t => t.sourceType === 'account' && t.sourceId === accId);
+  if (!accTx.length) return [];
+  const countByYm = {};
+  accTx.forEach(t => {
+    const ym = (t.date || '').slice(0, 7); // YYYY-MM
+    if (!ym) return;
+    countByYm[ym] = (countByYm[ym] || 0) + 1;
+  });
+  return Object.keys(countByYm).sort().reverse().map(ym => {
+    const [y, m] = ym.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate(); // m 為 1-indexed 月份，取當月最後一天
+    return {
+      periodStart: ym + '-01',
+      periodEnd: ym + '-' + String(lastDay).padStart(2, '0'),
+      label: ym,
+      count: countByYm[ym]
+    };
+  });
+}
+
 // 列出某張信用卡「有交易記錄」的所有帳單週期（供選擇性刪除單月帳單用）
 // 從目前週期往回推，直到沒有更早的交易為止（安全上限 36 期，約 3 年）
 function cardTxPeriods(cardId) {
@@ -8728,12 +8753,28 @@ function resetDataStep1() {
     </div>`;
   }).join('');
 
-  // 建立銀行帳戶子清單
-  const bankItems = (DB.bankAccounts||[]).map(a=>`
-    <label style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--r);background:var(--bg-card);border:1px solid var(--bdr-subtle);cursor:pointer;margin-top:4px">
-      <input type="checkbox" class="rst-bank-chk" data-id="${a.id}" checked style="width:15px;height:15px;accent-color:#ff2d55;flex-shrink:0">
-      <span style="font-size:12px;color:var(--tx-primary)">${a.name}</span>
-    </label>`).join('');
+  // 建立銀行帳戶子清單（含每個帳戶可展開的「特定月份」選項，獨立於信用卡邏輯）
+  const bankItems = (DB.bankAccounts||[]).map(a=>{
+    const months = bankTxMonths(a.id);
+    const monthRows = months.map(p=>`
+      <label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--r);background:var(--bg-card);cursor:pointer;margin-top:3px">
+        <input type="checkbox" class="rst-bank-month-chk" data-acc="${a.id}" data-start="${p.periodStart}" data-end="${p.periodEnd}" onchange="onRstBankMonthToggle('${a.id}')" style="width:14px;height:14px;accent-color:#ff2d55;flex-shrink:0">
+        <span style="font-size:11px;color:var(--tx-secondary)">${p.label}（${p.count} 筆）</span>
+      </label>`).join('');
+    return `
+    <div style="border-radius:var(--r);background:var(--bg-card);border:1px solid var(--bdr-subtle);margin-top:4px;overflow:hidden">
+      <label style="display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer">
+        <input type="checkbox" class="rst-bank-chk" data-id="${a.id}" checked onchange="onRstBankWholeToggle('${a.id}')" style="width:15px;height:15px;accent-color:#ff2d55;flex-shrink:0">
+        <span style="font-size:12px;color:var(--tx-primary);flex:1">${a.name}</span>
+        ${months.length ? `<span style="font-size:10px;color:var(--tx-muted);cursor:pointer" onclick="event.preventDefault();event.stopPropagation();toggleRstBankMonths('${a.id}')">▶ 只選月份</span>` : ''}
+      </label>
+      ${months.length ? `
+      <div id="rst_bank_months_${a.id}" style="display:none;padding:2px 10px 8px 32px;border-top:1px solid var(--bdr-subtle)">
+        <div style="font-size:10px;color:var(--tx-muted);margin:4px 0">勾選後，「整戶」勾選會自動取消，只刪除下列勾選的月份記錄</div>
+        ${monthRows}
+      </div>` : ''}
+    </div>`;
+  }).join('');
 
   document.getElementById('modalBody').innerHTML = `
     <div style="background:rgba(255,45,85,.08);border:1px solid rgba(255,45,85,.3);border-radius:var(--r);padding:10px 14px;margin-bottom:14px">
@@ -8795,6 +8836,13 @@ function resetDataStep1() {
             <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 10px" onclick="rstGroupSelectAll('bank',false)">全不選</button>
           </div>
           ${bankItems||'<div style="font-size:12px;color:var(--tx-muted);padding:6px 0">尚無銀行帳戶</div>'}
+          <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;margin-top:8px;border-top:1px dashed var(--bdr-subtle);cursor:pointer">
+            <input type="checkbox" id="rst_bank_period_zero_layer" style="width:14px;height:14px;margin-top:2px;accent-color:#ff2d55;flex-shrink:0">
+            <div>
+              <div style="font-size:12px;color:var(--tx-primary)">同時歸零這些帳戶的分層金額</div>
+              <div style="font-size:10px;color:var(--tx-muted);margin-top:2px">⚠ 只對上面「只選月份」的帳戶生效；分層金額不分月份，勾選會歸零整戶分層金額</div>
+            </div>
+          </label>
         </div>
       </div>
 
@@ -8856,6 +8904,32 @@ function onRstPeriodToggle(cardId) {
   }
 }
 
+// ── 以下為銀行帳戶專用版本（獨立於信用卡邏輯，不共用）──
+
+// 展開/收合單一銀行帳戶的「只選月份」清單
+function toggleRstBankMonths(accId) {
+  const box = document.getElementById('rst_bank_months_' + accId);
+  if (!box) return;
+  box.style.display = box.style.display === 'none' ? '' : 'none';
+}
+
+// 勾選「整戶」時，該帳戶的月份勾選一律清空（避免同一帳戶同時套用兩種刪除邏輯）
+function onRstBankWholeToggle(accId) {
+  const wholeChk = document.querySelector('.rst-bank-chk[data-id="'+accId+'"]');
+  if (wholeChk && wholeChk.checked) {
+    document.querySelectorAll('.rst-bank-month-chk[data-acc="'+accId+'"]').forEach(c => { c.checked = false; });
+  }
+}
+
+// 勾選某個月份時，該帳戶的「整戶」勾選一律取消（避免同一帳戶同時套用兩種刪除邏輯）
+function onRstBankMonthToggle(accId) {
+  const anyChecked = [...document.querySelectorAll('.rst-bank-month-chk[data-acc="'+accId+'"]')].some(c => c.checked);
+  if (anyChecked) {
+    const wholeChk = document.querySelector('.rst-bank-chk[data-id="'+accId+'"]');
+    if (wholeChk) wholeChk.checked = false;
+  }
+}
+
 function resetDataStep2() {
   // 收集信用卡選擇（整卡）
   const selCardIds = [...document.querySelectorAll('.rst-card-chk:checked')].map(c=>c.dataset.id);
@@ -8866,14 +8940,19 @@ function resetDataStep2() {
     .map(c=>({ cardId:c.dataset.card, periodStart:c.dataset.start, periodEnd:c.dataset.end }))
     .filter(p=>!selCardIds.includes(p.cardId));
   const doZeroLayerForPeriods = !!document.getElementById('rst_period_zero_layer')?.checked;
+  // 收集銀行帳戶「單月」選擇（排除已勾整戶的帳戶，避免重複邏輯；獨立於信用卡邏輯）
+  const selBankPeriods = [...document.querySelectorAll('.rst-bank-month-chk:checked')]
+    .map(c=>({ accId:c.dataset.acc, periodStart:c.dataset.start, periodEnd:c.dataset.end }))
+    .filter(p=>!selBankIds.includes(p.accId));
+  const doZeroLayerForBankPeriods = !!document.getElementById('rst_bank_period_zero_layer')?.checked;
   const doStock = document.getElementById('rst_stock')?.checked;
   const doAlloc = document.getElementById('rst_alloc')?.checked;
 
-  if (!doStock && !doAlloc && !selCardIds.length && !selBankIds.length && !selCardPeriods.length) {
+  if (!doStock && !doAlloc && !selCardIds.length && !selBankIds.length && !selCardPeriods.length && !selBankPeriods.length) {
     toast('請至少勾選一個項目','warn'); return;
   }
 
-  const payload = { selCardIds, selBankIds, selCardPeriods, doZeroLayerForPeriods, doStock:!!doStock, doAlloc:!!doAlloc };
+  const payload = { selCardIds, selBankIds, selCardPeriods, doZeroLayerForPeriods, selBankPeriods, doZeroLayerForBankPeriods, doStock:!!doStock, doAlloc:!!doAlloc };
   const selJson = JSON.stringify(payload);
 
   const now = new Date();
@@ -8899,6 +8978,15 @@ function resetDataStep2() {
   if (selBankIds.length) {
     const names = selBankIds.map(id=>(DB.bankAccounts||[]).find(a=>a.id===id)?.name||id).join('、');
     lines.push(`銀行帳戶：${names}（交易記錄 + 分層金額）`);
+  }
+  if (selBankPeriods.length) {
+    const byAcc = {};
+    selBankPeriods.forEach(p=>{ (byAcc[p.accId]=byAcc[p.accId]||[]).push(p); });
+    Object.keys(byAcc).forEach(accId=>{
+      const accName = (DB.bankAccounts||[]).find(a=>a.id===accId)?.name||accId;
+      const monthsTxt = byAcc[accId].map(p=>p.periodStart.slice(0,7)).join('、');
+      lines.push(`銀行帳戶：${accName} 指定月份（${monthsTxt}）${doZeroLayerForBankPeriods?'＋歸零該帳戶分層金額':''}`);
+    });
   }
   const selList = lines.map(l=>`<li style="font-size:12px;color:#ff2d55;line-height:1.8">${l}</li>`).join('');
 
@@ -8937,7 +9025,7 @@ function doResetData(expectedYmd) {
   }
   let payload = {};
   try { payload = JSON.parse(document.getElementById('resetSelJson')?.value||'{}'); } catch(e) {}
-  const { selCardIds=[], selBankIds=[], selCardPeriods=[], doZeroLayerForPeriods=false, doStock=false, doAlloc=false } = payload;
+  const { selCardIds=[], selBankIds=[], selCardPeriods=[], doZeroLayerForPeriods=false, selBankPeriods=[], doZeroLayerForBankPeriods=false, doStock=false, doAlloc=false } = payload;
 
   const done = [];
 
@@ -9010,6 +9098,37 @@ function doResetData(expectedYmd) {
     });
     const names = selBankIds.map(id=>(DB.bankAccounts||[]).find(a=>a.id===id)?.name||id).join('、');
     done.push('銀行帳戶（'+names+'）');
+  }
+
+  // 銀行帳戶：指定月份（已在 resetDataStep2 排除掉勾了整戶的帳戶，不會重複刪除）
+  if (selBankPeriods.length) {
+    const affectedAccIds = new Set();
+    const monthLabels = [];
+    selBankPeriods.forEach(p => {
+      DB.transactions = DB.transactions.filter(t =>
+        !(t.sourceType==='account' && t.sourceId===p.accId && t.date>=p.periodStart && t.date<=p.periodEnd)
+      );
+      // 銀行帳戶的 generatedFixed key 是「共用月份」（非帳戶專屬，格式為 YYYY-MM），
+      // 所以只能從該月陣列中移除屬於這個帳戶的固定收支 id，不能整把 key 刪除（會影響其他帳戶）
+      const ym = p.periodStart.slice(0, 7);
+      if (Array.isArray(DB.generatedFixed[ym])) {
+        const accFixedIds = new Set(
+          (DB.fixedExpenses || []).filter(fe => fe.sourceType === 'account' && fe.sourceId === p.accId).map(fe => fe.id)
+        );
+        DB.generatedFixed[ym] = DB.generatedFixed[ym].filter(id => !accFixedIds.has(id));
+      }
+      affectedAccIds.add(p.accId);
+      const accName = (DB.bankAccounts||[]).find(a=>a.id===p.accId)?.name || p.accId;
+      monthLabels.push(`${accName}(${p.periodStart.slice(0,7)})`);
+    });
+    // 分層金額歸零：僅在使用者勾選「同時歸零」時才執行
+    if (doZeroLayerForBankPeriods) {
+      DB.bankAccounts.forEach(a => {
+        if (!affectedAccIds.has(a.id)) return;
+        (a.layers||[]).forEach(l => { l.amount = 0; });
+      });
+    }
+    done.push('銀行帳戶指定月份：' + monthLabels.join('、') + (doZeroLayerForBankPeriods ? '（含分層金額歸零）' : ''));
   }
 
   if (!done.length) { toast('沒有任何項目被清除','info'); closeModal(); return; }
