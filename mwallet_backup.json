@@ -2434,7 +2434,7 @@
       "date": "2026-08-11",
       "amount": -5000,
       "desc": "轉帳 → 國泰主帳戶",
-      "category": "mq0967uv5w2s3",
+      "category": "mov787fj4o49i",
       "sourceId": "mov4rvq0uv0ah",
       "sourceType": "account",
       "notes": "",
@@ -2451,7 +2451,12 @@
         }
       ],
       "transferPairId": "mso7htegxmp47",
-      "transferPairTxnId": "mso7hteg109yl"
+      "transferPairTxnId": "mso7hteg109yl",
+      "isRedemption": false,
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false
     },
     {
       "id": "mso7hteg109yl",
@@ -2695,6 +2700,34 @@
       "layerId": "msoaaqi4bf9j2",
       "transferPairId": "msoabd7kk1mvs",
       "transferPairTxnId": "msoabd7kr0rai"
+    },
+    {
+      "id": "msod3g8wl6xu3",
+      "date": "2026-08-11",
+      "amount": -11584,
+      "desc": "轉帳 → 郵局",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov74st8ti4ry",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowtf3chaxdi7",
+      "transferPairId": "msod3g8wirc81",
+      "transferPairTxnId": "msod3g8wigxsd"
+    },
+    {
+      "id": "msod3g8wigxsd",
+      "date": "2026-08-11",
+      "amount": 11584,
+      "desc": "轉入 ← 郵局",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov74st8ti4ry",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowtfdp3hzho9",
+      "transferPairId": "msod3g8wirc81",
+      "transferPairTxnId": "msod3g8wl6xu3"
     }
   ],
   "fixedExpenses": [],
