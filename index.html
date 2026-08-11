@@ -5126,9 +5126,9 @@ function renderCards() {
     const monthlyFixedTotal = layerDataArr.filter(d=>d.isMonthlyFixed).reduce((s,d)=>s+d.layerAmt,0);
     // 一般分層：用本期實際消費加總
     const normalLayerTotal = layerDataArr.filter(d=>!d.isMonthlyFixed).reduce((s,d)=>s+Math.max(0,d.totalLayerAmt-d.redeemLayerAmt),0);
-    // 頂部總未還款 = 分期分層金額 + 一般分層本期實際消費
+    // 頂部總未還款 = 分期分層金額（手動追蹤總額）+ 一般分層全部歷史未還款（不受目前查看期別影響）
     const txOutstanding = Math.max(0, -cardBalance(c.id));
-    const netOutstanding = monthlyFixedTotal + normalLayerTotal;
+    const netOutstanding = monthlyFixedTotal + txOutstanding;
     // 一般分層的剩餘（保留供其他邏輯使用）
     const netForNormal = txOutstanding;
 
