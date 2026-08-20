@@ -1012,6 +1012,23 @@
       "layerId": "mowt3b5ret5t3",
       "transferPairId": "mt01ctnxyztc5",
       "transferPairTxnId": "mt01ctnxkby3y"
+    },
+    {
+      "id": "mt0w6svbzi39j",
+      "date": "2026-08-20",
+      "amount": 26,
+      "desc": "",
+      "category": "movlnwb2fjdqd",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": true,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
