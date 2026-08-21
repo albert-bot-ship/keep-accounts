@@ -1029,6 +1029,23 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mt2pjc35azpnu",
+      "date": "2026-08-21",
+      "amount": -1420,
+      "desc": "文新秀泰",
+      "category": "mov4018zi207l",
+      "sourceId": "mov4hexngandg",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mpdhyksqitpev",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
