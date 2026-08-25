@@ -3109,6 +3109,18 @@ body .account-card[data-theme="gold"] .layer-bar {
   border: 1px solid #c8a040 !important;
 }
 
+/* 純白/金主題的代墊核銷列與輸入框背景加深，文字才看得清（不限 App 明暗模式） */
+body .account-card[data-theme="white"] .reimb-row,
+body .account-card[data-theme="white"] .reimb-input {
+  background: #dde0ea !important;
+  border-color: #c0c4d4 !important;
+}
+body .account-card[data-theme="gold"] .reimb-row,
+body .account-card[data-theme="gold"] .reimb-input {
+  background: #e8d8a0 !important;
+  border-color: #c8a040 !important;
+}
+
 /* ══ 字體大小 ═══════════════════════════════════════════════ */
 body.fs-small  { font-size: 13px; }
 body.fs-medium { font-size: 15px; }
