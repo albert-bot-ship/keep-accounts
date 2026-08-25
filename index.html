@@ -4983,10 +4983,10 @@ function cardReimburseSection(c) {
   const rows = pending.map(t=>{
     const layer = (c.layers||[]).find(l=>l.id===t.layerId);
     const checked = selectedReimburseTxns.has(t.id);
-    return `<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;background:var(--bg-primary);border:1px solid ${checked?'#f39c12':'var(--bdr-subtle)'};font-size:12px;cursor:pointer">
+    return `<label class="reimb-row" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;background:var(--bg-primary);border:1px solid ${checked?'#f39c12':'var(--bdr-subtle)'};font-size:12px;cursor:pointer">
       <input type="checkbox"${checked?' checked':''} style="cursor:pointer;accent-color:#f39c12" onchange="toggleReimburseTxn('${t.id}',this.checked)">
-      <span style="color:var(--tx-secondary);white-space:nowrap">${t.date.slice(5)}</span>
-      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(t.desc)}${layer?` <span style="color:${layer.color||'#f39c12'}">／${escHtml(layer.label)}</span>`:''}</span>
+      <span class="reimb-row-date" style="color:var(--tx-secondary);white-space:nowrap">${t.date.slice(5)}</span>
+      <span class="reimb-row-desc" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(t.desc)}${layer?` <span style="color:${layer.color||'#f39c12'}">／${escHtml(layer.label)}</span>`:''}</span>
       <span style="font-weight:700;color:var(--tx-red);white-space:nowrap">−${fmt(Math.abs(t.amount))}</span>
     </label>`;
   }).join('');
