@@ -175,8 +175,15 @@
         },
         {
           "id": "msoaaqi4bf9j2",
-          "label": "轉繳卡費用",
+          "label": "轉CUBE費用",
           "amount": 1000,
+          "color": "#0400fa",
+          "goal": null
+        },
+        {
+          "id": "mt84rxv5bsopq",
+          "label": "轉兆豐費用",
+          "amount": 0,
           "color": "#0400fa",
           "goal": null
         }
@@ -1254,6 +1261,34 @@
       "isPayment": true,
       "isTransfer": false,
       "transferPairTxnId": "mt834w4a5urqd"
+    },
+    {
+      "id": "mt84si7jg9xrm",
+      "date": "2026-08-25",
+      "amount": -945,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "mt84si7juqp2e",
+      "transferPairTxnId": "mt84si7j636my"
+    },
+    {
+      "id": "mt84si7j636my",
+      "date": "2026-08-25",
+      "amount": 945,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mt84rxv5bsopq",
+      "transferPairId": "mt84si7juqp2e",
+      "transferPairTxnId": "mt84si7jg9xrm"
     }
   ],
   "fixedExpenses": [],
