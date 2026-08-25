@@ -1227,6 +1227,33 @@
       "layerId": "mp76aznhv0bb6",
       "transferPairId": "mt7gjwo70ausl",
       "transferPairTxnId": "mt7gjwo7q419g"
+    },
+    {
+      "id": "mt834w4a5urqd",
+      "date": "2026-08-25",
+      "amount": -1284,
+      "desc": "信用卡繳款 — 遠東樂+卡",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4un0o9i6ja",
+      "sourceType": "account",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "layerId": "mowtbbfi5phoq",
+      "transferPairTxnId": "mt834w4a1896d"
+    },
+    {
+      "id": "mt834w4a1896d",
+      "date": "2026-08-25",
+      "amount": 1284,
+      "desc": "繳款入帳 — 遠東樂+卡",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4j2lhbf7rv",
+      "sourceType": "card",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "transferPairTxnId": "mt834w4a5urqd"
     }
   ],
   "fixedExpenses": [],
