@@ -460,6 +460,33 @@ body.light-theme .account-card[data-theme="rose"] .layer-bar {
 }
 /* 深色模式下 layer-bar 文字強制白色 */
 body:not(.light-theme) .layer-bar .layer-name { color: rgba(255,255,255,.9) !important; -webkit-text-fill-color:rgba(255,255,255,.9) !important; }
+
+/* ── 代墊核銷清單列（reimb-row）── 淺色模式下卡片主題為深色系時，強制不透明深色背景＋白字，避免白字疊白底 */
+body.light-theme .account-card[data-theme="dark"] .reimb-row,
+body.light-theme .account-card[data-theme="blue"] .reimb-row,
+body.light-theme .account-card[data-theme="carbon"] .reimb-row,
+body.light-theme .account-card[data-theme="emerald"] .reimb-row,
+body.light-theme .account-card[data-theme="midnight"] .reimb-row,
+body.light-theme .account-card[data-theme="rose"] .reimb-row {
+  background: rgba(0,0,0,.25) !important; border-color: rgba(255,255,255,.15) !important;
+}
+body.light-theme .account-card[data-theme="dark"] .reimb-row-desc,
+body.light-theme .account-card[data-theme="blue"] .reimb-row-desc,
+body.light-theme .account-card[data-theme="carbon"] .reimb-row-desc,
+body.light-theme .account-card[data-theme="emerald"] .reimb-row-desc,
+body.light-theme .account-card[data-theme="midnight"] .reimb-row-desc,
+body.light-theme .account-card[data-theme="rose"] .reimb-row-desc {
+  color: rgba(255,255,255,.92) !important; -webkit-text-fill-color: rgba(255,255,255,.92) !important;
+}
+body.light-theme .account-card[data-theme="dark"] .reimb-row-date,
+body.light-theme .account-card[data-theme="blue"] .reimb-row-date,
+body.light-theme .account-card[data-theme="carbon"] .reimb-row-date,
+body.light-theme .account-card[data-theme="emerald"] .reimb-row-date,
+body.light-theme .account-card[data-theme="midnight"] .reimb-row-date,
+body.light-theme .account-card[data-theme="rose"] .reimb-row-date {
+  color: rgba(255,255,255,.7) !important; -webkit-text-fill-color: rgba(255,255,255,.7) !important;
+}
+/* 深色模式下本來就是深色背景＋白字被強制，維持不動；此區塊僅補淺色模式的缺口 */
 body:not(.light-theme) .layer-bar .layer-amt  { color: rgba(255,255,255,.9); -webkit-text-fill-color:rgba(255,255,255,.9); }
 
 /* ── PROGRESS BAR ────────────────────────── */
