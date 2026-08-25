@@ -487,6 +487,25 @@ body.light-theme .account-card[data-theme="rose"] .reimb-row-date {
   color: rgba(255,255,255,.7) !important; -webkit-text-fill-color: rgba(255,255,255,.7) !important;
 }
 /* 深色模式下本來就是深色背景＋白字被強制，維持不動；此區塊僅補淺色模式的缺口 */
+
+/* ── 代墊核銷金額輸入框（reimb-input）── 同樣的淺色模式缺口 */
+body.light-theme .account-card[data-theme="dark"] .reimb-input,
+body.light-theme .account-card[data-theme="blue"] .reimb-input,
+body.light-theme .account-card[data-theme="carbon"] .reimb-input,
+body.light-theme .account-card[data-theme="emerald"] .reimb-input,
+body.light-theme .account-card[data-theme="midnight"] .reimb-input,
+body.light-theme .account-card[data-theme="rose"] .reimb-input {
+  background: rgba(0,0,0,.25) !important; border-color: rgba(255,255,255,.25) !important;
+  color: rgba(255,255,255,.95) !important; -webkit-text-fill-color: rgba(255,255,255,.95) !important;
+}
+body.light-theme .account-card[data-theme="dark"] .reimb-input::placeholder,
+body.light-theme .account-card[data-theme="blue"] .reimb-input::placeholder,
+body.light-theme .account-card[data-theme="carbon"] .reimb-input::placeholder,
+body.light-theme .account-card[data-theme="emerald"] .reimb-input::placeholder,
+body.light-theme .account-card[data-theme="midnight"] .reimb-input::placeholder,
+body.light-theme .account-card[data-theme="rose"] .reimb-input::placeholder {
+  color: rgba(255,255,255,.55) !important; -webkit-text-fill-color: rgba(255,255,255,.55) !important;
+}
 body:not(.light-theme) .layer-bar .layer-amt  { color: rgba(255,255,255,.9); -webkit-text-fill-color:rgba(255,255,255,.9); }
 
 /* ── PROGRESS BAR ────────────────────────── */
