@@ -1365,6 +1365,23 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mtccdgbxaxnka",
+      "date": "2026-08-28",
+      "amount": -115,
+      "desc": "可不可",
+      "category": "mov4018zwuesg",
+      "sourceId": "mov4hexngandg",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mpdhyksqitpev",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
