@@ -110,6 +110,14 @@
           "amount": 0,
           "color": "#FF8F00",
           "monthlyAmt": null
+        },
+        {
+          "id": "mtcc7lbwuhouo",
+          "label": "出差費",
+          "amount": 0,
+          "color": "#ff9efd",
+          "monthlyAmt": null,
+          "reimbursable": true
         }
       ],
       "cardTheme": "white",
@@ -1340,6 +1348,23 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mtcc80hn1j0xo",
+      "date": "2026-08-28",
+      "amount": -615,
+      "desc": "公務車加油",
+      "category": "movlfpyopftjh",
+      "sourceId": "mov4j2lhbf7rv",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mtcc7lbwuhouo",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
@@ -1802,6 +1827,7 @@
     }
   ],
   "customColors": [
-    "#0400fa"
+    "#0400fa",
+    "#ff9efd"
   ]
 }
