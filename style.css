@@ -249,7 +249,7 @@ body::before{
 /* ── 設定頁：帳戶排序清單 ── */
 .reorder-list{display:flex;flex-direction:column;gap:8px}
 .reorder-row{
-  display:flex;align-items:center;gap:10px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   padding:10px 12px;border-radius:var(--r);
   background:var(--bg-card);border:1px solid var(--bdr-normal);
 }
@@ -262,6 +262,11 @@ body::before{
   color:var(--tx-muted);
 }
 .reorder-row-actions{display:flex;gap:2px;flex-shrink:0}
+.reorder-row-total{
+  display:flex;align-items:center;gap:5px;flex-shrink:0;
+  font-size:11px;color:var(--tx-muted);white-space:nowrap;cursor:pointer;
+}
+.reorder-row-total input{width:14px;height:14px;cursor:pointer;accent-color:var(--m-blue)}
 .account-card{
   background:var(--bg-card);border:1px solid var(--bdr-subtle);
   border-radius:var(--r-lg);overflow:hidden;
