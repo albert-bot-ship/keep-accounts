@@ -589,6 +589,9 @@
         <button class="settings-tab" id="stab-security" onclick="switchSettingsTab('security')">
           <span class="stab-icon">🔐</span><span>安全</span>
         </button>
+        <button class="settings-tab" id="stab-account" onclick="switchSettingsTab('account')">
+          <span class="stab-icon">🏦</span><span>帳戶</span>
+        </button>
       </div>
 
       <!-- ── 類別 Tab ── -->
@@ -1046,6 +1049,34 @@
               </div>
             </div>
 
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 帳戶排序 Tab ── -->
+      <div class="settings-tab-panel" id="spanel-account">
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <div class="settings-section-icon" style="background:rgba(0,87,184,.12)">🏦</div>
+            <div>
+              <div class="settings-section-title">銀行帳戶排序</div>
+              <div class="settings-section-desc">按住 ⠿ 拖曳可調整帳戶頁面的顯示順序</div>
+            </div>
+          </div>
+          <div class="settings-section-body" style="padding:12px 18px">
+            <div class="reorder-list" id="acctOrderBankList"></div>
+          </div>
+        </div>
+        <div class="settings-section" style="margin-top:16px">
+          <div class="settings-section-header">
+            <div class="settings-section-icon" style="background:rgba(255,77,106,.12)">💳</div>
+            <div>
+              <div class="settings-section-title">信用卡排序</div>
+              <div class="settings-section-desc">按住 ⠿ 拖曳可調整信用卡頁面的顯示順序</div>
+            </div>
+          </div>
+          <div class="settings-section-body" style="padding:12px 18px">
+            <div class="reorder-list" id="acctOrderCardList"></div>
           </div>
         </div>
       </div>
@@ -3242,31 +3273,36 @@ function resetSwipe(el) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// 帳戶拖曳排序
+// 通用拖曳排序（帳戶卡片、設定頁帳戶/信用卡排序清單共用同一套邏輯）
+// container：外層容器；itemSelector：每個可排序項目的 class；
+// getArray：回傳要重新排序的資料陣列（例如 DB.bankAccounts）
+// opts.onDragStart / opts.onDragEnd：可選，拖曳開始/結束時的額外處理
+// （帳戶卡片頁用它來切換「精簡列表模式」）
 // ════════════════════════════════════════════════════════════════
-function initAccountReorder() {
-  const grid = document.getElementById('accountsGrid');
-  if (!grid) return;
+function initReorderableList(container, itemSelector, getArray, opts = {}) {
+  if (!container || container._reorderBound) return; // 避免重複綁定
+  container._reorderBound = true;
 
-  grid.addEventListener('pointerdown', e => {
-    const handle = e.target.closest('.acc-drag-handle');
+  container.addEventListener('pointerdown', e => {
+    const handle = e.target.closest('.drag-handle');
     if (!handle) return;
-    const card = handle.closest('.account-card');
-    if (!card) return;
+    const item = handle.closest(itemSelector);
+    if (!item) return;
     e.preventDefault();
 
-    card.setPointerCapture(e.pointerId);
-    card.classList.add('dragging');
+    item.setPointerCapture(e.pointerId);
+    item.classList.add('dragging');
+    if (opts.onDragStart) opts.onDragStart(container, item);
     const startX = e.clientX, startY = e.clientY;
     let dx = 0, dy = 0;
 
     const onMove = ev => {
       dx = ev.clientX - startX;
       dy = ev.clientY - startY;
-      card.style.transform = `translate(${dx}px, ${dy}px) scale(1.03)`;
+      item.style.transform = `translate(${dx}px, ${dy}px) scale(1.03)`;
 
-      // 找出目前指標位置最接近的鄰居卡片，跟現在順序不同就交換
-      const siblings = [...grid.querySelectorAll('.account-card')].filter(c => c !== card);
+      // 找出目前指標位置最接近的鄰居項目，跟現在順序不同就交換
+      const siblings = [...container.querySelectorAll(itemSelector)].filter(c => c !== item);
       let nearest = null, nearestDist = Infinity;
       siblings.forEach(sib => {
         const r = sib.getBoundingClientRect();
@@ -3274,17 +3310,18 @@ function initAccountReorder() {
         if (dist < nearestDist) { nearestDist = dist; nearest = sib; }
       });
       if (!nearest) return;
-      const cardIndex   = [...grid.children].indexOf(card);
-      const targetIndex = [...grid.children].indexOf(nearest);
-      if (cardIndex === targetIndex) return;
+      const items = [...container.children];
+      const itemIndex   = items.indexOf(item);
+      const targetIndex = items.indexOf(nearest);
+      if (itemIndex === targetIndex) return;
 
-      // FLIP：交換 DOM 順序前先記錄所有卡片位置，交換後讓被擠開的卡片用 spring 補間回視覺連續
-      const before = new Map([...grid.children].map(c => [c, c.getBoundingClientRect()]));
-      if (cardIndex < targetIndex) grid.insertBefore(card, nearest.nextSibling);
-      else grid.insertBefore(card, nearest);
+      // FLIP：交換 DOM 順序前先記錄所有項目位置，交換後讓被擠開的項目用 spring 補間回視覺連續
+      const before = new Map(items.map(c => [c, c.getBoundingClientRect()]));
+      if (itemIndex < targetIndex) container.insertBefore(item, nearest.nextSibling);
+      else container.insertBefore(item, nearest);
 
-      [...grid.children].forEach(c => {
-        if (c === card) return; // 拖曳中的卡片自己由手指位移控制，不套用 FLIP
+      [...container.children].forEach(c => {
+        if (c === item) return; // 拖曳中的項目自己由手指位移控制，不套用 FLIP
         const b = before.get(c);
         if (!b) return;
         const a = c.getBoundingClientRect();
@@ -3301,31 +3338,48 @@ function initAccountReorder() {
     };
 
     const onUp = ev => {
-      card.removeEventListener('pointermove', onMove);
-      card.removeEventListener('pointerup', onUp);
-      card.removeEventListener('pointercancel', onUp);
-      card.classList.remove('dragging');
-      try { card.releasePointerCapture(ev.pointerId); } catch {}
+      item.removeEventListener('pointermove', onMove);
+      item.removeEventListener('pointerup', onUp);
+      item.removeEventListener('pointercancel', onUp);
+      item.classList.remove('dragging');
+      if (opts.onDragEnd) opts.onDragEnd(container, item);
+      try { item.releasePointerCapture(ev.pointerId); } catch {}
 
-      // 拖曳中的卡片：DOM 順序已經是新位置，從目前位移量彈回 (0,0) 即可
-      if (card._springRAF) cancelAnimationFrame(card._springRAF);
+      // DOM 順序已經是新位置，從目前位移量彈回 (0,0) 即可
+      if (item._springRAF) cancelAnimationFrame(item._springRAF);
       const fromX = dx, fromY = dy;
-      springAnimate(card, {
+      springAnimate(item, {
         from: 0, to: 1, velocity: 0, damping: 1, response: 0.32,
-        onUpdate: t => { card.style.transform = `translate(${fromX * (1 - t)}px, ${fromY * (1 - t)}px) scale(${1.03 - 0.03 * t})`; },
-        onDone: () => { card.style.transform = ''; }
+        onUpdate: t => { item.style.transform = `translate(${fromX * (1 - t)}px, ${fromY * (1 - t)}px) scale(${1.03 - 0.03 * t})`; },
+        onDone: () => { item.style.transform = ''; }
       });
 
-      // 依目前 DOM 順序，重新排列 DB.bankAccounts 並存檔
-      const newOrder = [...grid.querySelectorAll('.account-card')].map(c => c.id.replace('account-', ''));
-      DB.bankAccounts.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+      // 依目前 DOM 順序，重新排列資料陣列並存檔
+      const arr = getArray();
+      const newOrder = [...container.querySelectorAll(itemSelector)].map(c => c.dataset.id);
+      arr.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
       saveDB();
     };
 
-    card.addEventListener('pointermove', onMove);
-    card.addEventListener('pointerup', onUp);
-    card.addEventListener('pointercancel', onUp);
+    item.addEventListener('pointermove', onMove);
+    item.addEventListener('pointerup', onUp);
+    item.addEventListener('pointercancel', onUp);
   });
+}
+
+// 帳戶頁面卡片：套用通用拖曳排序，拖曳中額外切換「精簡列表模式」
+function initAccountReorder() {
+  const grid = document.getElementById('accountsGrid');
+  initReorderableList(grid, '.account-card', () => DB.bankAccounts, {
+    onDragStart: g => g.classList.add('reorder-mode'),
+    onDragEnd:   g => g.classList.remove('reorder-mode'),
+  });
+}
+
+// 設定頁「帳戶」分頁：銀行帳戶／信用卡各一份獨立排序清單
+function initSettingsAccountReorder() {
+  initReorderableList(document.getElementById('acctOrderBankList'), '.reorder-row', () => DB.bankAccounts);
+  initReorderableList(document.getElementById('acctOrderCardList'), '.reorder-row', () => DB.creditCards);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -5591,7 +5645,7 @@ function renderAccounts() {
       })():''}`;
     }).join('');
 
-    return `<div class="account-card${isLow?' low-balance':''}" id="account-${a.id}" onclick="cardClickHandler(event,'account','${a.id}')" style="cursor:pointer">
+    return `<div class="account-card${isLow?' low-balance':''}" id="account-${a.id}" data-id="${a.id}" onclick="cardClickHandler(event,'account','${a.id}')" style="cursor:pointer">
       <div class="account-card-header" style="border-top:3px solid ${a.color}">
         <div class="account-card-icon" style="background:${a.color}22">${icon}</div>
         <div style="flex:1;min-width:0;overflow:hidden">
@@ -5603,7 +5657,7 @@ function renderAccounts() {
           </div>
         </div>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-icon btn-sm acc-drag-handle" title="拖曳排序">⠿</button>
+          <button class="btn btn-ghost btn-icon btn-sm drag-handle" title="拖曳排序">⠿</button>
           <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editAccount','${a.id}')">✏️</button>
           <button class="btn btn-danger btn-icon btn-sm" onclick="deleteAccount('${a.id}')">🗑</button>
         </div>
@@ -6698,6 +6752,38 @@ function renderAnalytics() {
       scales:{x:{ticks:{color:'#8080A8'},grid:{display:false}},
               y:{beginAtZero:true,ticks:{color:'#8080A8',callback:v=>'NT$'+v.toLocaleString()},grid:{color:'rgba(255,255,255,0.04)'}}}}
   });
+}
+
+// ════════════════════════════════════════════════════════════════
+// 設定頁「帳戶」分頁：銀行帳戶／信用卡排序清單
+// ════════════════════════════════════════════════════════════════
+function renderAcctOrderLists() {
+  const buildRow = (item, fallbackIcon) => {
+    const iconHtml = item.icon
+      ? `<div class="reorder-row-icon" style="background:${(item.color||'#0057B8')}22"><img src="${item.icon}" alt=""></div>`
+      : `<div class="reorder-row-icon" style="background:${(item.color||'#0057B8')}22">${fallbackIcon}</div>`;
+    return `<div class="reorder-row" data-id="${item.id}">
+      <span class="drag-handle" title="拖曳排序">⠿</span>
+      ${iconHtml}
+      <div class="reorder-row-name">${escHtml(item.name)}</div>
+    </div>`;
+  };
+
+  const bankWrap = document.getElementById('acctOrderBankList');
+  if (bankWrap) {
+    bankWrap.innerHTML = DB.bankAccounts.length
+      ? DB.bankAccounts.map(a => buildRow(a, '🏦')).join('')
+      : emptyState('🏦', '尚無帳戶');
+  }
+
+  const cardWrap = document.getElementById('acctOrderCardList');
+  if (cardWrap) {
+    cardWrap.innerHTML = DB.creditCards.length
+      ? DB.creditCards.map(c => buildRow(c, '💳')).join('')
+      : emptyState('💳', '尚無信用卡');
+  }
+
+  initSettingsAccountReorder();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -10412,6 +10498,7 @@ function switchSettingsTab(tab) {
   if(tab==='data') refreshDataTabBtns();
   if(tab==='rules') renderRuleList();
   if(tab==='security') initSecurityPanel();
+  if(tab==='account') renderAcctOrderLists();
 }
 
 function refreshDataTabBtns() {
