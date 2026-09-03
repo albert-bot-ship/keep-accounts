@@ -1675,6 +1675,23 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mtkvq5dabggh3",
+      "date": "2026-09-03",
+      "amount": 1000,
+      "desc": "老婆轉",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt8rfv4npge",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
