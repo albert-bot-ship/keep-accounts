@@ -3296,29 +3296,12 @@ function initReorderableList(container, itemSelector, getArray, opts = {}) {
     const startX = e.clientX, startY = e.clientY;
     let dx = 0, dy = 0;
 
-    const onMove = ev => {
-      dx = ev.clientX - startX;
-      dy = ev.clientY - startY;
-      item.style.transform = `translate(${dx}px, ${dy}px) scale(1.03)`;
-
-      // 找出目前指標位置最接近的鄰居項目，跟現在順序不同就交換
-      const siblings = [...container.querySelectorAll(itemSelector)].filter(c => c !== item);
-      let nearest = null, nearestDist = Infinity;
-      siblings.forEach(sib => {
-        const r = sib.getBoundingClientRect();
-        const dist = Math.hypot(ev.clientX - (r.left + r.width / 2), ev.clientY - (r.top + r.height / 2));
-        if (dist < nearestDist) { nearestDist = dist; nearest = sib; }
-      });
-      if (!nearest) return;
-      const items = [...container.children];
-      const itemIndex   = items.indexOf(item);
-      const targetIndex = items.indexOf(nearest);
-      if (itemIndex === targetIndex) return;
-
+    const doSwap = (target, itemIndex, targetIndex) => {
       // FLIP：交換 DOM 順序前先記錄所有項目位置，交換後讓被擠開的項目用 spring 補間回視覺連續
+      const items = [...container.children];
       const before = new Map(items.map(c => [c, c.getBoundingClientRect()]));
-      if (itemIndex < targetIndex) container.insertBefore(item, nearest.nextSibling);
-      else container.insertBefore(item, nearest);
+      if (itemIndex < targetIndex) container.insertBefore(item, target.nextSibling);
+      else container.insertBefore(item, target);
 
       [...container.children].forEach(c => {
         if (c === item) return; // 拖曳中的項目自己由手指位移控制，不套用 FLIP
@@ -3335,6 +3318,44 @@ function initReorderableList(container, itemSelector, getArray, opts = {}) {
           onDone: () => { c.style.transform = ''; }
         });
       });
+    };
+
+    const onMove = ev => {
+      dx = ev.clientX - startX;
+      dy = ev.clientY - startY;
+      item.style.transform = `translate(${dx}px, ${dy}px) scale(1.03)`;
+
+      if (opts.axis === 'y') {
+        // 單欄清單：只跟「緊鄰的上/下一個」比，且要跨過它的中線才交換
+        // （避免行高較小時，找「全部項目裡最近的」在邊界因手指抖動而來回跳動）
+        const items = [...container.children];
+        const idx = items.indexOf(item);
+        const next = items[idx + 1], prev = items[idx - 1];
+        if (next) {
+          const r = next.getBoundingClientRect();
+          if (ev.clientY > r.top + r.height / 2) { doSwap(next, idx, idx + 1); return; }
+        }
+        if (prev) {
+          const r = prev.getBoundingClientRect();
+          if (ev.clientY < r.top + r.height / 2) { doSwap(prev, idx, idx - 1); return; }
+        }
+        return;
+      }
+
+      // 多欄網格：找出目前指標位置最接近的鄰居項目，跟現在順序不同就交換
+      const siblings = [...container.querySelectorAll(itemSelector)].filter(c => c !== item);
+      let nearest = null, nearestDist = Infinity;
+      siblings.forEach(sib => {
+        const r = sib.getBoundingClientRect();
+        const dist = Math.hypot(ev.clientX - (r.left + r.width / 2), ev.clientY - (r.top + r.height / 2));
+        if (dist < nearestDist) { nearestDist = dist; nearest = sib; }
+      });
+      if (!nearest) return;
+      const items = [...container.children];
+      const itemIndex   = items.indexOf(item);
+      const targetIndex = items.indexOf(nearest);
+      if (itemIndex === targetIndex) return;
+      doSwap(nearest, itemIndex, targetIndex);
     };
 
     const onUp = ev => {
@@ -3378,8 +3399,8 @@ function initAccountReorder() {
 
 // 設定頁「帳戶」分頁：銀行帳戶／信用卡各一份獨立排序清單
 function initSettingsAccountReorder() {
-  initReorderableList(document.getElementById('acctOrderBankList'), '.reorder-row', () => DB.bankAccounts);
-  initReorderableList(document.getElementById('acctOrderCardList'), '.reorder-row', () => DB.creditCards);
+  initReorderableList(document.getElementById('acctOrderBankList'), '.reorder-row', () => DB.bankAccounts, { axis: 'y' });
+  initReorderableList(document.getElementById('acctOrderCardList'), '.reorder-row', () => DB.creditCards, { axis: 'y' });
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -6758,7 +6779,7 @@ function renderAnalytics() {
 // 設定頁「帳戶」分頁：銀行帳戶／信用卡排序清單
 // ════════════════════════════════════════════════════════════════
 function renderAcctOrderLists() {
-  const buildRow = (item, fallbackIcon) => {
+  const buildRow = (item, fallbackIcon, type, idx, len) => {
     const iconHtml = item.icon
       ? `<div class="reorder-row-icon" style="background:${(item.color||'#0057B8')}22"><img src="${item.icon}" alt=""></div>`
       : `<div class="reorder-row-icon" style="background:${(item.color||'#0057B8')}22">${fallbackIcon}</div>`;
@@ -6766,24 +6787,39 @@ function renderAcctOrderLists() {
       <span class="drag-handle" title="拖曳排序">⠿</span>
       ${iconHtml}
       <div class="reorder-row-name">${escHtml(item.name)}</div>
+      <div class="reorder-row-actions">
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveAcctOrderItem('${type}','${item.id}',-1)" title="上移" ${idx===0?'disabled':''}>▲</button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveAcctOrderItem('${type}','${item.id}',1)" title="下移" ${idx===len-1?'disabled':''}>▼</button>
+      </div>
     </div>`;
   };
 
   const bankWrap = document.getElementById('acctOrderBankList');
   if (bankWrap) {
     bankWrap.innerHTML = DB.bankAccounts.length
-      ? DB.bankAccounts.map(a => buildRow(a, '🏦')).join('')
+      ? DB.bankAccounts.map((a,i) => buildRow(a, '🏦', 'bank', i, DB.bankAccounts.length)).join('')
       : emptyState('🏦', '尚無帳戶');
   }
 
   const cardWrap = document.getElementById('acctOrderCardList');
   if (cardWrap) {
     cardWrap.innerHTML = DB.creditCards.length
-      ? DB.creditCards.map(c => buildRow(c, '💳')).join('')
+      ? DB.creditCards.map((c,i) => buildRow(c, '💳', 'card', i, DB.creditCards.length)).join('')
       : emptyState('💳', '尚無信用卡');
   }
 
   initSettingsAccountReorder();
+}
+
+function moveAcctOrderItem(type, id, dir) {
+  const arr = type === 'bank' ? DB.bankAccounts : DB.creditCards;
+  const idx = arr.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= arr.length) return;
+  [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+  saveDB();
+  renderAcctOrderLists();
 }
 
 // ════════════════════════════════════════════════════════════════
