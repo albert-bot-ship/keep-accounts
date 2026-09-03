@@ -3242,6 +3242,93 @@ function resetSwipe(el) {
 }
 
 // ════════════════════════════════════════════════════════════════
+// 帳戶拖曳排序
+// ════════════════════════════════════════════════════════════════
+function initAccountReorder() {
+  const grid = document.getElementById('accountsGrid');
+  if (!grid) return;
+
+  grid.addEventListener('pointerdown', e => {
+    const handle = e.target.closest('.acc-drag-handle');
+    if (!handle) return;
+    const card = handle.closest('.account-card');
+    if (!card) return;
+    e.preventDefault();
+
+    card.setPointerCapture(e.pointerId);
+    card.classList.add('dragging');
+    const startX = e.clientX, startY = e.clientY;
+    let dx = 0, dy = 0;
+
+    const onMove = ev => {
+      dx = ev.clientX - startX;
+      dy = ev.clientY - startY;
+      card.style.transform = `translate(${dx}px, ${dy}px) scale(1.03)`;
+
+      // 找出目前指標位置最接近的鄰居卡片，跟現在順序不同就交換
+      const siblings = [...grid.querySelectorAll('.account-card')].filter(c => c !== card);
+      let nearest = null, nearestDist = Infinity;
+      siblings.forEach(sib => {
+        const r = sib.getBoundingClientRect();
+        const dist = Math.hypot(ev.clientX - (r.left + r.width / 2), ev.clientY - (r.top + r.height / 2));
+        if (dist < nearestDist) { nearestDist = dist; nearest = sib; }
+      });
+      if (!nearest) return;
+      const cardIndex   = [...grid.children].indexOf(card);
+      const targetIndex = [...grid.children].indexOf(nearest);
+      if (cardIndex === targetIndex) return;
+
+      // FLIP：交換 DOM 順序前先記錄所有卡片位置，交換後讓被擠開的卡片用 spring 補間回視覺連續
+      const before = new Map([...grid.children].map(c => [c, c.getBoundingClientRect()]));
+      if (cardIndex < targetIndex) grid.insertBefore(card, nearest.nextSibling);
+      else grid.insertBefore(card, nearest);
+
+      [...grid.children].forEach(c => {
+        if (c === card) return; // 拖曳中的卡片自己由手指位移控制，不套用 FLIP
+        const b = before.get(c);
+        if (!b) return;
+        const a = c.getBoundingClientRect();
+        const ddx = b.left - a.left, ddy = b.top - a.top;
+        if (!ddx && !ddy) return;
+        if (c._springRAF) cancelAnimationFrame(c._springRAF);
+        c.style.transform = `translate(${ddx}px, ${ddy}px)`;
+        springAnimate(c, {
+          from: 0, to: 1, velocity: 0, damping: 1, response: 0.3,
+          onUpdate: t => { c.style.transform = `translate(${ddx * (1 - t)}px, ${ddy * (1 - t)}px)`; },
+          onDone: () => { c.style.transform = ''; }
+        });
+      });
+    };
+
+    const onUp = ev => {
+      card.removeEventListener('pointermove', onMove);
+      card.removeEventListener('pointerup', onUp);
+      card.removeEventListener('pointercancel', onUp);
+      card.classList.remove('dragging');
+      try { card.releasePointerCapture(ev.pointerId); } catch {}
+
+      // 拖曳中的卡片：DOM 順序已經是新位置，從目前位移量彈回 (0,0) 即可
+      if (card._springRAF) cancelAnimationFrame(card._springRAF);
+      const fromX = dx, fromY = dy;
+      springAnimate(card, {
+        from: 0, to: 1, velocity: 0, damping: 1, response: 0.32,
+        onUpdate: t => { card.style.transform = `translate(${fromX * (1 - t)}px, ${fromY * (1 - t)}px) scale(${1.03 - 0.03 * t})`; },
+        onDone: () => { card.style.transform = ''; }
+      });
+
+      // 依目前 DOM 順序，重新排列 DB.bankAccounts 並存檔
+      const newOrder = [...grid.querySelectorAll('.account-card')].map(c => c.id.replace('account-', ''));
+      DB.bankAccounts.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+      saveDB();
+    };
+
+    card.addEventListener('pointermove', onMove);
+    card.addEventListener('pointerup', onUp);
+    card.addEventListener('pointercancel', onUp);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
 // MODAL 下滑關閉手勢（僅手機底部彈出樣式；桌面置中彈窗不套用）
 // ════════════════════════════════════════════════════════════════
 function initModalDragToDismiss() {
@@ -5516,6 +5603,7 @@ function renderAccounts() {
           </div>
         </div>
         <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-icon btn-sm acc-drag-handle" title="拖曳排序">⠿</button>
           <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editAccount','${a.id}')">✏️</button>
           <button class="btn btn-danger btn-icon btn-sm" onclick="deleteAccount('${a.id}')">🗑</button>
         </div>
@@ -10680,6 +10768,7 @@ async function init() {
   initCtxMenu();
   initSwipeToDelete();
   initModalDragToDismiss();
+  initAccountReorder();
   setTimeout(fixInputModes, 500);
   setTimeout(checkDueNotifications, 2000);
   setTimeout(checkDynamicIslandDue, 3000);
