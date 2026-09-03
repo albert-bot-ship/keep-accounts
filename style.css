@@ -256,6 +256,12 @@ body::before{
 .reorder-row-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
 .reorder-row-icon img{width:28px;height:28px;border-radius:7px;object-fit:cover}
 .reorder-row-name{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reorder-row .drag-handle{
+  font-size:20px; width:40px; height:40px; margin:-8px; /* 加大觸控範圍但不擴大視覺排版空間 */
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  color:var(--tx-muted);
+}
+.reorder-row-actions{display:flex;gap:2px;flex-shrink:0}
 .account-card{
   background:var(--bg-card);border:1px solid var(--bdr-subtle);
   border-radius:var(--r-lg);overflow:hidden;
