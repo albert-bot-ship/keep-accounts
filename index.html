@@ -5566,6 +5566,7 @@ function doDeleteCard(id) {
   DB.creditCards  = DB.creditCards.filter(c=>c.id!==id);
   DB.transactions = DB.transactions.filter(t=>!(t.sourceType==='card'&&t.sourceId===id));
   saveDB(); renderCards(); toast('信用卡已刪除','danger');
+  if (document.getElementById('acctOrderCardList')) renderAcctOrderLists();
 }
 // 點擊卡片主體 → 跳轉消費紀錄（證券帳戶跳投資持股頁）
 function cardClickHandler(e, type, id) {
@@ -5884,6 +5885,7 @@ function doDeleteAccount(id) {
   DB.bankAccounts = DB.bankAccounts.filter(a=>a.id!==id);
   DB.transactions = DB.transactions.filter(t=>!(t.sourceType==='account'&&t.sourceId===id));
   saveDB(); renderAccounts(); toast('帳戶已刪除','danger');
+  if (document.getElementById('acctOrderBankList')) renderAcctOrderLists();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -7974,6 +7976,7 @@ function saveCard() {
   if(modalType==='editCard'){Object.assign(getCard(editTarget),obj);toast('信用卡已更新','success');}
   else{DB.creditCards.push({id:uid(),...obj});toast('信用卡新增成功','success');}
   saveDB();closeModal();renderCards();
+  if (document.getElementById('acctOrderCardList')) renderAcctOrderLists();
 }
 function saveAccount() {
   const name=document.getElementById('aName').value.trim();
@@ -8004,6 +8007,7 @@ function saveAccount() {
     toast('帳戶新增成功','success');
   }
   saveDB();closeModal();renderAccounts();
+  if (document.getElementById('acctOrderBankList')) renderAcctOrderLists();
 }
 function saveCardLayer() {
   const cardId=v('clCardId'),layId=v('clLayId'),
