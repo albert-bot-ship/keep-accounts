@@ -2862,7 +2862,7 @@ function renderNetWorth() {
   const wrap = document.getElementById('netWorthWrap');
   if (!wrap) return;
 
-  const assets = DB.bankAccounts.map(a => {
+  const assets = DB.bankAccounts.filter(a => a.includeInTotal !== false).map(a => {
     let bal = accountBalance(a.id);
     if (a.accType==='證券') {
       bal = (a.holdings||[]).reduce((s,h)=>{
@@ -2872,7 +2872,7 @@ function renderNetWorth() {
     }
     return {name:a.name, color:a.color, val:bal, type:a.accType||'一般'};
   });
-  const liabilities = DB.creditCards.map(c => {
+  const liabilities = DB.creditCards.filter(c => c.includeInTotal !== false).map(c => {
     const b = cardBalance(c.id);
     return {name:c.name, color:c.color, val:b<0?Math.abs(b):0};
   }).filter(x=>x.val>0);
@@ -5131,8 +5131,8 @@ function renderDashboard() {
   const rtx = rangedTxns();
   const spend  = Math.abs(rtx.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
   const income = rtx.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const totalDebt = DB.creditCards.reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
-  const totalBank = DB.bankAccounts.reduce((s,a)=>{
+  const totalDebt = DB.creditCards.filter(c=>c.includeInTotal!==false).reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
+  const totalBank = DB.bankAccounts.filter(a=>a.includeInTotal!==false).reduce((s,a)=>{
     if (a.accType === '證券') {
       const mktVal = (a.holdings||[]).reduce((ss,h)=>{
         const sp = stockPrices[h.symbol?.toUpperCase()];
@@ -6783,10 +6783,15 @@ function renderAcctOrderLists() {
     const iconHtml = item.icon
       ? `<div class="reorder-row-icon" style="background:${(item.color||'#0057B8')}22"><img src="${item.icon}" alt=""></div>`
       : `<div class="reorder-row-icon" style="background:${(item.color||'#0057B8')}22">${fallbackIcon}</div>`;
+    const included = item.includeInTotal !== false; // 未設定過的舊資料視為已納入（向下相容）
     return `<div class="reorder-row" data-id="${item.id}">
       <span class="drag-handle" title="拖曳排序">⠿</span>
       ${iconHtml}
       <div class="reorder-row-name">${escHtml(item.name)}</div>
+      <label class="reorder-row-total" title="算入總資產">
+        <input type="checkbox" ${included?'checked':''} onchange="toggleAcctIncludeTotal('${type}','${item.id}',this.checked)">
+        <span>算入總資產</span>
+      </label>
       <div class="reorder-row-actions">
         <button class="btn btn-ghost btn-icon btn-sm" onclick="moveAcctOrderItem('${type}','${item.id}',-1)" title="上移" ${idx===0?'disabled':''}>▲</button>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="moveAcctOrderItem('${type}','${item.id}',1)" title="下移" ${idx===len-1?'disabled':''}>▼</button>
@@ -6820,6 +6825,17 @@ function moveAcctOrderItem(type, id, dir) {
   [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
   saveDB();
   renderAcctOrderLists();
+}
+
+function toggleAcctIncludeTotal(type, id, checked) {
+  const arr = type === 'bank' ? DB.bankAccounts : DB.creditCards;
+  const item = arr.find(x => x.id === id);
+  if (!item) return;
+  item.includeInTotal = checked;
+  saveDB();
+  // 若目前正在看的頁面有顯示總資產相關數字，順便刷新
+  if (document.getElementById('netWorthWrap')) renderNetWorth();
+  if (document.getElementById('dashStats')) renderDashboard();
 }
 
 // ════════════════════════════════════════════════════════════════
