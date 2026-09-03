@@ -229,15 +229,33 @@ body::before{
 
 /* ── ACCOUNT CARDS ───────────────────────── */
 .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(275px,1fr));gap:16px}
-.acc-drag-handle{
+.drag-handle{
   cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none;
 }
-.acc-drag-handle:active{cursor:grabbing}
-.account-card.dragging{
+.drag-handle:active{cursor:grabbing}
+.account-card.dragging,
+.reorder-row.dragging{
   z-index:50;
   box-shadow:0 12px 32px rgba(0,0,0,.35);
   transition:none !important; /* 交給 JS/spring 控制位置，避免跟 CSS transition 打架 */
 }
+#accountsGrid.reorder-mode{
+  grid-template-columns:1fr; /* 拖曳排序時強制單欄，避免多欄混淆 */
+}
+#accountsGrid.reorder-mode .account-card-body{
+  display:none; /* 拖曳排序時只留標頭（圖示＋名稱），整份清單才看得清楚位置 */
+}
+
+/* ── 設定頁：帳戶排序清單 ── */
+.reorder-list{display:flex;flex-direction:column;gap:8px}
+.reorder-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:var(--r);
+  background:var(--bg-card);border:1px solid var(--bdr-normal);
+}
+.reorder-row-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.reorder-row-icon img{width:28px;height:28px;border-radius:7px;object-fit:cover}
+.reorder-row-name{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .account-card{
   background:var(--bg-card);border:1px solid var(--bdr-subtle);
   border-radius:var(--r-lg);overflow:hidden;
