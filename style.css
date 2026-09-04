@@ -465,6 +465,10 @@ textarea.form-input{resize:vertical;min-height:66px}
 .layer-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .layer-name{flex:1;font-size:13px;color:var(--tx-primary)}
 .layer-amt{font-family:var(--ff-display);font-weight:700;font-size:14px;color:var(--tx-primary)}
+.layer-actions{
+  display:flex;flex-direction:column;gap:3px;flex-shrink:0;
+}
+.layer-actions .btn-icon{width:24px;height:24px;font-size:11px}
 
 /* 淺色模式下 layer-bar 文字強制深色 */
 body.light-theme .layer-bar .layer-name { color: #1a1a2e !important; -webkit-text-fill-color:#1a1a2e !important; }
