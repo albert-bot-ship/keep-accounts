@@ -466,7 +466,8 @@ textarea.form-input{resize:vertical;min-height:66px}
 .layer-name{flex:1;font-size:13px;color:var(--tx-primary)}
 .layer-amt{font-family:var(--ff-display);font-weight:700;font-size:14px;color:var(--tx-primary)}
 .layer-actions{
-  display:flex;flex-direction:column;gap:3px;flex-shrink:0;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:3px;
+  flex-shrink:0;margin-left:14px; /* 跟金額拉開明顯間距，避免緊貼成一欄 */
 }
 .layer-actions .btn-icon{width:24px;height:24px;font-size:11px}
 
