@@ -419,6 +419,20 @@
           "amount": 0,
           "color": "#1e27f1",
           "goal": null
+        },
+        {
+          "id": "mtmbi1nlzvx65",
+          "label": "兆豐繳卡費用",
+          "amount": 0,
+          "color": "#0400fa",
+          "goal": null
+        },
+        {
+          "id": "mtmbifkhw9vpj",
+          "label": "CUBE繳卡費用",
+          "amount": 0,
+          "color": "#0400fa",
+          "goal": null
         }
       ]
     },
@@ -1431,23 +1445,6 @@
     {
       "id": "mtccdgbxaxnka",
       "date": "2026-08-28",
-      "amount": -115,
-      "desc": "可不可",
-      "category": "mov4018zwuesg",
-      "sourceId": "mov4hexngandg",
-      "sourceType": "card",
-      "notes": "",
-      "isRedemption": false,
-      "layerId": "mpdhyksqitpev",
-      "tags": [],
-      "fee": 0,
-      "isSavingsAllocation": false,
-      "isTransferOut": false,
-      "isFixed": false
-    },
-    {
-      "id": "mteg9zxrqlc7o",
-      "date": "2026-08-29",
       "amount": -115,
       "desc": "可不可",
       "category": "mov4018zwuesg",
