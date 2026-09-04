@@ -5495,10 +5495,12 @@ function renderCards() {
           ${hasPaidOffset?`<div style="font-size:10px;color:${layerMutedColor};text-decoration:line-through">−${fmt(totalLayerAmt)}</div>`:''}
           <span class="layer-amt" style="color:${layerOutstanding>0?layerRedColor:layerMutedColor};font-weight:700">${layerOutstanding>0?'−'+fmt(layerOutstanding):'−0'}</span>
         </div>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('card','${c.id}','${l.id}',-1)" title="上移" ${idx===0?'disabled':''}>▲</button>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('card','${c.id}','${l.id}',1)" title="下移" ${idx===arr.length-1?'disabled':''}>▼</button>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCardLayer','${c.id}',null,null,'${l.id}')">✏️</button>
-        <button class="btn btn-danger btn-icon btn-sm" onclick="delCardLayer('${c.id}','${l.id}')">✕</button>
+        <div class="layer-actions">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('card','${c.id}','${l.id}',-1)" title="上移" ${idx===0?'disabled':''}>▲</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('card','${c.id}','${l.id}',1)" title="下移" ${idx===arr.length-1?'disabled':''}>▼</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCardLayer','${c.id}',null,null,'${l.id}')">✏️</button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="delCardLayer('${c.id}','${l.id}')">✕</button>
+        </div>
       </div>`;
     }).join('');
 
@@ -5655,10 +5657,12 @@ function renderAccounts() {
           })()}
           ${l.goal?`<div style="font-size:10px;color:var(--tx-muted);margin-top:2px">目標 ${fmt(l.goal)}</div>`:''}
         </div>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('account','${a.id}','${l.id}',-1)" title="上移" ${idx===0?'disabled':''}>▲</button>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('account','${a.id}','${l.id}',1)" title="下移" ${idx===arr.length-1?'disabled':''}>▼</button>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editLayer','${a.id}',null,null,'${l.id}')">✏️</button>
-        <button class="btn btn-danger btn-icon btn-sm" onclick="delLayer('${a.id}','${l.id}')">✕</button>
+        <div class="layer-actions">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('account','${a.id}','${l.id}',-1)" title="上移" ${idx===0?'disabled':''}>▲</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('account','${a.id}','${l.id}',1)" title="下移" ${idx===arr.length-1?'disabled':''}>▼</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editLayer','${a.id}',null,null,'${l.id}')">✏️</button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="delLayer('${a.id}','${l.id}')">✕</button>
+        </div>
       </div>
       ${l.goal?(()=>{
         const pct=Math.min(100,Math.round(dynBal/l.goal*100));
