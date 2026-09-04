@@ -2007,6 +2007,34 @@
       "layerId": "mtmc464rie9ta",
       "transferPairId": "mtmcai9k9x234",
       "transferPairTxnId": "mtmcai9kpxgcb"
+    },
+    {
+      "id": "mtmcwev3clbv8",
+      "date": "2026-09-04",
+      "amount": -1000,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt8rfv4npge",
+      "transferPairId": "mtmcwev3lurr0",
+      "transferPairTxnId": "mtmcwev3muyf3"
+    },
+    {
+      "id": "mtmcwev3muyf3",
+      "date": "2026-09-04",
+      "amount": 1000,
+      "desc": "轉入 ← 國泰主帳戶",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mt84rxv5bsopq",
+      "transferPairId": "mtmcwev3lurr0",
+      "transferPairTxnId": "mtmcwev3clbv8"
     }
   ],
   "fixedExpenses": [],
