@@ -5497,8 +5497,8 @@ function renderCards() {
         </div>
         <div class="layer-actions">
           <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('card','${c.id}','${l.id}',-1)" title="上移" ${idx===0?'disabled':''}>▲</button>
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('card','${c.id}','${l.id}',1)" title="下移" ${idx===arr.length-1?'disabled':''}>▼</button>
           <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCardLayer','${c.id}',null,null,'${l.id}')">✏️</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('card','${c.id}','${l.id}',1)" title="下移" ${idx===arr.length-1?'disabled':''}>▼</button>
           <button class="btn btn-danger btn-icon btn-sm" onclick="delCardLayer('${c.id}','${l.id}')">✕</button>
         </div>
       </div>`;
@@ -5659,8 +5659,8 @@ function renderAccounts() {
         </div>
         <div class="layer-actions">
           <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('account','${a.id}','${l.id}',-1)" title="上移" ${idx===0?'disabled':''}>▲</button>
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('account','${a.id}','${l.id}',1)" title="下移" ${idx===arr.length-1?'disabled':''}>▼</button>
           <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editLayer','${a.id}',null,null,'${l.id}')">✏️</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('account','${a.id}','${l.id}',1)" title="下移" ${idx===arr.length-1?'disabled':''}>▼</button>
           <button class="btn btn-danger btn-icon btn-sm" onclick="delLayer('${a.id}','${l.id}')">✕</button>
         </div>
       </div>
