@@ -4147,13 +4147,14 @@ function renderPeriodCountdown() {
   const color = remaining <= 0 ? 'var(--tx-red)' : daysLeft <= 5 ? 'var(--warn)' : 'var(--tx-green)';
   const pct   = daysTotal > 0 ? Math.round(daysGone / daysTotal * 100) : 0;
   const fmtSigned = n => (n < 0 ? '-' : '') + fmt(n);
+  const dailyLabel = dailyAllowed < 0 ? '日均超支' : '日均可花';
 
   wrap.innerHTML = `<div class="chart-box" style="padding:14px 18px">
     <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:10px">本期剩餘預算</div>
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
       <div style="flex:1;min-width:120px">
         <div style="font-family:var(--ff-display);font-size:28px;font-weight:700;color:${color};letter-spacing:1px">${fmtSigned(remaining)}</div>
-        <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">日均可花 <span style="color:${color};font-weight:600">${fmtSigned(dailyAllowed)}</span></div>
+        <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${dailyLabel} <span style="color:${color};font-weight:600">${fmt(dailyAllowed)}</span></div>
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-family:var(--ff-display);font-size:32px;font-weight:700;color:${daysLeft<=5?'var(--warn)':'var(--tx-blue)'}">${daysLeft}</div>
