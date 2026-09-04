@@ -146,7 +146,8 @@
           "monthlyAmt": null,
           "reimbursable": false
         }
-      ]
+      ],
+      "includeInTotal": false
     }
   ],
   "bankAccounts": [
