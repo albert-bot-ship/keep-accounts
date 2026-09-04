@@ -1910,7 +1910,7 @@
     {
       "id": "mtmbnbp0o5838",
       "date": "2026-09-04",
-      "amount": -1100,
+      "amount": -990,
       "desc": "轉帳 → 郵局",
       "category": "mq0967uv5w2s3",
       "sourceId": "mov74st8ti4ry",
@@ -1924,7 +1924,7 @@
     {
       "id": "mtmbnbp06oof9",
       "date": "2026-09-04",
-      "amount": 1100,
+      "amount": 990,
       "desc": "轉入 ← 郵局",
       "category": "mq0967uv5w2s3",
       "sourceId": "mov74st8ti4ry",
@@ -1933,7 +1933,12 @@
       "isTransfer": true,
       "layerId": "mtmbi1nlzvx65",
       "transferPairId": "mtmbnbp0ha5bm",
-      "transferPairTxnId": "mtmbnbp0o5838"
+      "transferPairTxnId": "mtmbnbp0o5838",
+      "isRedemption": false,
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false
     },
     {
       "id": "mtmbssrz9o6k4",
