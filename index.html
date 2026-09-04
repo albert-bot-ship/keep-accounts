@@ -5470,7 +5470,7 @@ function renderCards() {
     const normalTotal = Object.values(normalTxMap).reduce((s,v)=>s+v,0);
     const paidRatio = 0; // 不再使用比例計算
 
-    const layersHtml = layerDataArr.map(({l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed})=>{
+    const layersHtml = layerDataArr.map(({l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed}, idx, arr)=>{
       let layerOutstanding, hasPaidOffset;
       if (isMonthlyFixed) {
         layerOutstanding = layerAmt;
@@ -5495,6 +5495,8 @@ function renderCards() {
           ${hasPaidOffset?`<div style="font-size:10px;color:${layerMutedColor};text-decoration:line-through">−${fmt(totalLayerAmt)}</div>`:''}
           <span class="layer-amt" style="color:${layerOutstanding>0?layerRedColor:layerMutedColor};font-weight:700">${layerOutstanding>0?'−'+fmt(layerOutstanding):'−0'}</span>
         </div>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('card','${c.id}','${l.id}',-1)" title="上移" ${idx===0?'disabled':''}>▲</button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('card','${c.id}','${l.id}',1)" title="下移" ${idx===arr.length-1?'disabled':''}>▼</button>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCardLayer','${c.id}',null,null,'${l.id}')">✏️</button>
         <button class="btn btn-danger btn-icon btn-sm" onclick="delCardLayer('${c.id}','${l.id}')">✕</button>
       </div>`;
@@ -5626,7 +5628,7 @@ function renderAccounts() {
     const mthIn  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount>0&&ym(t.date)===nowYM()).reduce((s,t)=>s+t.amount,0);
     const typeBadge = a.accType?`<span class="badge badge-blue" style="font-size:9px">${a.accType}</span>`:'';
     const last4show = a.last4?`<span style="color:var(--tx-muted);font-size:11px;letter-spacing:2px">•••• ${a.last4}</span>`:'';
-    const layersHtml = (a.layers||[]).map(l=>{
+    const layersHtml = (a.layers||[]).map((l,idx,arr)=>{
       const dynBal  = layerDynamicBalance(a.id, l.id);
       const lChange = dynBal - (l.amount||0); // 累積增減
       const lSpend  = DB.transactions.filter(t=>t.layerId===l.id&&t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0);
@@ -5653,6 +5655,8 @@ function renderAccounts() {
           })()}
           ${l.goal?`<div style="font-size:10px;color:var(--tx-muted);margin-top:2px">目標 ${fmt(l.goal)}</div>`:''}
         </div>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('account','${a.id}','${l.id}',-1)" title="上移" ${idx===0?'disabled':''}>▲</button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveLayer('account','${a.id}','${l.id}',1)" title="下移" ${idx===arr.length-1?'disabled':''}>▼</button>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editLayer','${a.id}',null,null,'${l.id}')">✏️</button>
         <button class="btn btn-danger btn-icon btn-sm" onclick="delLayer('${a.id}','${l.id}')">✕</button>
       </div>
@@ -5873,6 +5877,17 @@ function delLayer(accId,layerId) {
   const a=getAcc(accId); if (!a) return;
   a.layers=a.layers.filter(l=>l.id!==layerId);
   saveDB(); renderAccounts(); toast('分層已刪除','info');
+}
+function moveLayer(ownerType, ownerId, layerId, dir) {
+  const owner = ownerType === 'account' ? getAcc(ownerId) : getCard(ownerId);
+  if (!owner || !owner.layers) return;
+  const idx = owner.layers.findIndex(l => l.id === layerId);
+  if (idx < 0) return;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= owner.layers.length) return;
+  [owner.layers[idx], owner.layers[newIdx]] = [owner.layers[newIdx], owner.layers[idx]];
+  saveDB();
+  if (ownerType === 'account') renderAccounts(); else renderCards();
 }
 function deleteAccount(id) {
   const a = getAcc(id); if (!a) return;
