@@ -192,6 +192,13 @@
           "goal": null
         },
         {
+          "id": "mtm8xyfv8xhlf",
+          "label": "老婆轉-備用金",
+          "amount": 0,
+          "color": "#218b13",
+          "goal": null
+        },
+        {
           "id": "mq8v1xxlmsfhq",
           "label": "出差費",
           "amount": 658,
@@ -217,13 +224,6 @@
           "label": "轉兆豐費用",
           "amount": 0,
           "color": "#0400fa",
-          "goal": null
-        },
-        {
-          "id": "mtm8xyfv8xhlf",
-          "label": "老婆轉-備用金",
-          "amount": 0,
-          "color": "#218b13",
           "goal": null
         }
       ],
