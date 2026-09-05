@@ -2041,6 +2041,23 @@
       "layerId": "mt84rxv5bsopq",
       "transferPairId": "mtmcwev3lurr0",
       "transferPairTxnId": "mtmcwev3clbv8"
+    },
+    {
+      "id": "mtoi6v70dyq6k",
+      "date": "2026-09-05",
+      "amount": -25,
+      "desc": "全家冰塊",
+      "category": "mov4018zwuesg",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
