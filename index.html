@@ -305,6 +305,7 @@
           <button class="btn btn-primary" onclick="openModal('addTxn')">＋ 新增記錄</button>
         </div>
       </div>
+      <div id="txnSourceChip"></div>
       <div class="table-container">
         <div class="table-toolbar" style="flex-wrap:wrap;gap:6px">
           <!-- 固定列：搜尋 + 篩選toggle + 功能按鈕 -->
@@ -5589,8 +5590,10 @@ function cardClickHandler(e, type, id) {
   }
 }
 
-// 暫存由外部設定的篩選條件（filterByCard / filterByAccount 使用）
+// 暫存由外部設定的篩選條件（filterByCard / filterByAccount 使用，渲染後即清空）
 let _pendingFilterSource = null;
+// 持續保存目前消費紀錄頁的篩選來源（不會被清空），供「返回帳戶/卡片設定」按鈕與來源標籤使用
+let currentTxnFilterSource = null;
 
 function filterByCard(cardId) {
   _pendingFilterSource = 'card_' + cardId;
@@ -5612,6 +5615,33 @@ function filterByAccount(accountId) {
   if (fromEl) fromEl.value = '';
   if (toEl)   toEl.value   = '';
   navigateTo('txns');
+}
+
+// 消費紀錄頁「來源標籤」：顯示目前篩選的帳戶/卡片名稱，點名稱可返回該帳戶/卡片設定，點✕僅清除篩選
+function renderTxnSourceChip() {
+  const chipEl = document.getElementById('txnSourceChip');
+  if (!chipEl) return;
+  if (!currentTxnFilterSource) { chipEl.innerHTML = ''; return; }
+  const isCard = currentTxnFilterSource.startsWith('card_');
+  const id     = isCard ? currentTxnFilterSource.slice(5) : currentTxnFilterSource.slice(8);
+  const item   = isCard ? getCard(id) : getAcc(id);
+  if (!item) { chipEl.innerHTML = ''; return; }
+  const icon = isCard ? '💳' : '🏦';
+  chipEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:8px;background:var(--bg-secondary);border-radius:8px;font-size:12px;width:fit-content">
+    <span style="color:var(--tx-muted)">來自：</span>
+    <span style="cursor:pointer;color:var(--m-blue);font-weight:600" onclick="goToTxnFilterSource()" title="返回設定">${icon} ${escHtml(item.name)} ⚙️</span>
+    <span style="cursor:pointer;color:var(--tx-muted);padding:0 4px" onclick="clearTxnFilters()" title="清除篩選">✕</span>
+  </div>`;
+}
+
+// 返回目前篩選來源（帳戶或卡片）的設定畫面
+function goToTxnFilterSource() {
+  if (!currentTxnFilterSource) return;
+  const isCard = currentTxnFilterSource.startsWith('card_');
+  const id     = isCard ? currentTxnFilterSource.slice(5) : currentTxnFilterSource.slice(8);
+  const navEl  = document.querySelector(`[data-page="${isCard ? 'cards' : 'accounts'}"]`);
+  if (navEl) nav(navEl, isCard ? 'cards' : 'accounts');
+  setTimeout(() => openModal(isCard ? 'editCard' : 'editAccount', id), 150);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -5949,6 +5979,10 @@ function renderTxns() {
         catVal=catSel.value, typeVal=v('filterType'),
         tagVal=tagSel?.value||'', layerVal=layerSel?.value||'',
         keyword=(v('txnSearch')||'').toLowerCase().trim();
+
+  // 記錄目前篩選來源（供「返回設定」按鈕與來源標籤使用），並渲染標籤
+  currentTxnFilterSource = srcVal || null;
+  renderTxnSourceChip();
 
   let txns=[...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date));
   if (from)     txns=txns.filter(t=>t.date>=from);
