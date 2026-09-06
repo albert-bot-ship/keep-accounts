@@ -5629,19 +5629,17 @@ function renderTxnSourceChip() {
   const icon = isCard ? '💳' : '🏦';
   chipEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:8px;background:var(--bg-secondary);border-radius:8px;font-size:12px;width:fit-content">
     <span style="color:var(--tx-muted)">來自：</span>
-    <span style="cursor:pointer;color:var(--m-blue);font-weight:600" onclick="goToTxnFilterSource()" title="返回設定">${icon} ${escHtml(item.name)} ⚙️</span>
+    <span style="cursor:pointer;color:var(--m-blue);font-weight:600" onclick="goToTxnFilterSource()" title="返回帳戶/卡片">${icon} ${escHtml(item.name)}</span>
     <span style="cursor:pointer;color:var(--tx-muted);padding:0 4px" onclick="clearTxnFilters()" title="清除篩選">✕</span>
   </div>`;
 }
 
-// 返回目前篩選來源（帳戶或卡片）的設定畫面
+// 返回目前篩選來源（帳戶或卡片）所在頁面，並高亮該張卡片（不自動開啟編輯視窗）
 function goToTxnFilterSource() {
   if (!currentTxnFilterSource) return;
   const isCard = currentTxnFilterSource.startsWith('card_');
   const id     = isCard ? currentTxnFilterSource.slice(5) : currentTxnFilterSource.slice(8);
-  const navEl  = document.querySelector(`[data-page="${isCard ? 'cards' : 'accounts'}"]`);
-  if (navEl) nav(navEl, isCard ? 'cards' : 'accounts');
-  setTimeout(() => openModal(isCard ? 'editCard' : 'editAccount', id), 150);
+  navToItem(isCard ? 'cards' : 'accounts', (isCard ? 'card-' : 'account-') + id);
 }
 
 // ════════════════════════════════════════════════════════════════
