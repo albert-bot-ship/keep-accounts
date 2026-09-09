@@ -293,18 +293,29 @@ body::before{
   padding:10px 18px;display:flex;gap:6px;flex-wrap:wrap;
   border-top:1px solid var(--bdr-subtle);background:rgba(0,0,0,0.2);
 }
-/* ══ 帳戶/信用卡卡片：收合狀態（只顯示標題列，像卡片正面） ══════ */
-.account-card.collapsed .account-card-body,
-.account-card.collapsed .account-card-footer{ display:none; }
-.account-card.collapsed .account-card-header{ border-bottom:none; }
-.account-card.collapsed.auto-text-light .account-card-name,
-.account-card.collapsed.auto-text-light .account-card-type{ color:#fff !important; -webkit-text-fill-color:#fff !important; }
-.account-card.collapsed.auto-text-light .btn-ghost,
-.account-card.collapsed.auto-text-light .btn-danger{ background:rgba(255,255,255,.15) !important; border-color:rgba(255,255,255,.25) !important; color:#fff !important; }
-.account-card.collapsed.auto-text-dark .account-card-name,
-.account-card.collapsed.auto-text-dark .account-card-type{ color:#1a1a2e !important; -webkit-text-fill-color:#1a1a2e !important; }
-.account-card.collapsed.auto-text-dark .btn-ghost,
-.account-card.collapsed.auto-text-dark .btn-danger{ background:rgba(26,26,46,.1) !important; border-color:rgba(26,26,46,.2) !important; color:#1a1a2e !important; }
+/* ══ 帳戶/信用卡卡片：收合/展開（Apple 風格彈簧動畫，非硬切換） ══════ */
+.account-card .collapse-wrap{
+  display:grid; grid-template-rows:0fr;
+  transition:grid-template-rows .4s cubic-bezier(.32,.72,0,1);
+}
+.account-card.expanded .collapse-wrap{ grid-template-rows:1fr; }
+.account-card .collapse-wrap > div{ overflow:hidden; min-height:0; }
+.account-card:not(.expanded) .account-card-header{ border-bottom:none; }
+.account-card:active{ transform:scale(.98); transition:transform .12s ease-out; }
+.account-card.auto-text-light .account-card-name,
+.account-card.auto-text-light .account-card-type{ color:#fff !important; -webkit-text-fill-color:#fff !important; }
+.account-card.auto-text-light .btn-ghost,
+.account-card.auto-text-light .btn-danger{ background:rgba(255,255,255,.15) !important; border-color:rgba(255,255,255,.25) !important; color:#fff !important; }
+.account-card.auto-text-dark .account-card-name,
+.account-card.auto-text-dark .account-card-type{ color:#1a1a2e !important; -webkit-text-fill-color:#1a1a2e !important; }
+.account-card.auto-text-dark .btn-ghost,
+.account-card.auto-text-dark .btn-danger{ background:rgba(26,26,46,.1) !important; border-color:rgba(26,26,46,.2) !important; color:#1a1a2e !important; }
+/* 蓋過「CSS 加強 1 — 玻璃擬態卡片」對 .account-card 背景的 !important，讓自動漸層真正顯示 */
+html body .account-card.auto-text-light,
+html body .account-card.auto-text-dark{
+  background:var(--auto-bg) !important;
+  backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+}
 .add-card-btn{
   background:var(--bg-card);border:2px dashed var(--bdr-normal);
   border-radius:var(--r-lg);display:flex;flex-direction:column;
