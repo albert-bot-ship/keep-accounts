@@ -5955,13 +5955,18 @@ function renderTxns() {
   DB.categories.forEach(c=>{catSel.innerHTML+=`<option value="${c.id}">${escHtml(c.name)}</option>`;});
   catSel.value=oldCat;
 
-  // Layer filter：所有信用卡分層，標示所屬卡片名稱以便辨識
+  // Layer filter：所有信用卡分層＋銀行帳戶分層，標示所屬卡片/帳戶名稱以便辨識
   const layerSel=document.getElementById('filterLayer'), oldLayer=layerSel?.value||'';
   if (layerSel) {
     layerSel.innerHTML='<option value="">全部分層</option>';
     DB.creditCards.forEach(c=>{
       (c.layers||[]).forEach(l=>{
-        layerSel.innerHTML+=`<option value="${l.id}">${escHtml(c.name)} / ${escHtml(l.label)}</option>`;
+        layerSel.innerHTML+=`<option value="${l.id}">[卡] ${escHtml(c.name)} / ${escHtml(l.label)}</option>`;
+      });
+    });
+    DB.bankAccounts.forEach(a=>{
+      (a.layers||[]).forEach(l=>{
+        layerSel.innerHTML+=`<option value="${l.id}">[帳] ${escHtml(a.name)} / ${escHtml(l.label)}</option>`;
       });
     });
     layerSel.value=oldLayer;
