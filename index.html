@@ -5708,19 +5708,12 @@ function renderAccounts() {
     const layersHtml = (a.layers||[]).map((l,idx,arr)=>{
       const dynBal  = layerDynamicBalance(a.id, l.id);
       const lChange = dynBal - (l.amount||0); // 累積增減
-      const lSpend  = DB.transactions.filter(t=>t.layerId===l.id&&t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0);
-      const lIncome = DB.transactions.filter(t=>t.layerId===l.id&&t.amount>0).reduce((s,t)=>s+t.amount,0);
       const dynColor = dynBal < 0 ? 'var(--tx-red)' : 'var(--m-blue)';
       const dynCls   = `color:${dynColor};-webkit-text-fill-color:${dynColor};font-weight:700`;
       return `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||a.color}"></div>
         <div style="flex:1;min-width:0">
           <div class="layer-name">${escHtml(l.label)}</div>
-          <div style="font-size:10px;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap">
-            <span style="color:var(--tx-muted)">初始：${a.accType==='外幣'&&a.currency?fmtFX(l.amount,a.currency):fmt(l.amount)}</span>
-            ${lSpend>0?`<span style="color:var(--tx-red)">支出 −${fmt(-lSpend)}</span>`:''}
-            ${lIncome>0?`<span style="color:var(--tx-green)">收入 +${fmt(lIncome)}</span>`:''}
-          </div>
         </div>
         <div style="text-align:right">
           <span class="layer-amt" style="${dynCls}">${a.accType==='外幣'&&a.currency?fmtFX(dynBal,a.currency):fmt(dynBal)}</span>
