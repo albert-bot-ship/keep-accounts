@@ -310,12 +310,22 @@ body::before{
 .account-card.auto-text-dark .account-card-type{ color:#1a1a2e !important; -webkit-text-fill-color:#1a1a2e !important; }
 .account-card.auto-text-dark .btn-ghost,
 .account-card.auto-text-dark .btn-danger{ background:rgba(26,26,46,.1) !important; border-color:rgba(26,26,46,.2) !important; color:#1a1a2e !important; }
-/* 蓋過「CSS 加強 1 — 玻璃擬態卡片」對 .account-card 背景的 !important，讓自動漸層真正顯示 */
-html body .account-card.auto-text-light,
-html body .account-card.auto-text-dark{
-  background:var(--auto-bg) !important;
-  backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+/* 雙層背景交叉淡入淡出：漸層層／玻璃層各自控制透明度，取代瞬間切換 */
+.account-card-content{ position:relative; z-index:1; }
+.card-bg-layer{
+  position:absolute; inset:0; z-index:0; border-radius:inherit;
+  transition:opacity .4s cubic-bezier(.32,.72,0,1); pointer-events:none;
 }
+.card-bg-layer.bg-glass{
+  opacity:1; background:rgba(16,16,40,.78);
+  backdrop-filter:blur(16px) saturate(1.6); -webkit-backdrop-filter:blur(16px) saturate(1.6);
+}
+body.light-theme .card-bg-layer.bg-glass{ background:rgba(255,255,255,.72); }
+.card-bg-layer.bg-gradient{ opacity:0; background:var(--auto-bg,transparent); }
+.account-card.auto-text-light .card-bg-layer.bg-gradient,
+.account-card.auto-text-dark .card-bg-layer.bg-gradient{ opacity:1; }
+.account-card.auto-text-light .card-bg-layer.bg-glass,
+.account-card.auto-text-dark .card-bg-layer.bg-glass{ opacity:0; }
 .add-card-btn{
   background:var(--bg-card);border:2px dashed var(--bdr-normal);
   border-radius:var(--r-lg);display:flex;flex-direction:column;
