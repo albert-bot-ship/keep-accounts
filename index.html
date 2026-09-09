@@ -5591,12 +5591,12 @@ function renderCards() {
       <div class="account-card-header" style="border-top:3px solid ${c.color}">
         <div class="account-card-icon" style="background:${c.color}22">${icon}</div>
         <div style="flex:1">
-          <div class="account-card-name">${escHtml(c.name)}</div>
+          <div class="account-card-name">${c.locked?'🔒 ':''}${escHtml(c.name)}</div>
           <div class="account-card-type">CREDIT CARD${c.limit?'　額度 '+fmt(c.limit):''}${c.billingDay?'　結帳日 '+c.billingDay+'號':''}</div>
         </div>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editCard','${c.id}')">✏️</button>
-          <button class="btn btn-danger btn-icon btn-sm" onclick="deleteCard('${c.id}')">🗑</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="${c.locked?`requestCardUnlock('${c.id}','edit')`:`openModal('editCard','${c.id}')`}">✏️</button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="${c.locked?`requestCardUnlock('${c.id}','delete')`:`deleteCard('${c.id}')`}">🗑</button>
         </div>
       </div>
       <div class="collapse-wrap"><div>
@@ -5633,6 +5633,7 @@ function renderCards() {
         <button class="btn btn-sm btn-ghost"   onclick="openModal('addTxn',null,'${c.id}')">＋ 消費</button>
         <button class="btn btn-sm btn-ghost"   onclick="filterByCard('${c.id}')">📋 明細</button>
         <button class="btn btn-sm btn-violet"  onclick="openModal('addCardLayer','${c.id}')">＋ 分層</button>
+        <button class="btn btn-sm btn-ghost"   onclick="toggleCardLock(event,'${c.id}')">${c.locked?'🔓 解鎖':'🔒 鎖定'}</button>
       </div>
       </div></div>
       <div class="card-tap-hint">${isExpanded?'點擊卡片收合 ›':'點擊卡片展開 ›'}</div>
@@ -5741,6 +5742,7 @@ function renderAccounts() {
     const mthOut = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount<0&&ym(t.date)===nowYM()).reduce((s,t)=>s+Math.abs(t.amount),0);
     const mthIn  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount>0&&ym(t.date)===nowYM()).reduce((s,t)=>s+t.amount,0);
     const typeBadge = a.accType?`<span class="badge badge-blue" style="font-size:9px">${a.accType}</span>`:'';
+    const lockBadge = a.locked?`<span title="已鎖定" style="font-size:11px">🔒</span>`:'';
     const last4show = a.last4?`<span style="color:var(--tx-muted);font-size:11px;letter-spacing:2px">•••• ${a.last4}</span>`:'';
     const layersHtml = (a.layers||[]).map((l,idx,arr)=>{
       const dynBal  = layerDynamicBalance(a.id, l.id);
@@ -5790,7 +5792,7 @@ function renderAccounts() {
       <div class="account-card-header" style="border-top:3px solid ${a.color}">
         <div class="account-card-icon" style="background:${a.color}22">${icon}</div>
         <div style="flex:1;min-width:0;overflow:hidden">
-          <div class="account-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(a.name)}</div>
+          <div class="account-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lockBadge?lockBadge+' ':''}${escHtml(a.name)}</div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
             ${typeBadge}
             <div class="account-card-type">BANK ACCOUNT</div>
@@ -5799,8 +5801,8 @@ function renderAccounts() {
         </div>
         <div style="display:flex;gap:4px">
           <button class="btn btn-ghost btn-icon btn-sm drag-handle" title="拖曳排序">⠿</button>
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editAccount','${a.id}')">✏️</button>
-          <button class="btn btn-danger btn-icon btn-sm" onclick="deleteAccount('${a.id}')">🗑</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="${a.locked?`requestAccountUnlock('${a.id}','edit')`:`openModal('editAccount','${a.id}')`}">✏️</button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="${a.locked?`requestAccountUnlock('${a.id}','delete')`:`deleteAccount('${a.id}')`}">🗑</button>
         </div>
       </div>
       <div class="collapse-wrap"><div>
@@ -5891,6 +5893,7 @@ function renderAccounts() {
           : `<button class="btn btn-sm btn-ghost" onclick="openModal('addTxn',null,null,'${a.id}')">＋ 記帳</button>
              <button class="btn btn-sm btn-violet" onclick="openModal('transfer','${a.id}')">🔄 轉帳</button>
              <button class="btn btn-sm btn-ghost" onclick="filterByAccount('${a.id}')">📋 明細</button>`}
+        <button class="btn btn-sm btn-ghost" onclick="toggleAccountLock(event,'${a.id}')">${a.locked?'🔓 解鎖':'🔒 鎖定'}</button>
       </div>
       </div></div>
       <div class="card-tap-hint">${isExpanded?'點擊卡片收合 ›':'點擊卡片展開 ›'}</div>
@@ -6019,6 +6022,91 @@ function doDeleteAccount(id) {
   DB.transactions = DB.transactions.filter(t=>!(t.sourceType==='account'&&t.sourceId===id));
   saveDB(); renderAccounts(); toast('帳戶已刪除','danger');
   if (document.getElementById('acctOrderBankList')) renderAcctOrderLists();
+}
+
+// ── 帳戶鎖定保護：解鎖密碼＝當天日期 ─────────────────────────
+function todayDateVariants() {
+  const d = new Date();
+  const y = d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  return [`${y}-${m}-${dd}`, `${y}${m}${dd}`, `${y}/${m}/${dd}`];
+}
+function toggleAccountLock(e, id) {
+  const a = getAcc(id); if (!a) return;
+  if (a.locked) {
+    requestAccountUnlock(id, 'none');
+  } else {
+    a.locked = true;
+    saveDB(); renderAccounts();
+    toast('帳戶已鎖定 🔒','info');
+  }
+}
+function requestAccountUnlock(id, thenAction) {
+  const a = getAcc(id); if (!a) return;
+  document.getElementById('modalTitle').textContent = '輸入今日日期解鎖';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;color:var(--tx-secondary);margin-bottom:10px">「${escHtml(a.name)}」已鎖定。請輸入今天的日期以解鎖${thenAction!=='none'?'並繼續':''}。</div>
+    <input type="text" class="form-input" id="acctUnlockInput" placeholder="例如 ${todayDateVariants()[0]}" style="width:100%">
+    <div id="acctUnlockErr" style="display:none;color:var(--tx-red);font-size:12px;margin-top:6px"></div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="confirmAccountUnlock('${id}','${thenAction}')">解鎖</button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+  setTimeout(()=>{ document.getElementById('acctUnlockInput')?.focus(); }, 150);
+}
+function confirmAccountUnlock(id, thenAction) {
+  const inp = document.getElementById('acctUnlockInput');
+  const val = (inp?.value || '').trim();
+  const errEl = document.getElementById('acctUnlockErr');
+  if (!todayDateVariants().includes(val)) {
+    if (errEl) { errEl.style.display='block'; errEl.textContent='日期不正確，請重新輸入'; }
+    return;
+  }
+  const a = getAcc(id); if (!a) { closeModal(); return; }
+  a.locked = false;
+  saveDB(); closeModal(); renderAccounts();
+  toast('帳戶已解鎖 🔓','success');
+  if (thenAction === 'edit') openModal('editAccount', id);
+  else if (thenAction === 'delete') deleteAccount(id);
+}
+
+// ── 信用卡鎖定保護：解鎖密碼＝當天日期（沿用 todayDateVariants） ──
+function toggleCardLock(e, id) {
+  const c = getCard(id); if (!c) return;
+  if (c.locked) {
+    requestCardUnlock(id, 'none');
+  } else {
+    c.locked = true;
+    saveDB(); renderCards();
+    toast('信用卡已鎖定 🔒','info');
+  }
+}
+function requestCardUnlock(id, thenAction) {
+  const c = getCard(id); if (!c) return;
+  document.getElementById('modalTitle').textContent = '輸入今日日期解鎖';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;color:var(--tx-secondary);margin-bottom:10px">「${escHtml(c.name)}」已鎖定。請輸入今天的日期以解鎖${thenAction!=='none'?'並繼續':''}。</div>
+    <input type="text" class="form-input" id="cardUnlockInput" placeholder="例如 ${todayDateVariants()[0]}" style="width:100%">
+    <div id="cardUnlockErr" style="display:none;color:var(--tx-red);font-size:12px;margin-top:6px"></div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="confirmCardUnlock('${id}','${thenAction}')">解鎖</button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+  setTimeout(()=>{ document.getElementById('cardUnlockInput')?.focus(); }, 150);
+}
+function confirmCardUnlock(id, thenAction) {
+  const inp = document.getElementById('cardUnlockInput');
+  const val = (inp?.value || '').trim();
+  const errEl = document.getElementById('cardUnlockErr');
+  if (!todayDateVariants().includes(val)) {
+    if (errEl) { errEl.style.display='block'; errEl.textContent='日期不正確，請重新輸入'; }
+    return;
+  }
+  const c = getCard(id); if (!c) { closeModal(); return; }
+  c.locked = false;
+  saveDB(); closeModal(); renderCards();
+  toast('信用卡已解鎖 🔓','success');
+  if (thenAction === 'edit') openModal('editCard', id);
+  else if (thenAction === 'delete') deleteCard(id);
 }
 
 // ════════════════════════════════════════════════════════════════
