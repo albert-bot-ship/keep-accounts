@@ -2151,6 +2151,9 @@ function navigateTo(page) {
   document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active','slide-left','slide-right'));
   const target = document.getElementById('page-'+page);
   if (!target) return;
+  // 每次「切換進入」帳戶頁/信用卡頁，卡片收合狀態一律重置為全收合
+  if (page === 'accounts') expandedAccounts.clear();
+  if (page === 'cards') expandedCards.clear();
   if (dir) target.classList.add(dir);
   target.classList.add('active');
   currentPage = page;
@@ -4174,6 +4177,44 @@ function renderPeriodCountdown() {
 // ════════════════════════════════════════════════════════════════
 // 2. 卡片封面主題
 // ════════════════════════════════════════════════════════════════
+// ── 卡片收合狀態：用帳戶/信用卡本身顏色自動產生漸層背景 ──────────
+function _hexToRgb(hex) {
+  hex = (hex||'#1c69d4').replace('#','');
+  if (hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+  const n = parseInt(hex,16);
+  return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+}
+function _rgbToHex(r,g,b) {
+  return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+}
+function _shadeColor(hex, percent) {
+  const {r,g,b} = _hexToRgb(hex);
+  const t = percent<0 ? 0 : 255;
+  const p = Math.abs(percent)/100;
+  return _rgbToHex(r+(t-r)*p, g+(t-g)*p, b+(t-b)*p);
+}
+function autoCardGradient(hex) {
+  const c = hex || '#1c69d4';
+  return `linear-gradient(135deg, ${_shadeColor(c,18)}, ${_shadeColor(c,-35)})`;
+}
+function isLightColor(hex) {
+  const {r,g,b} = _hexToRgb(hex||'#1c69d4');
+  return (0.299*r + 0.587*g + 0.114*b)/255 > 0.6;
+}
+// 收合中的帳戶/信用卡卡片 id（僅存在於本次頁面停留期間，離開頁面重新進入會清空）
+let expandedAccounts = new Set();
+let expandedCards = new Set();
+function toggleAccountCard(e, id) {
+  if (e.target.closest('button,input,select,a,label')) return;
+  if (expandedAccounts.has(id)) expandedAccounts.delete(id); else expandedAccounts.add(id);
+  renderAccounts();
+}
+function toggleCreditCard(e, id) {
+  if (e.target.closest('button,input,select,a,label')) return;
+  if (expandedCards.has(id)) expandedCards.delete(id); else expandedCards.add(id);
+  renderCards();
+}
+
 const CARD_THEMES = [
   { id:'default', label:'預設',    cls:'',          style:'' },
   { id:'dark',    label:'金屬黑',  cls:'ct-dark',   style:'linear-gradient(135deg,#1a1a2e,#16213e)' },
@@ -5507,7 +5548,11 @@ function renderCards() {
       </div>`;
     }).join('');
 
-    return `<div class="account-card${due!==null&&due<=2?' due-urgent':due!==null&&due<=5?' due-warn':''}" id="card-${c.id}" data-theme="${c.cardTheme||'default'}" onclick="cardClickHandler(event,'card','${c.id}')" style="cursor:pointer">
+    const isExpanded = expandedCards.has(c.id);
+    // 已設定卡片封面主題的卡片，收合時沿用原本主題漸層（不套用自動漸層）；未設定主題才用卡片顏色自動產生漸層
+    const cardAutoTextCls = !hasTheme ? (isLightColor(c.color) ? 'auto-text-dark' : 'auto-text-light') : '';
+    const cardCollapsedStyle = (!isExpanded && !hasTheme) ? `background:${autoCardGradient(c.color)};` : '';
+    return `<div class="account-card${due!==null&&due<=2?' due-urgent':due!==null&&due<=5?' due-warn':''}${!isExpanded?' collapsed '+cardAutoTextCls:''}" id="card-${c.id}" data-theme="${c.cardTheme||'default'}" onclick="toggleCreditCard(event,'${c.id}')" style="cursor:pointer;${cardCollapsedStyle}">
       <div class="card-sheen-layer"></div>
       <div class="account-card-header" style="border-top:3px solid ${c.color}">
         <div class="account-card-icon" style="background:${c.color}22">${icon}</div>
@@ -5554,7 +5599,7 @@ function renderCards() {
         <button class="btn btn-sm btn-ghost"   onclick="filterByCard('${c.id}')">📋 明細</button>
         <button class="btn btn-sm btn-violet"  onclick="openModal('addCardLayer','${c.id}')">＋ 分層</button>
       </div>
-      <div class="card-tap-hint">點擊卡片查看消費明細 ›</div>
+      <div class="card-tap-hint">${isExpanded?'點擊卡片收合 ›':'點擊卡片展開 ›'}</div>
     </div>`;
   }).join('');
   html += `<div class="add-card-btn" onclick="openModal('addCard')"><div class="add-card-icon">＋</div><div class="add-card-label">新增信用卡</div></div>`;
@@ -5705,7 +5750,10 @@ function renderAccounts() {
       })():''}`;
     }).join('');
 
-    return `<div class="account-card${isLow?' low-balance':''}" id="account-${a.id}" data-id="${a.id}" onclick="cardClickHandler(event,'account','${a.id}')" style="cursor:pointer">
+    const isExpanded = expandedAccounts.has(a.id);
+    const autoTextCls = isLightColor(a.color) ? 'auto-text-dark' : 'auto-text-light';
+    const collapsedStyle = !isExpanded ? `background:${autoCardGradient(a.color)};` : '';
+    return `<div class="account-card${isLow?' low-balance':''}${!isExpanded?' collapsed '+autoTextCls:''}" id="account-${a.id}" data-id="${a.id}" onclick="toggleAccountCard(event,'${a.id}')" style="cursor:pointer;${collapsedStyle}">
       <div class="account-card-header" style="border-top:3px solid ${a.color}">
         <div class="account-card-icon" style="background:${a.color}22">${icon}</div>
         <div style="flex:1;min-width:0;overflow:hidden">
@@ -5810,7 +5858,7 @@ function renderAccounts() {
              <button class="btn btn-sm btn-violet" onclick="openModal('transfer','${a.id}')">🔄 轉帳</button>
              <button class="btn btn-sm btn-ghost" onclick="filterByAccount('${a.id}')">📋 明細</button>`}
       </div>
-      <div class="card-tap-hint">${a.accType==='證券'?'點擊卡片前往投資持股 ›':'點擊卡片查看消費明細 ›'}</div>
+      <div class="card-tap-hint">${isExpanded?'點擊卡片收合 ›':'點擊卡片展開 ›'}</div>
     </div>`;
   }).join('');
   html += `<div class="add-card-btn" onclick="openModal('addAccount')"><div class="add-card-icon">＋</div><div class="add-card-label">新增銀行帳戶</div></div>`;
