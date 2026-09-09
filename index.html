@@ -4206,13 +4206,44 @@ let expandedAccounts = new Set();
 let expandedCards = new Set();
 function toggleAccountCard(e, id) {
   if (e.target.closest('button,input,select,a,label')) return;
-  if (expandedAccounts.has(id)) expandedAccounts.delete(id); else expandedAccounts.add(id);
-  renderAccounts();
+  const wasExpanded = expandedAccounts.has(id);
+  if (wasExpanded) expandedAccounts.delete(id); else expandedAccounts.add(id);
+  const el = document.getElementById('account-'+id);
+  const a = getAcc(id);
+  if (!el || !a) { renderAccounts(); return; }
+  const nowExpanded = !wasExpanded;
+  el.classList.toggle('expanded', nowExpanded);
+  const hint = el.querySelector('.card-tap-hint');
+  if (hint) hint.textContent = nowExpanded ? '點擊卡片收合 ›' : '點擊卡片展開 ›';
+  el.classList.remove('auto-text-light','auto-text-dark');
+  if (nowExpanded) {
+    el.style.removeProperty('--auto-bg');
+  } else {
+    el.classList.add(isLightColor(a.color) ? 'auto-text-dark' : 'auto-text-light');
+    el.style.setProperty('--auto-bg', autoCardGradient(a.color));
+  }
 }
 function toggleCreditCard(e, id) {
   if (e.target.closest('button,input,select,a,label')) return;
-  if (expandedCards.has(id)) expandedCards.delete(id); else expandedCards.add(id);
-  renderCards();
+  const wasExpanded = expandedCards.has(id);
+  if (wasExpanded) expandedCards.delete(id); else expandedCards.add(id);
+  const el = document.getElementById('card-'+id);
+  const c = getCard(id);
+  if (!el || !c) { renderCards(); return; }
+  const nowExpanded = !wasExpanded;
+  const hasTheme = c.cardTheme && c.cardTheme !== 'default';
+  el.classList.toggle('expanded', nowExpanded);
+  const hint = el.querySelector('.card-tap-hint');
+  if (hint) hint.textContent = nowExpanded ? '點擊卡片收合 ›' : '點擊卡片展開 ›';
+  if (!hasTheme) {
+    el.classList.remove('auto-text-light','auto-text-dark');
+    if (nowExpanded) {
+      el.style.removeProperty('--auto-bg');
+    } else {
+      el.classList.add(isLightColor(c.color) ? 'auto-text-dark' : 'auto-text-light');
+      el.style.setProperty('--auto-bg', autoCardGradient(c.color));
+    }
+  }
 }
 
 const CARD_THEMES = [
@@ -5551,8 +5582,8 @@ function renderCards() {
     const isExpanded = expandedCards.has(c.id);
     // 已設定卡片封面主題的卡片，收合時沿用原本主題漸層（不套用自動漸層）；未設定主題才用卡片顏色自動產生漸層
     const cardAutoTextCls = !hasTheme ? (isLightColor(c.color) ? 'auto-text-dark' : 'auto-text-light') : '';
-    const cardCollapsedStyle = (!isExpanded && !hasTheme) ? `background:${autoCardGradient(c.color)};` : '';
-    return `<div class="account-card${due!==null&&due<=2?' due-urgent':due!==null&&due<=5?' due-warn':''}${!isExpanded?' collapsed '+cardAutoTextCls:''}" id="card-${c.id}" data-theme="${c.cardTheme||'default'}" onclick="toggleCreditCard(event,'${c.id}')" style="cursor:pointer;${cardCollapsedStyle}">
+    const cardCollapsedStyle = (!isExpanded && !hasTheme) ? `--auto-bg:${autoCardGradient(c.color)};` : '';
+    return `<div class="account-card${due!==null&&due<=2?' due-urgent':due!==null&&due<=5?' due-warn':''}${isExpanded?' expanded':' '+cardAutoTextCls}" id="card-${c.id}" data-theme="${c.cardTheme||'default'}" onclick="toggleCreditCard(event,'${c.id}')" style="cursor:pointer;${cardCollapsedStyle}">
       <div class="card-sheen-layer"></div>
       <div class="account-card-header" style="border-top:3px solid ${c.color}">
         <div class="account-card-icon" style="background:${c.color}22">${icon}</div>
@@ -5565,6 +5596,7 @@ function renderCards() {
           <button class="btn btn-danger btn-icon btn-sm" onclick="deleteCard('${c.id}')">🗑</button>
         </div>
       </div>
+      <div class="collapse-wrap"><div>
       <div class="account-card-body">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${(dueHtml||bilHtml)?'4px':'0'}">
           ${dueHtml}${bilHtml}
@@ -5599,6 +5631,7 @@ function renderCards() {
         <button class="btn btn-sm btn-ghost"   onclick="filterByCard('${c.id}')">📋 明細</button>
         <button class="btn btn-sm btn-violet"  onclick="openModal('addCardLayer','${c.id}')">＋ 分層</button>
       </div>
+      </div></div>
       <div class="card-tap-hint">${isExpanded?'點擊卡片收合 ›':'點擊卡片展開 ›'}</div>
     </div>`;
   }).join('');
@@ -5745,8 +5778,8 @@ function renderAccounts() {
 
     const isExpanded = expandedAccounts.has(a.id);
     const autoTextCls = isLightColor(a.color) ? 'auto-text-dark' : 'auto-text-light';
-    const collapsedStyle = !isExpanded ? `background:${autoCardGradient(a.color)};` : '';
-    return `<div class="account-card${isLow?' low-balance':''}${!isExpanded?' collapsed '+autoTextCls:''}" id="account-${a.id}" data-id="${a.id}" onclick="toggleAccountCard(event,'${a.id}')" style="cursor:pointer;${collapsedStyle}">
+    const collapsedStyle = !isExpanded ? `--auto-bg:${autoCardGradient(a.color)};` : '';
+    return `<div class="account-card${isLow?' low-balance':''}${isExpanded?' expanded':' '+autoTextCls}" id="account-${a.id}" data-id="${a.id}" onclick="toggleAccountCard(event,'${a.id}')" style="cursor:pointer;${collapsedStyle}">
       <div class="account-card-header" style="border-top:3px solid ${a.color}">
         <div class="account-card-icon" style="background:${a.color}22">${icon}</div>
         <div style="flex:1;min-width:0;overflow:hidden">
@@ -5763,6 +5796,7 @@ function renderAccounts() {
           <button class="btn btn-danger btn-icon btn-sm" onclick="deleteAccount('${a.id}')">🗑</button>
         </div>
       </div>
+      <div class="collapse-wrap"><div>
       <div class="account-card-body">
         ${(()=>{
           if (a.accType === '證券') {
@@ -5851,6 +5885,7 @@ function renderAccounts() {
              <button class="btn btn-sm btn-violet" onclick="openModal('transfer','${a.id}')">🔄 轉帳</button>
              <button class="btn btn-sm btn-ghost" onclick="filterByAccount('${a.id}')">📋 明細</button>`}
       </div>
+      </div></div>
       <div class="card-tap-hint">${isExpanded?'點擊卡片收合 ›':'點擊卡片展開 ›'}</div>
     </div>`;
   }).join('');
