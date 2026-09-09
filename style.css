@@ -228,7 +228,7 @@ body::before{
 .stat-icon{position:absolute;bottom:14px;right:14px;font-size:30px;opacity:.1}
 
 /* ── ACCOUNT CARDS ───────────────────────── */
-.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(275px,1fr));gap:16px;align-items:start}
+.cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
 .drag-handle{
   cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none;
 }
