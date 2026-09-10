@@ -11077,6 +11077,17 @@ async function init() {
   autoTheme();
   setInterval(autoTheme, 60000);
 
+  // 外觀相關設定只讀 localStorage，跟網路資料無關，搬到最前面立即套用，
+  // 避免等 loadFromGitHub() 才套用造成「先跳出不是使用者選的顏色/樣式」的閃爍
+  initNotifyState();
+  initAccentColor();
+  initDensity();
+  initFontSize();
+  initRadius();
+  initAnim();
+  initBgStyle();
+  initNumFont();
+
   const now=new Date();
   const _m=String(now.getMonth()+1).padStart(2,'0'),_d=String(now.getDate()).padStart(2,'0');
   document.getElementById('navMonth').textContent=now.getFullYear()+' / '+_m+' / '+_d;
@@ -11126,15 +11137,6 @@ async function init() {
   generateSubscriptionTxns();
   renderDashboard();
 
-  // 通知：靜默初始化，不跳toast，不打擾使用者
-  initNotifyState();
-  initAccentColor();
-  initDensity();
-  initFontSize();
-  initRadius();
-  initAnim();
-  initBgStyle();
-  initNumFont();
   initSplash();
   initCardSheen();
   initFloatNumpad();
