@@ -14,7 +14,7 @@
         {
           "id": "mowulbb3xlf57",
           "label": "南山年繳",
-          "amount": 5901,
+          "amount": 3934,
           "color": "#54b02d",
           "monthlyAmt": 1967,
           "boundInstallId": "msogxtnznyymh",
@@ -2525,6 +2525,61 @@
       "layerId": "mt84rxv5bsopq",
       "transferPairId": "mtweahbex4ejo",
       "transferPairTxnId": "mtweahbelprl0"
+    },
+    {
+      "id": "mtwejktzmv937",
+      "date": "2026-09-11",
+      "amount": -14014,
+      "desc": "信用卡繳款 — CUBE",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "layerId": null,
+      "layerAmounts": [
+        {
+          "layerId": "mowt7wruf1yp4",
+          "amount": -4014
+        },
+        {
+          "layerId": "mowt8rfv4npge",
+          "amount": -10000
+        }
+      ],
+      "transferPairTxnId": "mtwejktzhhq99"
+    },
+    {
+      "id": "mtwejktzhhq99",
+      "date": "2026-09-11",
+      "amount": 14014,
+      "desc": "繳款入帳 — CUBE",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "transferPairTxnId": "mtwejktzmv937"
+    },
+    {
+      "id": "mtwejqxwihcbh",
+      "date": "2026-09-07",
+      "amount": -1967,
+      "desc": "美金保單（分期 10/12）",
+      "category": "mp9mudorweuu2",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isFixed": false,
+      "tags": [],
+      "installId": "msogxtnznyymh",
+      "isRedemption": false,
+      "layerId": null,
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false
     }
   ],
   "fixedExpenses": [],
@@ -2859,7 +2914,8 @@
         "preset-5-msogxtnzzkb8i",
         "preset-6-msogxtnztzjw4",
         "preset-7-msogxtnzlqcmu",
-        "preset-8-msogxtnz62li1"
+        "preset-8-msogxtnz62li1",
+        "2026-09"
       ],
       "boundCardId": "mov4et7fpt7kr",
       "boundLayerId": "mowulbb3xlf57"
