@@ -2375,6 +2375,44 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mtwdk97uhy3dv",
+      "date": "2026-09-11",
+      "amount": -2014,
+      "desc": "轉帳 → 國泰主帳戶",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4sadxpcepw",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null,
+      "layerAmounts": [
+        {
+          "layerId": "mowt9nf0j6och",
+          "amount": -1969
+        },
+        {
+          "layerId": "mowta3z63r8ij",
+          "amount": -45
+        }
+      ],
+      "transferPairId": "mtwdk97ui7l64",
+      "transferPairTxnId": "mtwdk97uv4yk4"
+    },
+    {
+      "id": "mtwdk97uv4yk4",
+      "date": "2026-09-11",
+      "amount": 2014,
+      "desc": "轉入 ← 國泰子帳戶",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt7wruf1yp4",
+      "transferPairId": "mtwdk97ui7l64",
+      "transferPairTxnId": "mtwdk97uhy3dv"
     }
   ],
   "fixedExpenses": [],
