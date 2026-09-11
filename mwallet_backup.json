@@ -2304,34 +2304,6 @@
       "transferPairTxnId": "mtuajqadraevd"
     },
     {
-      "id": "mtuak49d96f9o",
-      "date": "2026-09-10",
-      "amount": -1000,
-      "desc": "轉帳 → 郵局",
-      "category": "mq0967uv5w2s3",
-      "sourceId": "mov74st8ti4ry",
-      "sourceType": "account",
-      "notes": "",
-      "isTransfer": true,
-      "layerId": "mowtfdp3hzho9",
-      "transferPairId": "mtuak49d49ac4",
-      "transferPairTxnId": "mtuak49dafzxz"
-    },
-    {
-      "id": "mtuak49dafzxz",
-      "date": "2026-09-10",
-      "amount": 1000,
-      "desc": "轉入 ← 郵局",
-      "category": "mq0967uv5w2s3",
-      "sourceId": "mov74st8ti4ry",
-      "sourceType": "account",
-      "notes": "",
-      "isTransfer": true,
-      "layerId": "mtmbifkhw9vpj",
-      "transferPairId": "mtuak49d49ac4",
-      "transferPairTxnId": "mtuak49d96f9o"
-    },
-    {
       "id": "mtwdcd93f8n9q",
       "date": "2026-09-10",
       "amount": -1000,
