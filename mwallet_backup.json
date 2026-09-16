@@ -2744,6 +2744,23 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mu3my44k3rgu1",
+      "date": "2026-09-16",
+      "amount": -831,
+      "desc": "公務車加油",
+      "category": "movlfpyopftjh",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "ms9984ljuqk30",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
