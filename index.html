@@ -112,6 +112,10 @@
   <!-- 輸入區 -->
   <div style="width:100%;max-width:320px">
     <div id="pwdHintDisplay" style="display:none;font-size:12px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:12px;letter-spacing:.5px"></div>
+    <div id="faceIdGateBtnWrap" style="display:none;width:100%;margin-bottom:14px">
+      <button id="faceIdBtn" onclick="faceIDUnlock()" style="width:100%;padding:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:1px;font-family:var(--ff-display,'Rajdhani'),sans-serif">🆔 使用 Face ID 解鎖</button>
+      <div style="text-align:center;font-size:11px;color:rgba(255,255,255,.3);margin-top:10px;letter-spacing:1px">或輸入密碼</div>
+    </div>
     <input id="pwdInput" type="password" placeholder="輸入密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitPwd()" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:14px 16px;font-size:16px;color:#fff;outline:none;margin-bottom:10px;letter-spacing:2px;-webkit-text-fill-color:#fff">
     <div id="pwdError" style="display:none;color:#ff6b6b;font-size:12px;text-align:center;margin-bottom:10px"></div>
     <button onclick="submitPwd()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0057B8,#6F2CA7);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:1px;font-family:var(--ff-display,'Rajdhani'),sans-serif">🔓 解鎖</button>
@@ -1078,6 +1082,26 @@
               </div>
             </div>
 
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <div class="settings-section-icon" style="background:rgba(0,87,184,.12)">🆔</div>
+            <div>
+              <div class="settings-section-title">Face ID／Touch ID 快速解鎖</div>
+              <div class="settings-section-desc">開啟後，App 啟動時可直接用 Face ID／Touch ID 解鎖，不用每次打密碼；密碼仍會保留當退路</div>
+            </div>
+          </div>
+          <div class="settings-section-body" style="padding:14px 18px">
+            <div id="faceIdUnsupported" style="display:none;font-size:12px;color:var(--tx-muted);margin-bottom:10px">⚠ 此裝置或瀏覽器不支援 Face ID／Touch ID</div>
+            <div id="faceIdNeedPwd" style="display:none;font-size:12px;color:var(--tx-muted);margin-bottom:10px">請先在上方設定密碼保護，才能啟用 Face ID／Touch ID</div>
+            <div id="faceIdSetupArea" style="display:none">
+              <button class="btn btn-primary" style="width:100%" onclick="registerFaceID()">🆔 設定 Face ID／Touch ID</button>
+            </div>
+            <div id="faceIdRemoveArea" style="display:none">
+              <div style="font-size:13px;color:var(--tx-green);margin-bottom:10px">✓ 已設定，App 啟動時可用 Face ID／Touch ID 快速解鎖</div>
+              <button class="btn btn-danger btn-sm" style="width:100%" onclick="removeFaceID()">🗑 移除 Face ID／Touch ID</button>
+            </div>
           </div>
         </div>
       </div>
@@ -10772,6 +10796,96 @@ async function sha256(str) {
 
 function isPwdEnabled() { return localStorage.getItem(PWD_ENABLED_KEY) === '1'; }
 function isUnlocked()   { return sessionStorage.getItem(SESSION_KEY) === '1'; }
+
+// ══ FACE ID／TOUCH ID 快速解鎖（WebAuthn，取代日常打密碼，密碼系統仍保留當退路）══
+const FACEID_CRED_KEY    = 'mwallet_faceid_cred';
+const FACEID_ENABLED_KEY = 'mwallet_faceid_enabled';
+function isFaceIDSupported() { return !!(window.PublicKeyCredential && navigator.credentials); }
+function isFaceIDEnabled()   { return localStorage.getItem(FACEID_ENABLED_KEY)==='1' && !!localStorage.getItem(FACEID_CRED_KEY); }
+
+async function registerFaceID() {
+  if (!isFaceIDSupported()) { toast('此裝置或瀏覽器不支援 Face ID／Touch ID','danger'); return; }
+  if (!isPwdEnabled()) { toast('請先設定密碼保護','danger'); return; }
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const userId = crypto.getRandomValues(new Uint8Array(16));
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'M Wallet' },
+        user: { id: userId, name: 'mwallet-user', displayName: 'M Wallet' },
+        pubKeyCredParams: [{type:'public-key', alg:-7}, {type:'public-key', alg:-257}],
+        authenticatorSelection: { authenticatorAttachment:'platform', userVerification:'required' },
+        timeout: 60000,
+        attestation: 'none'
+      }
+    });
+    if (!cred) throw new Error('未取得憑證');
+    const credIdB64 = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+    localStorage.setItem(FACEID_CRED_KEY, credIdB64);
+    localStorage.setItem(FACEID_ENABLED_KEY, '1');
+    toast('Face ID／Touch ID 已設定完成 🎉','success');
+    renderFaceIDUI();
+  } catch(err) {
+    toast('設定失敗：'+(err.message||'使用者取消'),'danger');
+  }
+}
+async function authenticateFaceID() {
+  const credIdB64 = localStorage.getItem(FACEID_CRED_KEY);
+  if (!credIdB64) return false;
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const rawId = Uint8Array.from(atob(credIdB64), c=>c.charCodeAt(0));
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ id: rawId, type: 'public-key' }],
+        userVerification: 'required',
+        timeout: 60000
+      }
+    });
+    return !!assertion;
+  } catch(err) {
+    return false;
+  }
+}
+async function faceIDUnlock() {
+  const btn = document.getElementById('faceIdBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '請以 Face ID／Touch ID 驗證…'; }
+  const ok = await authenticateFaceID();
+  if (btn) { btn.disabled = false; btn.textContent = '🆔 使用 Face ID 解鎖'; }
+  if (ok) {
+    localStorage.setItem(PWD_FAIL_KEY,'0');
+    localStorage.removeItem(PWD_LOCK_KEY);
+    sessionStorage.setItem(SESSION_KEY,'1');
+    hidePwdGate();
+    startIdleWatcher();
+  } else {
+    const errEl = document.getElementById('pwdError');
+    if (errEl) { errEl.style.display='block'; errEl.textContent='Face ID／Touch ID 驗證失敗，請改用密碼'; }
+  }
+}
+function removeFaceID() {
+  localStorage.removeItem(FACEID_CRED_KEY);
+  localStorage.removeItem(FACEID_ENABLED_KEY);
+  toast('已移除 Face ID／Touch ID 設定','info');
+  renderFaceIDUI();
+}
+function renderFaceIDUI() {
+  const supported = isFaceIDSupported();
+  const pwdOn = isPwdEnabled();
+  const enabled = isFaceIDEnabled();
+  const unsupportedEl = document.getElementById('faceIdUnsupported');
+  const needPwdEl = document.getElementById('faceIdNeedPwd');
+  const setupArea = document.getElementById('faceIdSetupArea');
+  const removeArea = document.getElementById('faceIdRemoveArea');
+  if (unsupportedEl) unsupportedEl.style.display = supported ? 'none' : 'block';
+  if (needPwdEl) needPwdEl.style.display = (supported && !pwdOn) ? 'block' : 'none';
+  if (setupArea) setupArea.style.display = (supported && pwdOn && !enabled) ? 'block' : 'none';
+  if (removeArea) removeArea.style.display = (supported && pwdOn && enabled) ? 'block' : 'none';
+  const gateWrap = document.getElementById('faceIdGateBtnWrap');
+  if (gateWrap) gateWrap.style.display = (pwdOn && enabled) ? 'block' : 'none';
+}
 function getIdleMin()   { return parseInt(localStorage.getItem(PWD_IDLE_KEY) || '20'); }
 
 let _idleDebounce = null;
@@ -10812,6 +10926,7 @@ function showPwdGate() {
     gate.style.display = 'flex';
     requestAnimationFrame(()=>{ gate.style.opacity = '1'; });
   }
+  renderFaceIDUI();
   const hint = localStorage.getItem(PWD_HINT_KEY);
   const hintEl = document.getElementById('pwdHintDisplay');
   if (hintEl && hint) { hintEl.style.display = 'block'; hintEl.textContent = '提示：' + hint; }
@@ -10925,6 +11040,8 @@ function removePwd() {
   localStorage.removeItem(PWD_ENABLED_KEY);
   localStorage.removeItem(PWD_LOCK_KEY);
   localStorage.removeItem(PWD_FAIL_KEY);
+  localStorage.removeItem(FACEID_CRED_KEY);
+  localStorage.removeItem(FACEID_ENABLED_KEY);
   sessionStorage.removeItem(SESSION_KEY);
   closePwdForm();
   updatePwdStatusUI();
@@ -10960,6 +11077,7 @@ function updatePwdStatusUI() {
   if (notSet)  notSet.style.display  = enabled ? 'none' : 'block';
   if (isSet)   isSet.style.display   = enabled ? 'block' : 'none';
   if (idleRow) idleRow.style.display = enabled ? 'block' : 'none';
+  renderFaceIDUI();
 }
 
 function initSecurityPanel() {
