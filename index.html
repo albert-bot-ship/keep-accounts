@@ -199,6 +199,9 @@
   <div class="nav-item" data-page="install" onclick="nav(this,'install')">
     <span class="nav-icon">📅</span><span>分期追蹤</span>
   </div>
+  <div class="nav-item" data-page="templates" onclick="nav(this,'templates')">
+    <span class="nav-icon">⭐</span><span>常用範本</span>
+  </div>
   <div class="sidebar-label">分析</div>
   <div class="nav-item" data-page="analytics" onclick="nav(this,'analytics')">
     <span class="nav-icon">📊</span><span>趨勢分析</span>
@@ -398,6 +401,16 @@
       </div>
       <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">追蹤信用卡分期付款，每月自動生成消費記錄，並顯示剩餘期數與金額。</p>
       <div id="installList"></div>
+    </section>
+
+    <!-- ─── TEMPLATES ──────────────────────────── -->
+    <section class="page-section" id="page-templates">
+      <div class="page-header">
+        <div class="page-title">常用範本</div>
+        <button class="btn btn-primary" onclick="openModal('addTemplate')">＋ 新增範本</button>
+      </div>
+      <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">把常記的固定消費存成範本，點「✓ 記一筆」直接用今天日期記一筆。</p>
+      <div id="templateList"></div>
     </section>
 
     <!-- ─── ANALYTICS ──────────────────────────── -->
@@ -607,6 +620,21 @@
           </div>
           <div class="settings-section-body" style="padding:12px 18px">
             <div id="catList"></div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <div class="settings-section-icon" style="background:rgba(255,152,0,.12)">⚠️</div>
+            <div>
+              <div class="settings-section-title">異常消費提醒</div>
+              <div class="settings-section-desc">單筆金額超過該分層上個月平均的幾倍時，在儀表板財務健康清單提醒</div>
+            </div>
+          </div>
+          <div class="settings-section-body" style="padding:14px 18px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <input class="form-input" type="number" id="anomalyMultiplier" min="1.1" step="0.1" style="width:80px;text-align:center" onchange="saveAnomalyMultiplier()">
+              <span style="font-size:13px;color:var(--tx-secondary)">倍（例如 1.5 代表超過上月平均 1.5 倍才算異常）</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1157,6 +1185,7 @@ function defaultDB() {
     autoRules: [],
     subscriptions: [],
     layerAllocations: [],
+    txnTemplates: [],
     categories: [
       { id: uid(), name: '餐飲',   color: '#e31836', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
       { id: uid(), name: '交通',   color: '#1c69d4', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
@@ -1291,6 +1320,7 @@ async function loadFromGitHub() {
     if (!DB.autoRules)      DB.autoRules = [];
     if (!DB.subscriptions)    DB.subscriptions = [];
     if (!DB.layerAllocations) DB.layerAllocations = [];
+    if (!DB.txnTemplates)     DB.txnTemplates = [];
     // 檢查 localStorage 是否有未上傳的暫存資料
     const cacheTs = localStorage.getItem('mwallet_db_cache_ts');
     if (cacheTs) {
@@ -1305,6 +1335,7 @@ async function loadFromGitHub() {
     if (cached) {
       try {
         DB = JSON.parse(cached);
+        if (!DB.txnTemplates) DB.txnTemplates = [];
         toast('⚠ 無法讀取 GitHub，已從本機暫存恢復資料','warning');
         return;
       } catch(e2) {}
@@ -2172,7 +2203,8 @@ function navigateTo(page) {
 function renderPage(page) {
   const fn={dashboard:renderDashboard,cards:renderCards,accounts:renderAccounts,
     txns:renderTxns,fixed:renderFixed,install:renderInstall,analytics:renderAnalytics,
-    settings:renderSettings,subscriptions:renderSubscriptions,exchange:renderExchange,invest:renderInvest,goals:renderGoals};
+    settings:renderSettings,subscriptions:renderSubscriptions,exchange:renderExchange,invest:renderInvest,goals:renderGoals,
+    templates:renderTemplates};
   if (fn[page]) fn[page]();
 }
 
@@ -2344,6 +2376,46 @@ function amtClass(amount) {
 // ════════════════════════════════════════════════════════════════
 // 月度財務健康評分
 // ════════════════════════════════════════════════════════════════
+// ── 異常消費提醒：單筆金額 vs 該分層上個月平均 ─────────────────
+function getAnomalyMultiplier() {
+  const v = parseFloat(localStorage.getItem('mwallet_anomaly_multiplier'));
+  return (v && v > 1) ? v : 1.5;
+}
+function initAnomalyMultiplier() {
+  const el = document.getElementById('anomalyMultiplier');
+  if (el) el.value = getAnomalyMultiplier();
+}
+function saveAnomalyMultiplier() {
+  const el = document.getElementById('anomalyMultiplier');
+  const v = parseFloat(el?.value);
+  if (!v || v <= 1) { toast('請輸入大於 1 的倍數','warning'); return; }
+  localStorage.setItem('mwallet_anomaly_multiplier', String(v));
+  toast('已儲存','success');
+  renderDashboard();
+}
+// 回傳本月被標記為異常的交易（單筆金額 > 該分層上個月平均 × 倍數）
+function getAnomalousTxns() {
+  const mult = getAnomalyMultiplier();
+  const ym = nowYM();
+  const now = new Date();
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const lastYM = lastMonthDate.getFullYear()+'-'+String(lastMonthDate.getMonth()+1).padStart(2,'0');
+  const thisTxns = DB.transactions.filter(t=>t.date.startsWith(ym)&&t.amount<0&&!t.isTransfer&&t.layerId);
+  const lastTxns = DB.transactions.filter(t=>t.date.startsWith(lastYM)&&t.amount<0&&!t.isTransfer&&t.layerId);
+  const lastAvgByLayer = {};
+  lastTxns.forEach(t=>{
+    if (!lastAvgByLayer[t.layerId]) lastAvgByLayer[t.layerId] = {sum:0,count:0};
+    lastAvgByLayer[t.layerId].sum += Math.abs(t.amount);
+    lastAvgByLayer[t.layerId].count += 1;
+  });
+  return thisTxns.filter(t=>{
+    const stat = lastAvgByLayer[t.layerId];
+    if (!stat || stat.count === 0) return false;
+    const avg = stat.sum / stat.count;
+    return Math.abs(t.amount) > avg * mult;
+  });
+}
+
 function calcHealthScore() {
   const now = new Date();
   const ym = nowYM();
@@ -2379,6 +2451,12 @@ function calcHealthScore() {
     notes.push({icon:'🟡',txt:`${overBudget.length} 個類別超出預算`,val:overBudget.map(c=>c.name).join('、')});
   } else if (DB.categories.some(c=>c.budget>0)) {
     notes.push({icon:'🟢',txt:'所有類別在預算內',val:''});
+  }
+
+  // 異常消費：單筆金額明顯高於該分層上個月平均
+  const anomalousTxns = getAnomalousTxns();
+  if (anomalousTxns.length > 0) {
+    notes.push({icon:'🔴',txt:`${anomalousTxns.length} 筆消費金額明顯偏高`,val:`超過上月同分層平均 ${getAnomalyMultiplier()} 倍`});
   }
 
   score = Math.max(0, Math.min(100, score));
@@ -8073,6 +8151,40 @@ function openModal(type,id,preCard,preAcc,extraId) {
     },60);
   }
 
+  // ── 常用範本 ──
+  if (type==='addTemplate'||type==='editTemplate') {
+    const tpl = type==='editTemplate' ? DB.txnTemplates.find(x=>x.id===id) : null;
+    t = tpl ? '編輯範本' : '新增範本';
+    const tplSrcVal = tpl ? (tpl.sourceType+'_'+tpl.sourceId) : '';
+    b = `
+      <div class="form-group"><label class="form-label">範本名稱</label><input class="form-input" id="tplName" value="${escAttr(tpl?.name||'')}" placeholder="例如：早餐、停車費"></div>
+      <div class="form-group">
+        <label class="form-label">類型</label>
+        <select class="form-select" id="tplType" onchange="document.getElementById('tplCat').innerHTML=catOpts('',this.value==='income'?'income':'expense')">
+          <option value="expense"${(!tpl||tpl.type==='expense')?' selected':''}>💸 支出</option>
+          <option value="income"${tpl?.type==='income'?' selected':''}>📥 收入</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">金額</label><input class="form-input" id="tplAmt" type="number" value="${tpl?.amount||''}" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="tplCat">${catOpts(tpl?.category||'', tpl?.type==='income'?'income':'expense')}</select></div>
+      <div class="form-group"><label class="form-label">來源帳戶／信用卡</label>
+        <select class="form-select" id="tplSrc" onchange="onTplSrcChange(this.value)"><option value="">不指定</option>${srcOpts('both')}</select>
+      </div>
+      <div class="form-group" id="tplLayerGroup" style="display:none">
+        <label class="form-label">分層</label>
+        <select class="form-select" id="tplLayer"></select>
+      </div>
+      <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tplNotes" value="${escAttr(tpl?.notes||'')}"></div>`;
+    f = `<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveTemplate('${tpl?.id||''}')">儲存</button>`;
+    setTimeout(()=>{
+      if (tplSrcVal) {
+        const sel = document.getElementById('tplSrc');
+        if (sel) sel.value = tplSrcVal;
+        onTplSrcChange(tplSrcVal, tpl?.layerId);
+      }
+    }, 50);
+  }
+
   document.getElementById('modalTitle').textContent=t;
   document.getElementById('modalBody').innerHTML=b;
   document.getElementById('modalFooter').innerHTML=f;
@@ -9870,6 +9982,93 @@ function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
   group.style.display = '';
 }
 
+// ════════════════════════════════════════════════════════════════
+// 常用範本
+// ════════════════════════════════════════════════════════════════
+function onTplSrcChange(srcVal, preLayerId) {
+  const group = document.getElementById('tplLayerGroup');
+  const sel = document.getElementById('tplLayer');
+  if (!group || !sel) return;
+  if (!srcVal) { group.style.display='none'; sel.innerHTML=''; return; }
+  let layers = [];
+  if (srcVal.startsWith('account_')) layers = getAcc(srcVal.split('_')[1])?.layers || [];
+  else if (srcVal.startsWith('card_')) layers = getCard(srcVal.split('_')[1])?.layers || [];
+  if (!layers.length) { group.style.display='none'; sel.innerHTML=''; return; }
+  sel.innerHTML = '<option value="">不指定分層</option>' +
+    layers.map(l=>`<option value="${l.id}"${l.id===preLayerId?' selected':''}>${escHtml(l.label)}</option>`).join('');
+  group.style.display = '';
+}
+function saveTemplate(id) {
+  const name = document.getElementById('tplName').value.trim();
+  const type = v('tplType');
+  const amount = +document.getElementById('tplAmt').value || 0;
+  const category = v('tplCat');
+  const srcVal = v('tplSrc');
+  const notes = document.getElementById('tplNotes').value.trim();
+  if (!name || !amount || !category) { toast('請填寫範本名稱、金額、類別','danger'); return; }
+  const srcParts = srcVal ? srcVal.split('_') : [];
+  const sourceType = srcParts[0] || null;
+  const sourceId = srcParts.slice(1).join('_') || null;
+  const layerId = v('tplLayer') || null;
+  const tplObj = {name, type, amount, category, sourceType, sourceId, layerId, notes};
+  if (id) {
+    const t = DB.txnTemplates.find(x=>x.id===id);
+    if (t) Object.assign(t, tplObj);
+  } else {
+    DB.txnTemplates.push({id:'tpl_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), ...tplObj});
+  }
+  saveDB(); closeModal(); renderTemplates();
+  toast(id?'範本已更新':'範本已新增','success');
+}
+function deleteTemplate(id) {
+  const t = DB.txnTemplates.find(x=>x.id===id); if (!t) return;
+  openActionSheet(`刪除範本「${escHtml(t.name)}」？`, [{label:'刪除範本', danger:true, fn:`doDeleteTemplate('${id}')`}]);
+}
+function doDeleteTemplate(id) {
+  DB.txnTemplates = DB.txnTemplates.filter(x=>x.id!==id);
+  saveDB(); renderTemplates(); toast('範本已刪除','danger');
+}
+function applyTemplate(id) {
+  const t = DB.txnTemplates.find(x=>x.id===id); if (!t) return;
+  if (!t.sourceType || !t.sourceId) { toast('這個範本沒有指定來源帳戶／信用卡，無法一鍵記帳','danger'); return; }
+  const amount = t.type==='income' ? Math.abs(t.amount) : -Math.abs(t.amount);
+  DB.transactions.push({
+    id:'txn_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    date:today(), amount, desc:t.name, category:t.category,
+    sourceId:t.sourceId, sourceType:t.sourceType, notes:t.notes||'',
+    isRedemption:false, layerId:t.layerId||null, tags:[], fee:0
+  });
+  saveDB();
+  toast(`已記一筆「${t.name}」`,'success');
+  if (document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
+}
+function renderTemplates() {
+  const wrap = document.getElementById('templateList');
+  if (!wrap) return;
+  if (!DB.txnTemplates.length) {
+    wrap.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--tx-muted);font-size:13px">還沒有常用範本，點右上角「＋新增範本」建立第一個</div>`;
+    return;
+  }
+  wrap.innerHTML = DB.txnTemplates.map(t=>{
+    const srcLabel = t.sourceType==='card' ? ('[卡] '+(getCard(t.sourceId)?.name||'已刪除'))
+                    : t.sourceType==='account' ? ('[帳] '+(getAcc(t.sourceId)?.name||'已刪除'))
+                    : '未指定來源';
+    const catName = getCat(t.category)?.name || '';
+    return `<div class="chart-box" style="padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px">
+        <div style="font-weight:600;font-size:14px;color:var(--tx-primary)">${escHtml(t.name)}</div>
+        <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${catName}　${srcLabel}</div>
+      </div>
+      <div style="font-family:var(--ff-display);font-weight:700;font-size:15px;color:${t.type==='income'?'var(--tx-green)':'var(--tx-red)'}">${t.type==='income'?'+':'−'}${fmt(Math.abs(t.amount))}</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-primary" onclick="applyTemplate('${t.id}')">✓ 記一筆</button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editTemplate','${t.id}')">✏️</button>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="deleteTemplate('${t.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function toggleMultiLayer(isMulti, srcValOverride, preLayerAmounts) {
   const singleDiv = document.getElementById('tSingleLayerDiv');
   const multiDiv  = document.getElementById('tMultiLayerDiv');
@@ -11087,6 +11286,7 @@ async function init() {
   initAnim();
   initBgStyle();
   initNumFont();
+  initAnomalyMultiplier();
 
   const now=new Date();
   const _m=String(now.getMonth()+1).padStart(2,'0'),_d=String(now.getDate()).padStart(2,'0');
