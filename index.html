@@ -611,6 +611,9 @@
         <button class="settings-tab" id="stab-account" onclick="switchSettingsTab('account')">
           <span class="stab-icon">🏦</span><span>帳戶</span>
         </button>
+        <button class="settings-tab" id="stab-smart" onclick="switchSettingsTab('smart')">
+          <span class="stab-icon">✨</span><span>智慧提醒</span>
+        </button>
       </div>
 
       <!-- ── 類別 Tab ── -->
@@ -627,6 +630,10 @@
             <div id="catList"></div>
           </div>
         </div>
+      </div>
+
+      <!-- ── 智慧提醒 Tab ── -->
+      <div class="settings-tab-panel" id="spanel-smart">
         <div class="settings-section">
           <div class="settings-section-header">
             <div class="settings-section-icon" style="background:rgba(255,152,0,.12)">⚠️</div>
@@ -1227,6 +1234,21 @@ let dashRemainAmt = null; // 儀表板剩餘生活費計算結果（null=未勾�
 let ccLayerPeriodMode = new Map(); // 各信用卡分層獨立期別 key=cardId_layerId value='prev'|'current'|'next'
 let dashCCPeriodMode = 'current'; // 'current'=本期 'next'=下一期
 
+function _migrateTplSuggestSettingsFromLocalStorage() {
+  // 舊版把這三個參數存在 localStorage，搬進 DB 才能跟著備份走；找不到舊值就用預設
+  const m = parseInt(localStorage.getItem('mwallet_tpl_suggest_months'));
+  const c = parseInt(localStorage.getItem('mwallet_tpl_suggest_mincount'));
+  const t = parseFloat(localStorage.getItem('mwallet_tpl_suggest_tolerance'));
+  return {
+    months: (m>=1) ? m : 3,
+    minCount: (c>=2) ? c : 3,
+    tolerance: (t>=0) ? t : 20
+  };
+}
+function _migrateAnomalyMultiplierFromLocalStorage() {
+  const v = parseFloat(localStorage.getItem('mwallet_anomaly_multiplier'));
+  return (v && v > 1) ? v : 1.5;
+}
 function defaultDB() {
   return {
     creditCards: [], bankAccounts: [], transactions: [],
@@ -1235,6 +1257,8 @@ function defaultDB() {
     subscriptions: [],
     layerAllocations: [],
     txnTemplates: [],
+    tplSuggestSettings: _migrateTplSuggestSettingsFromLocalStorage(),
+    anomalyMultiplier: _migrateAnomalyMultiplierFromLocalStorage(),
     categories: [
       { id: uid(), name: '餐飲',   color: '#e31836', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
       { id: uid(), name: '交通',   color: '#1c69d4', budget: 0, forType:'expense', budgetPeriod:'cycle', budgetDays:30 },
@@ -1262,7 +1286,11 @@ function loadDB() {
     const cached = localStorage.getItem('mwallet_db_cache');
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (parsed && typeof parsed === 'object') return parsed;
+      if (parsed && typeof parsed === 'object') {
+        if (!parsed.tplSuggestSettings) parsed.tplSuggestSettings = _migrateTplSuggestSettingsFromLocalStorage();
+        if (!parsed.anomalyMultiplier) parsed.anomalyMultiplier = _migrateAnomalyMultiplierFromLocalStorage();
+        return parsed;
+      }
     }
   } catch(e) {}
   return defaultDB();
@@ -1370,6 +1398,8 @@ async function loadFromGitHub() {
     if (!DB.subscriptions)    DB.subscriptions = [];
     if (!DB.layerAllocations) DB.layerAllocations = [];
     if (!DB.txnTemplates)     DB.txnTemplates = [];
+    if (!DB.tplSuggestSettings) DB.tplSuggestSettings = _migrateTplSuggestSettingsFromLocalStorage();
+    if (!DB.anomalyMultiplier)  DB.anomalyMultiplier = _migrateAnomalyMultiplierFromLocalStorage();
     // 檢查 localStorage 是否有未上傳的暫存資料
     const cacheTs = localStorage.getItem('mwallet_db_cache_ts');
     if (cacheTs) {
@@ -1385,6 +1415,8 @@ async function loadFromGitHub() {
       try {
         DB = JSON.parse(cached);
         if (!DB.txnTemplates) DB.txnTemplates = [];
+        if (!DB.tplSuggestSettings) DB.tplSuggestSettings = _migrateTplSuggestSettingsFromLocalStorage();
+        if (!DB.anomalyMultiplier)  DB.anomalyMultiplier = _migrateAnomalyMultiplierFromLocalStorage();
         toast('⚠ 無法讀取 GitHub，已從本機暫存恢復資料','warning');
         return;
       } catch(e2) {}
@@ -2427,7 +2459,7 @@ function amtClass(amount) {
 // ════════════════════════════════════════════════════════════════
 // ── 異常消費提醒：單筆金額 vs 該分層上個月平均 ─────────────────
 function getAnomalyMultiplier() {
-  const v = parseFloat(localStorage.getItem('mwallet_anomaly_multiplier'));
+  const v = parseFloat(DB.anomalyMultiplier);
   return (v && v > 1) ? v : 1.5;
 }
 function initAnomalyMultiplier() {
@@ -2438,7 +2470,8 @@ function saveAnomalyMultiplier() {
   const el = document.getElementById('anomalyMultiplier');
   const v = parseFloat(el?.value);
   if (!v || v <= 1) { toast('請輸入大於 1 的倍數','warning'); return; }
-  localStorage.setItem('mwallet_anomaly_multiplier', String(v));
+  DB.anomalyMultiplier = v;
+  saveDB();
   toast('已儲存','success');
   renderDashboard();
 }
@@ -10094,9 +10127,10 @@ function applyTemplate(id) {
 // 分析過去 3 個月消費習慣，產生建議範本（同描述 + 金額相近 + 3 次以上）
 // 分析過去 N 個月消費習慣，產生建議範本（同描述 + 金額相近 + N 次以上，條件可在設定頁自訂）
 function getTplSuggestSettings() {
-  const months = parseInt(localStorage.getItem('mwallet_tpl_suggest_months'))||3;
-  const minCount = parseInt(localStorage.getItem('mwallet_tpl_suggest_mincount'))||3;
-  const tolerancePct = parseFloat(localStorage.getItem('mwallet_tpl_suggest_tolerance'));
+  const s = DB.tplSuggestSettings || {};
+  const months = parseInt(s.months)||3;
+  const minCount = parseInt(s.minCount)||3;
+  const tolerancePct = parseFloat(s.tolerance);
   return {
     months: months>=1 ? months : 3,
     minCount: minCount>=2 ? minCount : 3,
@@ -10120,9 +10154,8 @@ function saveTplSuggestSettings() {
   if (!m || m<1) { toast('觀察區間請輸入 1 以上的整數','warning'); return; }
   if (!c || c<2) { toast('出現次數請輸入 2 以上的整數','warning'); return; }
   if (isNaN(t) || t<0) { toast('金額誤差請輸入 0 以上的數字','warning'); return; }
-  localStorage.setItem('mwallet_tpl_suggest_months', String(m));
-  localStorage.setItem('mwallet_tpl_suggest_mincount', String(c));
-  localStorage.setItem('mwallet_tpl_suggest_tolerance', String(t));
+  DB.tplSuggestSettings = {months:m, minCount:c, tolerance:t};
+  saveDB();
   toast('已儲存','success');
   if (document.getElementById('page-templates')?.classList.contains('active')) renderTemplates();
 }
@@ -11263,6 +11296,7 @@ function switchSettingsTab(tab) {
   if(tab==='rules') renderRuleList();
   if(tab==='security') initSecurityPanel();
   if(tab==='account') renderAcctOrderLists();
+  if(tab==='smart') { initAnomalyMultiplier(); initTplSuggestSettings(); }
 }
 
 function refreshDataTabBtns() {
@@ -11616,6 +11650,8 @@ async function init() {
   generateFixed();
   generateSubscriptionTxns();
   renderDashboard();
+  initTplSuggestSettings(); // DB 載入完成後用正確值刷新一次（避免載入前用預設值）
+  initAnomalyMultiplier();
 
   initSplash();
   initCardSheen();
