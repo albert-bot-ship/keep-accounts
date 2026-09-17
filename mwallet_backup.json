@@ -3266,5 +3266,12 @@
     "#ff9efd",
     "#9929bd",
     "#218b13"
-  ]
+  ],
+  "txnTemplates": [],
+  "tplSuggestSettings": {
+    "months": 2,
+    "minCount": 2,
+    "tolerance": 20
+  },
+  "anomalyMultiplier": 1.5
 }
