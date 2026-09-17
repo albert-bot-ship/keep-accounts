@@ -3267,7 +3267,19 @@
     "#9929bd",
     "#218b13"
   ],
-  "txnTemplates": [],
+  "txnTemplates": [
+    {
+      "id": "tpl_1789638551395_eheh6",
+      "name": "台中市月票-汽車",
+      "type": "expense",
+      "amount": 1168,
+      "category": "mov4018zncy6t",
+      "sourceType": "card",
+      "sourceId": "mov4et7fpt7kr",
+      "layerId": "mowvgma9od1k8",
+      "notes": ""
+    }
+  ],
   "tplSuggestSettings": {
     "months": 2,
     "minCount": 2,
