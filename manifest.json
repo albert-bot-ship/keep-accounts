@@ -1,0 +1,32 @@
+{
+  "name": "M WALLET — BMW M POWER 財務管理",
+  "short_name": "M WALLET",
+  "description": "BMW M Power 主題個人財務管理工具",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07070F",
+  "theme_color": "#07070F",
+  "lang": "zh-TW",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
