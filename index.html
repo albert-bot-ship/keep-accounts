@@ -414,6 +414,7 @@
         <button class="btn btn-primary" onclick="openModal('addTemplate')">＋ 新增範本</button>
       </div>
       <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">把常記的固定消費存成範本，點「✓ 記一筆」直接用今天日期記一筆。</p>
+      <div id="suggestedTemplateList" style="display:none;margin-bottom:8px"></div>
       <div id="templateList"></div>
     </section>
 
@@ -10066,7 +10067,107 @@ function applyTemplate(id) {
   toast(`已記一筆「${t.name}」`,'success');
   if (document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
 }
+// 分析過去 3 個月消費習慣，產生建議範本（同描述 + 金額相近 + 3 次以上）
+function _mostCommon(arr) {
+  const count = {};
+  arr.forEach(v=>{ if (v!=null) count[v] = (count[v]||0)+1; });
+  let best=null, bestN=0;
+  Object.keys(count).forEach(k=>{ if (count[k]>bestN) { best=k; bestN=count[k]; } });
+  return best;
+}
+function getSuggestedTemplates() {
+  const now = new Date();
+  const cutoff = new Date(now.getFullYear(), now.getMonth()-3, now.getDate());
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+  const dismissed = new Set(JSON.parse(localStorage.getItem('mwallet_dismissed_tpl_suggestions')||'[]'));
+  const existingKeys = new Set(DB.txnTemplates.map(t=>(t.name||'').trim()));
+  const candidates = DB.transactions.filter(t=>
+    t.date >= cutoffStr && t.amount < 0 && !t.isTransfer && !t.isRedemption && !t.isPayment && t.desc && t.desc.trim()
+  );
+  // 依「描述」分組
+  const groups = {};
+  candidates.forEach(t=>{
+    const key = t.desc.trim();
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  });
+  const suggestions = [];
+  Object.keys(groups).forEach(key=>{
+    if (dismissed.has(key) || existingKeys.has(key)) return;
+    const list = groups[key];
+    if (list.length < 3) return;
+    // 金額相近：以中位數為基準，篩出 ±20% 內的交易
+    const amounts = list.map(t=>Math.abs(t.amount)).sort((a,b)=>a-b);
+    const median = amounts[Math.floor(amounts.length/2)];
+    const close = list.filter(t=>Math.abs(Math.abs(t.amount)-median) <= median*0.2);
+    if (close.length < 3) return;
+    const avgAmt = Math.round(close.reduce((s,t)=>s+Math.abs(t.amount),0)/close.length);
+    suggestions.push({
+      desc: key,
+      amount: avgAmt,
+      count: close.length,
+      category: _mostCommon(close.map(t=>t.category)),
+      sourceType: _mostCommon(close.map(t=>t.sourceType)),
+      sourceId: _mostCommon(close.map(t=>t.sourceId)),
+      layerId: _mostCommon(close.map(t=>t.layerId))
+    });
+  });
+  suggestions.sort((a,b)=>b.count-a.count);
+  return suggestions.slice(0,10);
+}
+function adoptSuggestedTemplate(idx) {
+  const suggestions = getSuggestedTemplates();
+  const s = suggestions[idx];
+  if (!s) return;
+  DB.txnTemplates.push({
+    id:'tpl_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    name:s.desc, type:'expense', amount:s.amount, category:s.category,
+    sourceType:s.sourceType||null, sourceId:s.sourceId||null, layerId:s.layerId||null, notes:''
+  });
+  saveDB(); renderTemplates();
+  toast(`已採用「${s.desc}」為範本`,'success');
+}
+function dismissSuggestedTemplate(idx) {
+  const suggestions = getSuggestedTemplates();
+  const s = suggestions[idx];
+  if (!s) return;
+  const dismissed = JSON.parse(localStorage.getItem('mwallet_dismissed_tpl_suggestions')||'[]');
+  if (!dismissed.includes(s.desc)) dismissed.push(s.desc);
+  localStorage.setItem('mwallet_dismissed_tpl_suggestions', JSON.stringify(dismissed));
+  renderTemplates();
+}
+
 function renderTemplates() {
+  const suggWrap = document.getElementById('suggestedTemplateList');
+  if (suggWrap) {
+    const suggestions = getSuggestedTemplates();
+    if (!suggestions.length) {
+      suggWrap.innerHTML = '';
+      suggWrap.style.display = 'none';
+    } else {
+      suggWrap.style.display = '';
+      suggWrap.innerHTML = `
+        <div style="font-size:10px;letter-spacing:2px;color:var(--tx-muted);font-family:var(--ff-display);text-transform:uppercase;margin-bottom:8px;padding-left:2px">✨ 建議範本（過去 3 個月常出現的消費）</div>
+        ${suggestions.map((s,idx)=>{
+          const catName = getCat(s.category)?.name || '';
+          const srcLabel = s.sourceType==='card' ? ('[卡] '+(getCard(s.sourceId)?.name||''))
+                          : s.sourceType==='account' ? ('[帳] '+(getAcc(s.sourceId)?.name||''))
+                          : '';
+          return `<div class="chart-box" style="padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px dashed var(--bdr-normal)">
+            <div style="flex:1;min-width:140px">
+              <div style="font-weight:600;font-size:14px;color:var(--tx-primary)">${escHtml(s.desc)}</div>
+              <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${catName}　${srcLabel}　近3個月出現 ${s.count} 次</div>
+            </div>
+            <div style="font-family:var(--ff-display);font-weight:700;font-size:15px;color:var(--tx-red)">−${fmt(s.amount)}</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm btn-primary" onclick="adoptSuggestedTemplate(${idx})">✓ 採用</button>
+              <button class="btn btn-ghost btn-icon btn-sm" onclick="dismissSuggestedTemplate(${idx})">✕</button>
+            </div>
+          </div>`;
+        }).join('')}
+        <div class="section-div mt-2 mb-2"><div class="section-div-line"></div><div class="section-div-label">我的範本</div><div class="section-div-line"></div></div>`;
+    }
+  }
   const wrap = document.getElementById('templateList');
   if (!wrap) return;
   if (!DB.txnTemplates.length) {
