@@ -642,6 +642,30 @@
             </div>
           </div>
         </div>
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <div class="settings-section-icon" style="background:rgba(0,87,184,.12)">✨</div>
+            <div>
+              <div class="settings-section-title">建議範本判斷條件</div>
+              <div class="settings-section-desc">常用範本頁「建議範本」用什麼條件抓出您的消費習慣</div>
+            </div>
+          </div>
+          <div class="settings-section-body" style="padding:14px 18px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <input class="form-input" type="number" id="tplSuggestMonths" min="1" max="12" step="1" style="width:80px;text-align:center" onchange="saveTplSuggestSettings()">
+              <span style="font-size:13px;color:var(--tx-secondary)">個月內的消費記錄才納入分析</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input class="form-input" type="number" id="tplSuggestMinCount" min="2" max="20" step="1" style="width:80px;text-align:center" onchange="saveTplSuggestSettings()">
+              <span style="font-size:13px;color:var(--tx-secondary)">次以上才算「常出現」</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input class="form-input" type="number" id="tplSuggestTolerance" min="0" max="100" step="1" style="width:80px;text-align:center" onchange="saveTplSuggestSettings()">
+              <span style="font-size:13px;color:var(--tx-secondary)">% 金額誤差內都算同一種（跟中位數比）</span>
+            </div>
+            <div style="font-size:11px;color:var(--tx-muted)">描述比對方式維持「去除頭尾空白後完全相同」，暫不開放調整</div>
+          </div>
+        </div>
       </div>
 
       <!-- ── 標籤 Tab ── -->
@@ -10068,6 +10092,40 @@ function applyTemplate(id) {
   if (document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
 }
 // 分析過去 3 個月消費習慣，產生建議範本（同描述 + 金額相近 + 3 次以上）
+// 分析過去 N 個月消費習慣，產生建議範本（同描述 + 金額相近 + N 次以上，條件可在設定頁自訂）
+function getTplSuggestSettings() {
+  const months = parseInt(localStorage.getItem('mwallet_tpl_suggest_months'))||3;
+  const minCount = parseInt(localStorage.getItem('mwallet_tpl_suggest_mincount'))||3;
+  const tolerancePct = parseFloat(localStorage.getItem('mwallet_tpl_suggest_tolerance'));
+  return {
+    months: months>=1 ? months : 3,
+    minCount: minCount>=2 ? minCount : 3,
+    tolerance: (tolerancePct>=0 ? tolerancePct : 20) / 100
+  };
+}
+function initTplSuggestSettings() {
+  const s = getTplSuggestSettings();
+  const mEl = document.getElementById('tplSuggestMonths');
+  const cEl = document.getElementById('tplSuggestMinCount');
+  const tEl = document.getElementById('tplSuggestTolerance');
+  if (mEl) mEl.value = s.months;
+  if (cEl) cEl.value = s.minCount;
+  if (tEl) tEl.value = Math.round(s.tolerance*100);
+}
+function saveTplSuggestSettings() {
+  const mEl = document.getElementById('tplSuggestMonths');
+  const cEl = document.getElementById('tplSuggestMinCount');
+  const tEl = document.getElementById('tplSuggestTolerance');
+  const m = parseInt(mEl?.value), c = parseInt(cEl?.value), t = parseFloat(tEl?.value);
+  if (!m || m<1) { toast('觀察區間請輸入 1 以上的整數','warning'); return; }
+  if (!c || c<2) { toast('出現次數請輸入 2 以上的整數','warning'); return; }
+  if (isNaN(t) || t<0) { toast('金額誤差請輸入 0 以上的數字','warning'); return; }
+  localStorage.setItem('mwallet_tpl_suggest_months', String(m));
+  localStorage.setItem('mwallet_tpl_suggest_mincount', String(c));
+  localStorage.setItem('mwallet_tpl_suggest_tolerance', String(t));
+  toast('已儲存','success');
+  if (document.getElementById('page-templates')?.classList.contains('active')) renderTemplates();
+}
 function _mostCommon(arr) {
   const count = {};
   arr.forEach(v=>{ if (v!=null) count[v] = (count[v]||0)+1; });
@@ -10076,8 +10134,9 @@ function _mostCommon(arr) {
   return best;
 }
 function getSuggestedTemplates() {
+  const settings = getTplSuggestSettings();
   const now = new Date();
-  const cutoff = new Date(now.getFullYear(), now.getMonth()-3, now.getDate());
+  const cutoff = new Date(now.getFullYear(), now.getMonth()-settings.months, now.getDate());
   const cutoffStr = cutoff.toISOString().slice(0,10);
   const dismissed = new Set(JSON.parse(localStorage.getItem('mwallet_dismissed_tpl_suggestions')||'[]'));
   const existingKeys = new Set(DB.txnTemplates.map(t=>(t.name||'').trim()));
@@ -10095,12 +10154,12 @@ function getSuggestedTemplates() {
   Object.keys(groups).forEach(key=>{
     if (dismissed.has(key) || existingKeys.has(key)) return;
     const list = groups[key];
-    if (list.length < 3) return;
-    // 金額相近：以中位數為基準，篩出 ±20% 內的交易
+    if (list.length < settings.minCount) return;
+    // 金額相近：以中位數為基準，篩出容許誤差範圍內的交易
     const amounts = list.map(t=>Math.abs(t.amount)).sort((a,b)=>a-b);
     const median = amounts[Math.floor(amounts.length/2)];
-    const close = list.filter(t=>Math.abs(Math.abs(t.amount)-median) <= median*0.2);
-    if (close.length < 3) return;
+    const close = list.filter(t=>Math.abs(Math.abs(t.amount)-median) <= median*settings.tolerance);
+    if (close.length < settings.minCount) return;
     const avgAmt = Math.round(close.reduce((s,t)=>s+Math.abs(t.amount),0)/close.length);
     suggestions.push({
       desc: key,
@@ -10145,9 +10204,10 @@ function renderTemplates() {
       suggWrap.innerHTML = '';
       suggWrap.style.display = 'none';
     } else {
+      const suggMonths = getTplSuggestSettings().months;
       suggWrap.style.display = '';
       suggWrap.innerHTML = `
-        <div style="font-size:10px;letter-spacing:2px;color:var(--tx-muted);font-family:var(--ff-display);text-transform:uppercase;margin-bottom:8px;padding-left:2px">✨ 建議範本（過去 3 個月常出現的消費）</div>
+        <div style="font-size:10px;letter-spacing:2px;color:var(--tx-muted);font-family:var(--ff-display);text-transform:uppercase;margin-bottom:8px;padding-left:2px">✨ 建議範本（過去 ${suggMonths} 個月常出現的消費）</div>
         ${suggestions.map((s,idx)=>{
           const catName = getCat(s.category)?.name || '';
           const srcLabel = s.sourceType==='card' ? ('[卡] '+(getCard(s.sourceId)?.name||''))
@@ -10156,7 +10216,7 @@ function renderTemplates() {
           return `<div class="chart-box" style="padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px dashed var(--bdr-normal)">
             <div style="flex:1;min-width:140px">
               <div style="font-weight:600;font-size:14px;color:var(--tx-primary)">${escHtml(s.desc)}</div>
-              <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${catName}　${srcLabel}　近3個月出現 ${s.count} 次</div>
+              <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${catName}　${srcLabel}　近${suggMonths}個月出現 ${s.count} 次</div>
             </div>
             <div style="font-family:var(--ff-display);font-weight:700;font-size:15px;color:var(--tx-red)">−${fmt(s.amount)}</div>
             <div style="display:flex;gap:6px">
@@ -11506,6 +11566,7 @@ async function init() {
   initBgStyle();
   initNumFont();
   initAnomalyMultiplier();
+  initTplSuggestSettings();
 
   const now=new Date();
   const _m=String(now.getMonth()+1).padStart(2,'0'),_d=String(now.getDate()).padStart(2,'0');
