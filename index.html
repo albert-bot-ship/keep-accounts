@@ -157,6 +157,12 @@
   </div>
   <div class="splash-sub">BMW M POWER FINANCE TRACKER</div>
 </div>
+<script>
+  // 這個 session 已經看過封面（重新整理），立刻隱藏，不等 DOMContentLoaded，避免閃一下
+  if (sessionStorage.getItem('mw_splash')) {
+    document.getElementById('splashScreen').style.display = 'none';
+  }
+</script>
 
 <!-- ══ FLOATING NUMPAD ══ -->
 <div id="floatNumpad" class="rider-mode">
@@ -2943,15 +2949,15 @@ function initSplash() {
       const s = document.createElement('span');
       s.className = 'splash-char';
       s.textContent = ch === ' ' ? '\u00A0' : ch;
-      s.style.animation = `splashFadeUp .2s ease ${0.18+i*0.04}s forwards`;
+      s.style.animation = `splashFadeUp .2s ease ${0.18+i*0.025}s forwards`;
       logoEl.appendChild(s);
     });
   }
   // 條紋震動
   const stripes = document.getElementById('splashStripes');
-  setTimeout(()=>{ stripes?.classList.add('vibe'); }, 580);
+  setTimeout(()=>{ stripes?.classList.add('vibe'); }, 380);
 
-  // 1秒後：若需要密碼則直接轉換成密碼頁，否則正常淡出
+  // 0.55秒後：若需要密碼則直接轉換成密碼頁，否則正常淡出
   setTimeout(()=>{
     if (isPwdEnabled() && !isUnlocked()) {
       // Splash 與密碼頁背景同色（#07070F），直接隱藏 Splash 顯示密碼頁，視覺無縫
@@ -2962,7 +2968,7 @@ function initSplash() {
       splash.style.opacity = '0';
       setTimeout(()=>{ splash.style.display='none'; }, 250);
     }
-  }, 1000);
+  }, 550);
 }
 
 // ════════════════════════════════════════════════════════════════
