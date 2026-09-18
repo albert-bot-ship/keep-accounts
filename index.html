@@ -11192,7 +11192,8 @@ function showPwdGate() {
   const gate = document.getElementById('pwdGate');
   if (gate) {
     gate.style.display = 'flex';
-    requestAnimationFrame(()=>{ gate.style.opacity = '1'; });
+    // 連續等兩個畫面更新週期，確保版面已經算穩定再淡入（冷啟動時第一幀版面可能還沒定位好）
+    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ gate.style.opacity = '1'; }); });
   }
   renderFaceIDUI();
   const hint = localStorage.getItem(PWD_HINT_KEY);
