@@ -1760,7 +1760,7 @@
     {
       "id": "mtmbnbp0o5838",
       "date": "2026-09-04",
-      "amount": -900,
+      "amount": -1000,
       "desc": "轉帳 → 郵局",
       "category": "mq0967uv5w2s3",
       "sourceId": "mov74st8ti4ry",
@@ -1774,7 +1774,7 @@
     {
       "id": "mtmbnbp06oof9",
       "date": "2026-09-04",
-      "amount": 900,
+      "amount": 1000,
       "desc": "轉入 ← 郵局",
       "category": "mq0967uv5w2s3",
       "sourceId": "mov74st8ti4ry",
