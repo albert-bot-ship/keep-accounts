@@ -11198,7 +11198,10 @@ function showPwdGate() {
   const hintEl = document.getElementById('pwdHintDisplay');
   if (hintEl && hint) { hintEl.style.display = 'block'; hintEl.textContent = '提示：' + hint; }
   checkLockStatus();
-  setTimeout(()=>{ const inp=document.getElementById('pwdInput'); if(inp)inp.focus(); }, 300);
+  // 只有沒開 Face ID 時才自動彈鍵盤；有 Face ID 的話不要搶排版，避免跟按鈕點擊時機撞在一起
+  if (!(isPwdEnabled() && isFaceIDEnabled())) {
+    setTimeout(()=>{ const inp=document.getElementById('pwdInput'); if(inp)inp.focus(); }, 300);
+  }
 }
 
 function hidePwdGate() {
