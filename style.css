@@ -3429,3 +3429,34 @@ body.anim-reduced #mPowerBorder { animation-duration: 10s !important; }
   max-width: 100%;
   box-sizing: border-box;
 }
+
+/* ══ M 徽章長按彩蛋：畫面震動 + M 三色燈光閃爍 ══ */
+@keyframes mEasterShake{
+  0%,100%{ transform:translate(0,0); }
+  10%{ transform:translate(-4px,2px); }
+  20%{ transform:translate(4px,-2px); }
+  30%{ transform:translate(-4px,-2px); }
+  40%{ transform:translate(4px,2px); }
+  50%{ transform:translate(-3px,1px); }
+  60%{ transform:translate(3px,-1px); }
+  70%{ transform:translate(-2px,1px); }
+  80%{ transform:translate(2px,-1px); }
+  90%{ transform:translate(-1px,0); }
+}
+body.m-easter-shake{ animation:mEasterShake .5s ease; }
+.m-easter-flash{
+  position:fixed; inset:0; z-index:99999; pointer-events:none;
+  background:linear-gradient(90deg, var(--m-blue), var(--m-violet), var(--m-red));
+  opacity:0;
+  mix-blend-mode:screen;
+  animation:mEasterFlash .9s ease-out forwards;
+}
+@keyframes mEasterFlash{
+  0%  { opacity:0; }
+  8%  { opacity:.55; }
+  20% { opacity:.12; }
+  35% { opacity:.4; }
+  50% { opacity:.08; }
+  65% { opacity:.25; }
+  100%{ opacity:0; }
+}
