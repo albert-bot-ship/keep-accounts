@@ -181,7 +181,7 @@
 <header class="topnav">
   <button class="menu-toggle" id="menuToggle">☰</button>
   <a class="nav-logo" href="#" onclick="event.preventDefault(); nav(document.querySelector('.nav-item[data-page=\'dashboard\']'), 'dashboard');" title="回首頁">
-    <div class="nav-logo-badge">M</div>
+    <div class="nav-logo-badge" id="mBadge">M</div>
     <div>
       <div class="nav-logo-text">WALLET</div>
       <span class="nav-logo-sub">BMW M POWER FINANCE</span>
@@ -11754,6 +11754,37 @@ async function init() {
     checkPwdGate();
     if (isUnlocked()) startIdleWatcher();
   }
+  // 9. M 徽章長按彩蛋
+  initMBadgeEasterEgg();
+}
+// ══ M 徽章長按彩蛋：純視覺效果，無實際功能 ══
+function initMBadgeEasterEgg() {
+  const badge = document.getElementById('mBadge');
+  if (!badge) return;
+  let pressTimer = null;
+  let fired = false;
+  const start = () => {
+    fired = false;
+    pressTimer = setTimeout(() => { fired = true; triggerMEasterEgg(); }, 2000);
+  };
+  const cancel = () => { clearTimeout(pressTimer); };
+  badge.addEventListener('touchstart', start, {passive:true});
+  badge.addEventListener('touchend', cancel);
+  badge.addEventListener('touchcancel', cancel);
+  badge.addEventListener('mousedown', start);
+  badge.addEventListener('mouseup', cancel);
+  badge.addEventListener('mouseleave', cancel);
+}
+function triggerMEasterEgg() {
+  if (navigator.vibrate) navigator.vibrate([40,30,40,30,90]);
+  document.body.classList.add('m-easter-shake');
+  const flash = document.createElement('div');
+  flash.className = 'm-easter-flash';
+  document.body.appendChild(flash);
+  setTimeout(() => {
+    document.body.classList.remove('m-easter-shake');
+    flash.remove();
+  }, 900);
 }
 document.addEventListener('DOMContentLoaded', init);
 
