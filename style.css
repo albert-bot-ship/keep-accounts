@@ -1166,7 +1166,7 @@ body:has(.backup-banner:not([style*="display:none"])) .fab-btn{
 .mobile-bottom-nav::before {
   content: '';
   position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--m-blue) 0% 33%, var(--m-violet) 33% 66%, var(--m-red) 66% 100%);
+  background: linear-gradient(90deg, var(--m-blue) 0%, var(--m-violet) 50%, var(--m-red) 100%);
 }
 .mbn-items {
   display: flex;
@@ -1553,9 +1553,9 @@ body.light-theme .account-card:hover{
   position:absolute;bottom:0;left:0;right:0;height:3px;z-index:1;
   background:linear-gradient(
     90deg,
-    var(--m-blue) 0% 33%,
-    var(--m-violet) 33% 66%,
-    var(--m-red) 66% 100%
+    var(--m-blue) 0%,
+    var(--m-violet) 50%,
+    var(--m-red) 100%
   );
 }
 .topnav::after{
@@ -3035,26 +3035,26 @@ body .account-card[data-theme="white"] .prog-wrap { background:rgba(26,26,46,.1)
   background: linear-gradient(
     90deg,
     transparent 0%,
-    #0057B8 8%, #4D9FFF 15%, #0057B8 22%,
-    #6F2CA7 36%, #b06aff 43%, #6F2CA7 50%,
-    #C8102E 64%, #ff6b80 71%, #C8102E 78%,
+    var(--m-blue) 8%, var(--m-blue-light) 15%, var(--m-blue) 22%,
+    var(--m-violet) 36%, color-mix(in srgb, var(--m-violet) 55%, white) 43%, var(--m-violet) 50%,
+    var(--m-red) 64%, var(--m-red-light) 71%, var(--m-red) 78%,
     transparent 100%
   ) !important;
   background-size: 300% 100% !important;
   animation: mStripeFlow 4s linear infinite, mStripeGlow 3s ease-in-out infinite !important;
-  filter: blur(0px) drop-shadow(0 0 2px rgba(0,87,184,.5));
+  filter: blur(0px) drop-shadow(0 0 2px color-mix(in srgb, var(--m-blue) 50%, transparent));
 }
 .account-card:hover .account-card-header::before {
   animation-play-state: running !important;
   height: 4px !important;
-  filter: drop-shadow(0 0 4px rgba(0,87,184,.8)) drop-shadow(0 0 8px rgba(111,44,167,.5));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--m-blue) 80%, transparent)) drop-shadow(0 0 8px color-mix(in srgb, var(--m-violet) 50%, transparent));
 }
 /* .m-stripe 也升級 */
 .m-stripe {
   height: 2px !important;
   background: linear-gradient(
     90deg,
-    transparent, #0057B8 20%, #6F2CA7 50%, #C8102E 80%, transparent
+    transparent, var(--m-blue) 20%, var(--m-violet) 50%, var(--m-red) 80%, transparent
   ) !important;
   background-size: 200% 100% !important;
   animation: mStripeFlow 3s linear infinite !important;
