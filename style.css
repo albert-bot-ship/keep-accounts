@@ -310,6 +310,25 @@ body::before{
 .account-card.auto-text-dark .account-card-type{ color:#1a1a2e !important; -webkit-text-fill-color:#1a1a2e !important; }
 .account-card.auto-text-dark .btn-ghost,
 .account-card.auto-text-dark .btn-danger{ background:rgba(26,26,46,.1) !important; border-color:rgba(26,26,46,.2) !important; color:#1a1a2e !important; }
+/* ══ 分層摘要收合（超過 5 層時）：沿用卡片收合同一套彈簧動畫 ══ */
+.layer-collapse-wrap{
+  display:grid; grid-template-rows:0fr;
+  transition:grid-template-rows .4s cubic-bezier(.32,.72,0,1);
+}
+.layer-collapse-wrap.expanded{ grid-template-rows:1fr; }
+.layer-collapse-wrap > div{ overflow:hidden; min-height:0; }
+.layer-summary-row{
+  display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer;
+  border-radius:10px; transition:background .15s ease;
+}
+.layer-summary-row:active{ background:rgba(255,255,255,.06); }
+.layer-summary-count{ font-size:13px; color:var(--tx-primary); font-weight:600; }
+.layer-summary-total{ font-size:12px; color:var(--tx-muted); margin-top:2px; }
+.layer-summary-chevron{
+  margin-left:auto; font-size:13px; color:var(--tx-muted); flex-shrink:0;
+  transition:transform .35s cubic-bezier(.32,.72,0,1);
+}
+.layer-summary-chevron.expanded{ transform:rotate(180deg); }
 /* 雙層背景交叉淡入淡出：漸層層／玻璃層各自控制透明度，取代瞬間切換 */
 .account-card-content{ position:relative; z-index:1; }
 .card-bg-layer{
