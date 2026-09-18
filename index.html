@@ -2277,6 +2277,7 @@ function navigateTo(page) {
   // 每次「切換進入」帳戶頁/信用卡頁，卡片收合狀態一律重置為全收合
   if (page === 'accounts') expandedAccounts.clear();
   if (page === 'cards') expandedCards.clear();
+  if (page === 'accounts' || page === 'cards') expandedLayerGroups.clear();
   if (dir) target.classList.add(dir);
   target.classList.add('active');
   currentPage = page;
@@ -4375,6 +4376,7 @@ function isLightColor(hex) {
 // 收合中的帳戶/信用卡卡片 id（僅存在於本次頁面停留期間，離開頁面重新進入會清空）
 let expandedAccounts = new Set();
 let expandedCards = new Set();
+let expandedLayerGroups = new Set(); // 分層收合摘要：展開狀態，key 為 'card-'+id 或 'account-'+id
 function toggleAccountCard(e, id) {
   if (e.target.closest('button,input,select,a,label')) return;
   const wasExpanded = expandedAccounts.has(id);
@@ -4415,6 +4417,17 @@ function toggleCreditCard(e, id) {
       el.style.setProperty('--auto-bg', autoCardGradient(c.color));
     }
   }
+}
+
+// 分層摘要收合/展開：直接切換 class，不整頁重繪（避免蓋掉展開動畫）
+function toggleLayerGroup(e, key) {
+  e.stopPropagation(); // 阻止冒泡到卡片本身的展開/收合
+  const wasExpanded = expandedLayerGroups.has(key);
+  if (wasExpanded) expandedLayerGroups.delete(key); else expandedLayerGroups.add(key);
+  const wrap = document.getElementById('wrap-'+key);
+  const chev = document.getElementById('chev-'+key);
+  if (wrap) wrap.classList.toggle('expanded', !wasExpanded);
+  if (chev) chev.classList.toggle('expanded', !wasExpanded);
 }
 
 const CARD_THEMES = [
@@ -5716,7 +5729,7 @@ function renderCards() {
     const normalTotal = Object.values(normalTxMap).reduce((s,v)=>s+v,0);
     const paidRatio = 0; // 不再使用比例計算
 
-    const layersHtml = layerDataArr.map(({l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed}, idx, arr)=>{
+    const layerRenderData = layerDataArr.map(({l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed}, idx, arr)=>{
       let layerOutstanding, hasPaidOffset;
       if (isMonthlyFixed) {
         layerOutstanding = layerAmt;
@@ -5731,7 +5744,7 @@ function renderCards() {
       const layerGreenColor = hasTheme ? (isLight?'#1b5e20':'#5dffa0') : 'var(--tx-green)';
       const layerMutedColor = hasTheme ? (isLight?'rgba(26,26,46,.6)':'rgba(255,255,255,.65)') : 'var(--tx-muted)';
       const layerNameColor  = hasTheme ? (isLight?'#1a1a2e':'rgba(255,255,255,.95)') : '';
-      return `<div class="layer-bar">
+      const html = `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||c.color}"></div>
         <div style="flex:1;min-width:0">
           <div class="layer-name" ${layerNameColor?`style="color:${layerNameColor}"`:''}>${escHtml(l.label)}${hasMonthly?`<span style="font-size:10px;background:#1c69d422;color:#1c69d4;border-radius:3px;padding:1px 5px;margin-left:6px">分期 每月 −${fmt(l.monthlyAmt)}</span>`:''}${l.reimbursable?(()=>{const _pend=DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&!t.reimbursed).reduce((s,t)=>s+Math.abs(t.amount),0);return `<span style="font-size:10px;background:#f39c1222;color:#f39c12;border-radius:3px;padding:1px 5px;margin-left:6px">🧾 代墊追蹤${_pend>0?`　未核銷 ${fmt(_pend)}`:''}</span>`;})():''}</div>
@@ -5748,7 +5761,27 @@ function renderCards() {
           <button class="btn btn-danger btn-icon btn-sm" onclick="delCardLayer('${c.id}','${l.id}')">✕</button>
         </div>
       </div>`;
-    }).join('');
+      return { l, layerOutstanding, html };
+    });
+    // 超過 5 層才收合成摘要列；5 層以內維持原本全展開
+    let layersHtml;
+    if (layerRenderData.length <= 5) {
+      layersHtml = layerRenderData.map(d=>d.html).join('');
+    } else {
+      const groupKey = 'card-'+c.id;
+      const isGroupExpanded = expandedLayerGroups.has(groupKey);
+      const layerTotalOutstanding = layerRenderData.reduce((s,d)=>s+d.layerOutstanding,0);
+      const topDots = layerRenderData.slice(0,3).map(d=>`<span style="width:9px;height:9px;border-radius:50%;background:${d.l.color||c.color};display:inline-block"></span>`).join('');
+      layersHtml = `<div class="layer-summary-row" onclick="toggleLayerGroup(event,'${groupKey}')">
+        <div style="display:flex;gap:4px">${topDots}</div>
+        <div style="flex:1;min-width:0">
+          <div class="layer-summary-count">${layerRenderData.length} 個分層</div>
+          <div class="layer-summary-total">合計 −${fmt(layerTotalOutstanding)}</div>
+        </div>
+        <span class="layer-summary-chevron${isGroupExpanded?' expanded':''}" id="chev-${groupKey}">▾</span>
+      </div>
+      <div class="layer-collapse-wrap${isGroupExpanded?' expanded':''}" id="wrap-${groupKey}"><div>${layerRenderData.map(d=>d.html).join('')}</div></div>`;
+    }
 
     const isExpanded = expandedCards.has(c.id);
     // 已設定卡片封面主題的卡片，收合時沿用原本主題漸層（不套用自動漸層，也不套用雙層背景淡入淡出）；未設定主題才用卡片顏色自動產生漸層
@@ -5915,12 +5948,12 @@ function renderAccounts() {
     const typeBadge = a.accType?`<span class="badge badge-blue" style="font-size:9px">${a.accType}</span>`:'';
     const lockBadge = a.locked?`<span title="已鎖定" style="font-size:11px">🔒</span>`:'';
     const last4show = a.last4?`<span style="color:var(--tx-muted);font-size:11px;letter-spacing:2px">•••• ${a.last4}</span>`:'';
-    const layersHtml = (a.layers||[]).map((l,idx,arr)=>{
+    const layerRenderData = (a.layers||[]).map((l,idx,arr)=>{
       const dynBal  = layerDynamicBalance(a.id, l.id);
       const lChange = dynBal - (l.amount||0); // 累積增減
       const dynColor = dynBal < 0 ? 'var(--tx-red)' : 'var(--m-blue)';
       const dynCls   = `color:${dynColor};-webkit-text-fill-color:${dynColor};font-weight:700`;
-      return `<div class="layer-bar">
+      const html = `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||a.color}"></div>
         <div style="flex:1;min-width:0">
           <div class="layer-name">${escHtml(l.label)}</div>
@@ -5951,7 +5984,28 @@ function renderAccounts() {
           +'<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%;background:'+barClr+';transition:width .6s ease"></div></div>'
           +'</div>';
       })():''}`;
-    }).join('');
+      return { l, dynBal, html };
+    });
+    // 超過 5 層才收合成摘要列；5 層以內維持原本全展開
+    let layersHtml;
+    if (layerRenderData.length <= 5) {
+      layersHtml = layerRenderData.map(d=>d.html).join('');
+    } else {
+      const groupKey = 'account-'+a.id;
+      const isGroupExpanded = expandedLayerGroups.has(groupKey);
+      const layerTotalBal = layerRenderData.reduce((s,d)=>s+d.dynBal,0);
+      const totalColor = layerTotalBal < 0 ? 'var(--tx-red)' : 'var(--tx-muted)';
+      const topDots = layerRenderData.slice(0,3).map(d=>`<span style="width:9px;height:9px;border-radius:50%;background:${d.l.color||a.color};display:inline-block"></span>`).join('');
+      layersHtml = `<div class="layer-summary-row" onclick="toggleLayerGroup(event,'${groupKey}')">
+        <div style="display:flex;gap:4px">${topDots}</div>
+        <div style="flex:1;min-width:0">
+          <div class="layer-summary-count">${layerRenderData.length} 個分層</div>
+          <div class="layer-summary-total" style="color:${totalColor}">合計 ${fmt(layerTotalBal)}</div>
+        </div>
+        <span class="layer-summary-chevron${isGroupExpanded?' expanded':''}" id="chev-${groupKey}">▾</span>
+      </div>
+      <div class="layer-collapse-wrap${isGroupExpanded?' expanded':''}" id="wrap-${groupKey}"><div>${layerRenderData.map(d=>d.html).join('')}</div></div>`;
+    }
 
     const isExpanded = expandedAccounts.has(a.id);
     const autoTextCls = isLightColor(a.color) ? 'auto-text-dark' : 'auto-text-light';
