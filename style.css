@@ -1378,34 +1378,17 @@ body.light-theme .account-card:hover{
   letter-spacing:.02em;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   CSS 加強 5 — 卡片頂部 BMW M 三色漸層邊框 + 流光效果
-   ══════════════════════════════════════════════════════════════ */
-@keyframes mStripeRun{
-  0%  { background-position:0% 50%; }
-  50% { background-position:100% 50%; }
-  100%{ background-position:0% 50%; }
-}
-
 /* 覆蓋 inline style 的 border-top，改用 ::before 偽元素做漸層頂線 */
 .account-card-header[style*="border-top"]{
   border-top:none !important;
   padding-top:calc(var(--sp-sm) + 3px);
 }
+/* content/position/border-radius 仍在作用中（沒被下方新版覆寫），保留；
+   background/animation 已被下方主題色版本（line ~3033，!important）取代，故移除舊版色碼 */
 .account-card-header[style*="border-top"]::before{
   content:'';
   position:absolute;
   top:0;left:0;right:0;
-  height:3px;
-  background:linear-gradient(
-    90deg,
-    #1c69d4 0%,
-    #6f2ca7 33%,
-    #c8102e 66%,
-    #1c69d4 100%
-  );
-  background-size:200% 100%;
-  animation:mStripeRun 3s linear infinite;
   border-radius:var(--r-lg) var(--r-lg) 0 0;
 }
 /* 停止動畫當不 hover（省電）*/
@@ -1517,10 +1500,6 @@ body.light-theme .account-card:hover{
 .account-card-header[style*="border-top"]{
   border-top:none !important;
   padding-top:22px !important;   /* 線條 3px + 間距 19px */
-}
-.account-card-header[style*="border-top"]::before{
-  height:3px;
-  border-radius:var(--r-lg) var(--r-lg) 0 0;
 }
 
 /* ══ FIX 2：Topnav 底線換成跑燈光效 ══════════════════════════ */
