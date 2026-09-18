@@ -2936,6 +2936,23 @@
       "layerId": "mt84rxv5bsopq",
       "transferPairId": "mu73z734mppdu",
       "transferPairTxnId": "mu73z734ok27j"
+    },
+    {
+      "id": "mu7c4idlih4bi",
+      "date": "2026-09-19",
+      "amount": -145,
+      "desc": "Smax",
+      "category": "mov787fj4o49i",
+      "sourceId": "mtlrayhxlw1ww",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mtlrcamxsaur9",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
