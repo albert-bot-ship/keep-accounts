@@ -394,13 +394,6 @@
       "notes": "",
       "layers": [
         {
-          "id": "mowtf3chaxdi7",
-          "label": "租補+租金",
-          "amount": 0,
-          "color": "#77bb41",
-          "goal": null
-        },
-        {
           "id": "mowtfdp3hzho9",
           "label": "備用金",
           "amount": 23691,
