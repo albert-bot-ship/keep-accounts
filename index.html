@@ -5291,6 +5291,20 @@ function getAllTransferPairs() {
   });
 }
 
+function txnLayerLabel(accId, txn) {
+  if (!txn) return null;
+  const acc = getAcc(accId);
+  if (!acc) return null;
+  if (txn.layerAmounts && txn.layerAmounts.length) {
+    const labels = txn.layerAmounts.map(la=> acc.layers?.find(l=>l.id===la.layerId)?.label).filter(Boolean);
+    return labels.length ? labels.join('、') : null;
+  }
+  if (txn.layerId) {
+    return acc.layers?.find(l=>l.id===txn.layerId)?.label || null;
+  }
+  return null;
+}
+
 function toggleTransferFilter() {
   const panel = document.getElementById('transferFilterPanel');
   const btn = document.getElementById('transferFilterToggleBtn');
@@ -5403,9 +5417,18 @@ function renderTransfers() {
   const rows = paged.map(p=>{
     const fromName = getAcc(p.fromId)?.name || '未知帳戶';
     const toName   = p.toId ? (getAcc(p.toId)?.name || '未知帳戶') : '⚠️ 未配對';
+    const fromLayer = txnLayerLabel(p.fromId, p.outTxn);
+    const toLayer   = p.toId ? txnLayerLabel(p.toId, p.inTxn) : null;
+    let routeHtml;
+    if (p.fromId && p.toId && p.fromId===p.toId) {
+      // 同帳戶跨分層轉帳：帳戶只顯示一次，標出分層 A → 分層 B
+      routeHtml = `${escHtml(fromName)}：${escHtml(fromLayer||'未指定分層')} → ${escHtml(toLayer||'未指定分層')}`;
+    } else {
+      routeHtml = `${escHtml(fromName)}${fromLayer?' <span style="font-size:11px;color:var(--tx-muted)">('+escHtml(fromLayer)+')</span>':''} → ${escHtml(toName)}${toLayer?' <span style="font-size:11px;color:var(--tx-muted)">('+escHtml(toLayer)+')</span>':''}`;
+    }
     return `<tr class="txn-row">
       <td style="white-space:nowrap">${p.date}</td>
-      <td style="white-space:nowrap">${escHtml(fromName)} → ${escHtml(toName)}</td>
+      <td style="white-space:nowrap">${routeHtml}</td>
       <td style="font-family:var(--ff-display);font-weight:700;color:var(--tx-blue)">${fmt(p.amount)}</td>
       <td style="color:var(--tx-secondary);font-size:12px">${escHtml(p.notes||'—')}</td>
       <td style="white-space:nowrap"><button class="btn btn-danger btn-icon btn-sm" onclick="deleteTxn('${p.outTxn.id}')">🗑</button></td>
