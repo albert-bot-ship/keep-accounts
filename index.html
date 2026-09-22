@@ -212,6 +212,9 @@
   <div class="nav-item" data-page="txns" onclick="nav(this,'txns')">
     <span class="nav-icon">📋</span><span>消費記錄</span>
   </div>
+  <div class="nav-item" data-page="transfers" onclick="nav(this,'transfers')">
+    <span class="nav-icon">🔄</span><span>轉帳明細</span>
+  </div>
   <div class="nav-item" data-page="fixed" onclick="nav(this,'fixed')">
     <span class="nav-icon">🔁</span><span>固定消費</span>
   </div>
@@ -394,6 +397,39 @@
             <button class="btn btn-ghost btn-sm" onclick="batchEditLayer()">🗂 指定分層</button>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- ─── TRANSFERS ─────────────────────── -->
+    <section class="page-section" id="page-transfers">
+      <div class="page-header">
+        <div class="page-title">轉帳明細</div>
+        <button class="btn btn-primary" onclick="openModal('transfer')">＋ 新增轉帳</button>
+      </div>
+      <div class="table-container">
+        <div class="table-toolbar" style="flex-wrap:wrap;gap:6px">
+          <div style="display:flex;gap:6px;width:100%;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm filter-toggle-btn" id="transferFilterToggleBtn" onclick="toggleTransferFilter()">篩選 ▾</button>
+          </div>
+          <div id="transferFilterPanel" class="txn-filter-panel" onkeydown="if(event.key==='Enter'){event.preventDefault();applyTransferFilter();}">
+            <div style="display:flex;gap:4px;flex-wrap:wrap;padding-bottom:6px;border-bottom:1px solid var(--bdr-subtle);margin-bottom:4px">
+              <span style="font-size:11px;color:var(--tx-muted);align-self:center;margin-right:2px">快選：</span>
+              <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="setTransferQuickDate('month')">本月</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="setTransferQuickDate('30')">近30天</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="setTransferQuickDate('7')">近7天</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="setTransferQuickDate('today')">今天</button>
+            </div>
+            <input type="date" class="form-input" id="transferFilterFrom" style="width:135px" onchange="updateTransferFilterBtn();renderTransfers()">
+            <span style="color:var(--tx-muted);align-self:center">—</span>
+            <input type="date" class="form-input" id="transferFilterTo" style="width:135px" onchange="updateTransferFilterBtn();renderTransfers()">
+            <select class="form-select" id="transferFilterAcc" style="width:160px" onchange="updateTransferFilterBtn();renderTransfers()">
+              <option value="">全部帳戶</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="clearTransferFilters()">✕ 清除篩選</button>
+            <button class="btn btn-primary btn-sm" onclick="applyTransferFilter()">✓ 確定</button>
+          </div>
+        </div>
+        <div id="transferTableWrap"></div>
       </div>
     </section>
 
@@ -2267,7 +2303,7 @@ function generateSubscriptionTxns(debug=false) {
 // ════════════════════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════════════════════
-const PAGE_ORDER = ['dashboard','cards','accounts','txns','fixed','install','analytics','subscriptions','exchange','invest','goals','settings'];
+const PAGE_ORDER = ['dashboard','cards','accounts','txns','transfers','fixed','install','analytics','subscriptions','exchange','invest','goals','settings'];
 let currentPage = 'dashboard';
 
 function nav(el, page) {
@@ -2304,7 +2340,7 @@ function navigateTo(page) {
 }
 function renderPage(page) {
   const fn={dashboard:renderDashboard,cards:renderCards,accounts:renderAccounts,
-    txns:renderTxns,fixed:renderFixed,install:renderInstall,analytics:renderAnalytics,
+    txns:renderTxns,transfers:renderTransfers,fixed:renderFixed,install:renderInstall,analytics:renderAnalytics,
     settings:renderSettings,subscriptions:renderSubscriptions,exchange:renderExchange,invest:renderInvest,goals:renderGoals,
     templates:renderTemplates};
   if (fn[page]) fn[page]();
@@ -5234,6 +5270,157 @@ function applyTxnFilter() {
 }
 
 // ════════════════════════════════════════════════════════════════
+// TRANSFERS PAGE（轉帳明細：獨立於消費記錄之外，配對顯示）
+// ════════════════════════════════════════════════════════════════
+let transferCurrentPage=1, _lastTransferTotal=0;
+const TRANSFER_PAGE_SIZE=30;
+
+function getAllTransferPairs() {
+  const outs = DB.transactions.filter(t=>t.isTransfer && t.amount<0);
+  return outs.map(t=>{
+    const pair = t.transferPairTxnId ? DB.transactions.find(p=>p.id===t.transferPairTxnId) : null;
+    return {
+      outTxn: t,
+      inTxn: pair || null,
+      date: t.date,
+      fromId: t.sourceId,
+      toId: pair ? pair.sourceId : null,
+      amount: Math.abs(t.amount),
+      notes: t.notes || pair?.notes || ''
+    };
+  });
+}
+
+function toggleTransferFilter() {
+  const panel = document.getElementById('transferFilterPanel');
+  const btn = document.getElementById('transferFilterToggleBtn');
+  if (!panel || !btn) return;
+  const isOpen = panel.classList.toggle('open');
+  updateTransferFilterBtn(isOpen);
+}
+function updateTransferFilterBtn(forceOpen) {
+  const panel = document.getElementById('transferFilterPanel');
+  const btn = document.getElementById('transferFilterToggleBtn');
+  if (!btn || !panel) return;
+  const isOpen = forceOpen !== undefined ? forceOpen : panel.classList.contains('open');
+  const hasFilter = ['transferFilterFrom','transferFilterTo','transferFilterAcc']
+    .some(id => { const el=document.getElementById(id); return el && el.value; });
+  btn.textContent = isOpen ? '篩選 ▴' : (hasFilter ? '篩選 ●' : '篩選 ▾');
+  btn.classList.toggle('has-filter', hasFilter && !isOpen);
+}
+function clearTransferFilters() {
+  ['transferFilterFrom','transferFilterTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const accEl=document.getElementById('transferFilterAcc'); if(accEl) accEl.selectedIndex=0;
+  updateTransferFilterBtn();
+  transferCurrentPage=1;
+  renderTransfers();
+}
+function applyTransferFilter() {
+  updateTransferFilterBtn();
+  transferCurrentPage=1;
+  renderTransfers();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+function setTransferQuickDate(range) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const fmt2 = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  let from='', to='';
+  if (range==='today') {
+    from = to = fmt2(now);
+  } else if (range==='7') {
+    const d = new Date(now); d.setDate(d.getDate()-6);
+    from = fmt2(d); to = fmt2(now);
+  } else if (range==='30') {
+    const d = new Date(now); d.setDate(d.getDate()-29);
+    from = fmt2(d); to = fmt2(now);
+  } else if (range==='month') {
+    from = `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
+    to   = fmt2(now);
+  }
+  const elFrom = document.getElementById('transferFilterFrom');
+  const elTo   = document.getElementById('transferFilterTo');
+  if (elFrom) elFrom.value = from;
+  if (elTo)   elTo.value   = to;
+  updateTransferFilterBtn();
+  transferCurrentPage=1;
+  renderTransfers();
+}
+function renderTransferPager(total) {
+  const totalPages=Math.ceil(total/TRANSFER_PAGE_SIZE);
+  if(totalPages<=1) return '';
+  let btns=[];
+  for(let p=1;p<=totalPages;p++){
+    if(p===1||p===totalPages||Math.abs(p-transferCurrentPage)<=1)
+      btns.push('<button class="pager-btn'+(p===transferCurrentPage?' active':'')+'" onclick="setTransferPage('+p+')">'+p+'</button>');
+    else if(btns[btns.length-1]!=='…') btns.push('…');
+  }
+  return '<div class="pager-bar"><button class="pager-btn" onclick="setTransferPage('+(transferCurrentPage-1)+')" '+(transferCurrentPage===1?'disabled':'')+'>‹</button>'+btns.join('')+'<button class="pager-btn" onclick="setTransferPage('+(transferCurrentPage+1)+')" '+(transferCurrentPage===totalPages?'disabled':'')+'>›</button><span style="font-size:11px;color:var(--tx-muted);margin-left:8px">共 '+total+' 筆</span></div>';
+}
+function setTransferPage(p) {
+  const t=Math.ceil(_lastTransferTotal/TRANSFER_PAGE_SIZE);
+  if(p<1||p>t) return;
+  transferCurrentPage=p; renderTransfers();
+}
+
+function renderTransfers() {
+  const wrap = document.getElementById('transferTableWrap');
+  if (!wrap) return;
+
+  // 帳戶篩選下拉選單（保留原本選值）
+  const accSel = document.getElementById('transferFilterAcc');
+  if (accSel) {
+    const oldAcc = accSel.value;
+    accSel.innerHTML = '<option value="">全部帳戶</option>' +
+      DB.bankAccounts.map(a=>`<option value="${a.id}">${escHtml(a.name)}</option>`).join('');
+    accSel.value = oldAcc;
+  }
+
+  const from = v('transferFilterFrom'), to = v('transferFilterTo'), accVal = accSel?accSel.value:'';
+
+  let pairs = getAllTransferPairs();
+  if (from) pairs = pairs.filter(p=>p.date>=from);
+  if (to)   pairs = pairs.filter(p=>p.date<=to);
+  if (accVal) pairs = pairs.filter(p=>p.fromId===accVal || p.toId===accVal);
+  pairs.sort((a,b)=>b.date.localeCompare(a.date));
+
+  _lastTransferTotal = pairs.length;
+  const totalPages = Math.ceil(pairs.length / TRANSFER_PAGE_SIZE) || 1;
+  if (transferCurrentPage > totalPages) transferCurrentPage = totalPages;
+  const start = (transferCurrentPage - 1) * TRANSFER_PAGE_SIZE;
+  const paged = pairs.slice(start, start + TRANSFER_PAGE_SIZE);
+
+  if (!pairs.length) {
+    wrap.innerHTML = '<div class="empty-state">尚無轉帳記錄</div>';
+    return;
+  }
+
+  const unpairedCount = pairs.filter(p=>!p.inTxn).length;
+  const warnBanner = unpairedCount
+    ? `<div style="background:var(--tx-red)15;border:1px solid var(--tx-red)55;color:var(--tx-red);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:8px">⚠️ 有 ${unpairedCount} 筆轉帳找不到配對記錄，請至「設定」頁使用「修復轉帳配對」處理</div>`
+    : '';
+
+  const rows = paged.map(p=>{
+    const fromName = getAcc(p.fromId)?.name || '未知帳戶';
+    const toName   = p.toId ? (getAcc(p.toId)?.name || '未知帳戶') : '⚠️ 未配對';
+    return `<tr class="txn-row">
+      <td style="white-space:nowrap">${p.date}</td>
+      <td style="white-space:nowrap">${escHtml(fromName)} → ${escHtml(toName)}</td>
+      <td style="font-family:var(--ff-display);font-weight:700;color:var(--tx-blue)">${fmt(p.amount)}</td>
+      <td style="color:var(--tx-secondary);font-size:12px">${escHtml(p.notes||'—')}</td>
+      <td style="white-space:nowrap"><button class="btn btn-danger btn-icon btn-sm" onclick="deleteTxn('${p.outTxn.id}')">🗑</button></td>
+    </tr>`;
+  }).join('');
+
+  const table = `<div class="txn-table-desktop"><table>
+    <thead><tr><th>日期</th><th>從 → 到</th><th>金額</th><th>備註</th><th>操作</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+
+  wrap.innerHTML = warnBanner + table + renderTransferPager(pairs.length);
+}
+
+// ════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ════════════════════════════════════════════════════════════════
 function setDashRange(el, range) {
@@ -6854,7 +7041,7 @@ function doDeleteTxn(id) {
   if (DB.layerAllocations) {
     DB.layerAllocations = DB.layerAllocations.filter(a=>a.txnId!==id);
   }
-  saveDB(); renderTxns(); toast('記錄已刪除'+(pairId?'（對應轉帳記錄一併刪除）':''),'danger');
+  saveDB(); renderTxns(); if (currentPage==='transfers') renderTransfers(); toast('記錄已刪除'+(pairId?'（對應轉帳記錄一併刪除）':''),'danger');
 }
 function exportExcel() {
   // 開欄位選擇 modal
@@ -8919,6 +9106,7 @@ function doTransfer() {
   closeModal();
   renderAccounts();
   renderDashboard();
+  if (currentPage==='transfers') renderTransfers();
   toast('轉帳成功！ 轉入帳戶：'+(to?.name||toId)+' +'+fmt(amt),'success');
 }
 // ════════════════════════════════════════════════════════════════
