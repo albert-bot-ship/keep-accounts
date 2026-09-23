@@ -3242,6 +3242,34 @@
       ],
       "transferPairId": "muduvv05qmsl5",
       "transferPairTxnId": "muduvv05cti4w"
+    },
+    {
+      "id": "mudvb85o3jeg6",
+      "date": "2026-09-23",
+      "amount": -508,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mp76aznhv0bb6",
+      "transferPairId": "mudvb85o0guqq",
+      "transferPairTxnId": "mudvb85ollycx"
+    },
+    {
+      "id": "mudvb85ollycx",
+      "date": "2026-09-23",
+      "amount": 508,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mpco4ljzg8q79",
+      "transferPairId": "mudvb85o0guqq",
+      "transferPairTxnId": "mudvb85o3jeg6"
     }
   ],
   "fixedExpenses": [],
