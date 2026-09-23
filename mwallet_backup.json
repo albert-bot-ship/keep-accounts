@@ -3170,6 +3170,78 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mudup9vfv3enq",
+      "date": "2026-09-23",
+      "amount": -699,
+      "desc": "中華電信",
+      "category": "mpkpd5uhst1z2",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt3b5ret5t3",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
+    },
+    {
+      "id": "mudurxbs6tsa5",
+      "date": "2026-09-23",
+      "amount": 37876,
+      "desc": "",
+      "category": "mp9mrsge4di8n",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt3b5ret5t3",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
+    },
+    {
+      "id": "muduvv05cti4w",
+      "date": "2026-09-24",
+      "amount": -18500,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "muduvv05qmsl5",
+      "transferPairTxnId": "muduvv050u6ir"
+    },
+    {
+      "id": "muduvv050u6ir",
+      "date": "2026-09-24",
+      "amount": 18500,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null,
+      "layerAmounts": [
+        {
+          "layerId": "mp76aznhv0bb6",
+          "amount": 3000
+        },
+        {
+          "layerId": "mquh4t2tofm0s",
+          "amount": 15500
+        }
+      ],
+      "transferPairId": "muduvv05qmsl5",
+      "transferPairTxnId": "muduvv05cti4w"
     }
   ],
   "fixedExpenses": [],
