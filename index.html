@@ -5417,14 +5417,18 @@ function renderTransfers() {
   const rows = paged.map(p=>{
     const fromName = getAcc(p.fromId)?.name || '未知帳戶';
     const toName   = p.toId ? (getAcc(p.toId)?.name || '未知帳戶') : '⚠️ 未配對';
+    const fromAccObj = getAcc(p.fromId);
+    const toAccObj   = p.toId ? getAcc(p.toId) : null;
+    const fromNameHtml = fromAccObj?.color ? `<span style="color:${fromAccObj.color};font-weight:600">${escHtml(fromName)}</span>` : escHtml(fromName);
+    const toNameHtml   = toAccObj?.color   ? `<span style="color:${toAccObj.color};font-weight:600">${escHtml(toName)}</span>`     : escHtml(toName);
     const fromLayer = txnLayerLabel(p.fromId, p.outTxn);
     const toLayer   = p.toId ? txnLayerLabel(p.toId, p.inTxn) : null;
     let routeHtml;
     if (p.fromId && p.toId && p.fromId===p.toId) {
       // 同帳戶跨分層轉帳：帳戶只顯示一次，標出分層 A → 分層 B
-      routeHtml = `${escHtml(fromName)}：${escHtml(fromLayer||'未指定分層')} → ${escHtml(toLayer||'未指定分層')}`;
+      routeHtml = `${fromNameHtml}：${escHtml(fromLayer||'未指定分層')} → ${escHtml(toLayer||'未指定分層')}`;
     } else {
-      routeHtml = `${escHtml(fromName)}${fromLayer?' <span style="font-size:11px;color:var(--tx-muted)">('+escHtml(fromLayer)+')</span>':''} → ${escHtml(toName)}${toLayer?' <span style="font-size:11px;color:var(--tx-muted)">('+escHtml(toLayer)+')</span>':''}`;
+      routeHtml = `${fromNameHtml}${fromLayer?' <span style="font-size:11px;color:var(--tx-muted)">('+escHtml(fromLayer)+')</span>':''} → ${toNameHtml}${toLayer?' <span style="font-size:11px;color:var(--tx-muted)">('+escHtml(toLayer)+')</span>':''}`;
     }
     return `<tr class="txn-row">
       <td style="white-space:nowrap">${p.date}</td>
