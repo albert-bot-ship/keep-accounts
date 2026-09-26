@@ -2759,7 +2759,9 @@
       "fee": 0,
       "isSavingsAllocation": false,
       "isTransferOut": false,
-      "isFixed": false
+      "isFixed": false,
+      "reimbursed": true,
+      "reimbursedDate": "2026-09-26"
     },
     {
       "id": "mu5p5uhei2oeb",
