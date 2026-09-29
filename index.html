@@ -363,9 +363,14 @@
             <select class="form-select" id="filterCat" style="width:110px" onchange="updateFilterBtn();renderTxns()">
               <option value="">全部類別</option>
             </select>
-            <select class="form-select" id="filterLayer" style="width:130px" onchange="updateFilterBtn();renderTxns()">
-              <option value="">全部分層</option>
-            </select>
+            <div class="layer-picker" id="filterLayer_picker" style="width:130px">
+              <div class="form-select layer-picker-trigger" id="filterLayer_trigger" onclick="toggleLayerPicker('filterLayer')">
+                <span class="layer-picker-trigger-text" id="filterLayer_text">全部分層</span>
+                <span class="layer-picker-caret">▾</span>
+              </div>
+              <input type="hidden" id="filterLayer" value="">
+              <div class="layer-picker-menu" id="filterLayer_menu"></div>
+            </div>
             <select class="form-select" id="filterType" style="width:95px" onchange="updateFilterBtn();renderTxns()">
               <option value="">全部</option>
               <option value="expense">支出</option>
@@ -5257,7 +5262,9 @@ function updateFilterBtn(forceOpen) {
 }
 function clearTxnFilters() {
   ['filterFrom','filterTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  ['filterSource','filterCat','filterLayer','filterType','filterTag'].forEach(id=>{const el=document.getElementById(id);if(el)el.selectedIndex=0;});
+  ['filterSource','filterCat','filterType','filterTag'].forEach(id=>{const el=document.getElementById(id);if(el)el.selectedIndex=0;});
+  const flHidden=document.getElementById('filterLayer'); if(flHidden) flHidden.value='';
+  const flText=document.getElementById('filterLayer_text'); if(flText){ flText.textContent='全部分層'; flText.style.color=''; }
   updateFilterBtn();
   renderTxns();
 }
@@ -5414,6 +5421,8 @@ function renderTransfers() {
     ? `<div style="background:var(--tx-red)15;border:1px solid var(--tx-red)55;color:var(--tx-red);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:8px">⚠️ 有 ${unpairedCount} 筆轉帳找不到配對記錄，請至「設定」頁使用「修復轉帳配對」處理</div>`
     : '';
 
+  const weekdays = ['日','一','二','三','四','五','六'];
+  let prevTfDate = null;
   const rows = paged.map(p=>{
     const fromName = getAcc(p.fromId)?.name || '未知帳戶';
     const toName   = p.toId ? (getAcc(p.toId)?.name || '未知帳戶') : '⚠️ 未配對';
@@ -5430,7 +5439,13 @@ function renderTransfers() {
     } else {
       routeHtml = `${fromNameHtml}${fromLayer?' <span style="font-size:11px;color:var(--tx-muted)">('+escHtml(fromLayer)+')</span>':''} → ${toNameHtml}${toLayer?' <span style="font-size:11px;color:var(--tx-muted)">('+escHtml(toLayer)+')</span>':''}`;
     }
-    return `<tr class="txn-row">
+    let groupRow = '';
+    if (p.date !== prevTfDate) {
+      const d = new Date(p.date+'T00:00:00');
+      groupRow = `<tr class="txn-date-group-row"><td colspan="5">${p.date.slice(5).replace('-','/')}　週${weekdays[d.getDay()]}</td></tr>`;
+      prevTfDate = p.date;
+    }
+    return `${groupRow}<tr class="txn-row">
       <td style="white-space:nowrap">${p.date}</td>
       <td style="white-space:nowrap">${routeHtml}</td>
       <td style="font-family:var(--ff-display);font-weight:700;color:var(--tx-blue)">${fmt(p.amount)}</td>
@@ -6578,18 +6593,19 @@ function renderTxns() {
   // Layer filter：所有信用卡分層＋銀行帳戶分層，標示所屬卡片/帳戶名稱以便辨識
   const layerSel=document.getElementById('filterLayer'), oldLayer=layerSel?.value||'';
   if (layerSel) {
-    layerSel.innerHTML='<option value="">全部分層</option>';
+    const filterLayerItems = [];
     DB.creditCards.forEach(c=>{
       (c.layers||[]).forEach(l=>{
-        layerSel.innerHTML+=`<option value="${l.id}">[卡] ${escHtml(c.name)} / ${escHtml(l.label)}</option>`;
+        filterLayerItems.push({ id:l.id, label:`[卡] ${c.name} / ${l.label}`, color:l.color||null });
       });
     });
     DB.bankAccounts.forEach(a=>{
       (a.layers||[]).forEach(l=>{
-        layerSel.innerHTML+=`<option value="${l.id}">[帳] ${escHtml(a.name)} / ${escHtml(l.label)}</option>`;
+        filterLayerItems.push({ id:l.id, label:`[帳] ${a.name} / ${l.label}`, color:l.color||null });
       });
     });
-    layerSel.value=oldLayer;
+    window._layerPickerOnChange['filterLayer'] = () => { updateFilterBtn(); renderTxns(); };
+    renderLayerPicker('filterLayer', filterLayerItems, oldLayer, '全部分層');
   }
 
   // Tag filter
@@ -6955,9 +6971,14 @@ function batchEditLayer() {
     </div>
     <div class="form-group" id="batchLayerSelGroup" style="display:none">
       <label class="form-label">選擇分層</label>
-      <select class="form-select" id="batchLayerSel">
-        <option value="">不指定分層（清除）</option>
-      </select>
+      <div class="layer-picker" id="batchLayerSel_picker">
+        <div class="form-select layer-picker-trigger" id="batchLayerSel_trigger" onclick="toggleLayerPicker('batchLayerSel')">
+          <span class="layer-picker-trigger-text" id="batchLayerSel_text">不指定分層（清除）</span>
+          <span class="layer-picker-caret">▾</span>
+        </div>
+        <input type="hidden" id="batchLayerSel" value="">
+        <div class="layer-picker-menu" id="batchLayerSel_menu"></div>
+      </div>
     </div>
     <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">
       ⚠ 只會對「來源與所選帳戶相符」的記錄套用分層，其他記錄略過。
@@ -6979,8 +7000,7 @@ function batchEditLayer() {
 
 function renderBatchLayerOptions(srcVal) {
   const group = document.getElementById('batchLayerSelGroup');
-  const sel   = document.getElementById('batchLayerSel');
-  if (!group || !sel) return;
+  if (!group) return;
   if (!srcVal) { group.style.display='none'; return; }
 
   const [sType, sId] = srcVal.split('_');
@@ -6992,11 +7012,10 @@ function renderBatchLayerOptions(srcVal) {
     return;
   }
 
-  sel.innerHTML = '<option value="">不指定分層（清除）</option>'
-    + layers.map(l => {
-        const bal = sType==='account' ? fmt(layerDynamicBalance(sId, l.id)) : fmt(l.amount||0);
-        return `<option value="${l.id}">${escHtml(l.label)}（${bal}）</option>`;
-      }).join('');
+  renderLayerPicker('batchLayerSel', layers.map(l => ({
+    id: l.id, label: l.label, color: l.color||null,
+    balanceText: sType==='account' ? fmt(layerDynamicBalance(sId, l.id)) : fmt(l.amount||0)
+  })), '', '不指定分層（清除）');
   group.style.display = '';
 }
 
@@ -8173,9 +8192,14 @@ function openModal(type,id,preCard,preAcc,extraId) {
         </label>
       </div>
       <div id="tSingleLayerDiv">
-        <select class="form-select" id="tLayer">
-          <option value="">不指定分層</option>
-        </select>
+        <div class="layer-picker" id="tLayer_picker">
+          <div class="form-select layer-picker-trigger" id="tLayer_trigger" onclick="toggleLayerPicker('tLayer')">
+            <span class="layer-picker-trigger-text" id="tLayer_text">不指定分層</span>
+            <span class="layer-picker-caret">▾</span>
+          </div>
+          <input type="hidden" id="tLayer" value="">
+          <div class="layer-picker-menu" id="tLayer_menu"></div>
+        </div>
         <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 選擇後可追蹤每筆消費從哪個分層支出</div>
       </div>
       <div id="tMultiLayerDiv" style="display:none">
@@ -8262,7 +8286,14 @@ function openModal(type,id,preCard,preAcc,extraId) {
         </label>
       </div>
       <div id="pyLayerSingleDiv">
-        <select class="form-select" id="pyLayer"><option value="">不指定分層</option></select>
+        <div class="layer-picker" id="pyLayer_picker">
+          <div class="form-select layer-picker-trigger" id="pyLayer_trigger" onclick="toggleLayerPicker('pyLayer')">
+            <span class="layer-picker-trigger-text" id="pyLayer_text">不指定分層</span>
+            <span class="layer-picker-caret">▾</span>
+          </div>
+          <input type="hidden" id="pyLayer" value="">
+          <div class="layer-picker-menu" id="pyLayer_menu"></div>
+        </div>
       </div>
       <div id="pyLayerMultiDiv" style="display:none">
         <div id="pyMultiList" style="display:flex;flex-direction:column;gap:6px"></div>
@@ -8289,7 +8320,14 @@ function openModal(type,id,preCard,preAcc,extraId) {
         </label>
       </div>
       <div id="tfFromSingleDiv">
-        <select class="form-select" id="tfFromLayer"><option value="">不指定分層</option></select>
+        <div class="layer-picker" id="tfFromLayer_picker">
+          <div class="form-select layer-picker-trigger" id="tfFromLayer_trigger" onclick="toggleLayerPicker('tfFromLayer')">
+            <span class="layer-picker-trigger-text" id="tfFromLayer_text">不指定分層</span>
+            <span class="layer-picker-caret">▾</span>
+          </div>
+          <input type="hidden" id="tfFromLayer" value="">
+          <div class="layer-picker-menu" id="tfFromLayer_menu"></div>
+        </div>
       </div>
       <div id="tfFromMultiDiv" style="display:none">
         <div id="tfFromMultiList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
@@ -8307,7 +8345,14 @@ function openModal(type,id,preCard,preAcc,extraId) {
         </label>
       </div>
       <div id="tfToSingleDiv">
-        <select class="form-select" id="tfToLayer"><option value="">不指定分層</option></select>
+        <div class="layer-picker" id="tfToLayer_picker">
+          <div class="form-select layer-picker-trigger" id="tfToLayer_trigger" onclick="toggleLayerPicker('tfToLayer')">
+            <span class="layer-picker-trigger-text" id="tfToLayer_text">不指定分層</span>
+            <span class="layer-picker-caret">▾</span>
+          </div>
+          <input type="hidden" id="tfToLayer" value="">
+          <div class="layer-picker-menu" id="tfToLayer_menu"></div>
+        </div>
       </div>
       <div id="tfToMultiDiv" style="display:none">
         <div id="tfToMultiList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
@@ -8424,9 +8469,14 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>
       <div class="form-group" id="subLayerGroup" style="display:${sub?.srcId?'':'none'}">
         <label class="form-label">分層（選填）</label>
-        <select class="form-select" id="subLayerId">
-          <option value="">不指定分層</option>
-        </select>
+        <div class="layer-picker" id="subLayerId_picker">
+          <div class="form-select layer-picker-trigger" id="subLayerId_trigger" onclick="toggleLayerPicker('subLayerId')">
+            <span class="layer-picker-trigger-text" id="subLayerId_text">不指定分層</span>
+            <span class="layer-picker-caret">▾</span>
+          </div>
+          <input type="hidden" id="subLayerId" value="">
+          <div class="layer-picker-menu" id="subLayerId_menu"></div>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">類別</label>
@@ -8445,12 +8495,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>`;
     f = `<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveSub()">儲存</button>`;
     setTimeout(()=>{
-      renderSubLayerSelect();
-      // 編輯時補選分層
-      if (sub?.layerId) {
-        const sel = document.getElementById('subLayerId');
-        if (sel) sel.value = sub.layerId;
-      }
+      renderSubLayerSelect(sub?.layerId||'');
     }, 60);
   }
 
@@ -8542,7 +8587,14 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>
       <div class="form-group" id="tplLayerGroup" style="display:none">
         <label class="form-label">分層</label>
-        <select class="form-select" id="tplLayer"></select>
+        <div class="layer-picker" id="tplLayer_picker">
+          <div class="form-select layer-picker-trigger" id="tplLayer_trigger" onclick="toggleLayerPicker('tplLayer')">
+            <span class="layer-picker-trigger-text" id="tplLayer_text">不指定分層</span>
+            <span class="layer-picker-caret">▾</span>
+          </div>
+          <input type="hidden" id="tplLayer" value="">
+          <div class="layer-picker-menu" id="tplLayer_menu"></div>
+        </div>
       </div>
       <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tplNotes" value="${escAttr(tpl?.notes||'')}"></div>`;
     f = `<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveTemplate('${tpl?.id||''}')">儲存</button>`;
@@ -8638,18 +8690,16 @@ function debugSubs() {
   generateSubscriptionTxns(true);
 }
 
-function renderSubLayerSelect() {
+function renderSubLayerSelect(preLayerId) {
   const srcId = document.getElementById('subSrcId')?.value || '';
   const layerGroup = document.getElementById('subLayerGroup');
-  const layerSel   = document.getElementById('subLayerId');
-  if (!layerGroup || !layerSel) return;
+  if (!layerGroup) return;
   layerGroup.style.display = srcId ? '' : 'none';
   if (!srcId) return;
   const [type, id] = srcId.split('_');
   const src = type==='card' ? getCard(id) : getAcc(id);
   const layers = src?.layers || [];
-  layerSel.innerHTML = '<option value="">不指定分層</option>'
-    + layers.map(l=>`<option value="${l.id}">${escHtml(l.label)}</option>`).join('');
+  renderLayerPicker('subLayerId', layers.map(l => ({ id: l.id, label: l.label, color: l.color||null })), preLayerId||'');
 }
 
 function saveSub() {
@@ -8885,15 +8935,12 @@ function confirmSaveTxn(txnObj) {
 // 填充分層選單通用函數
 function fillLayerSel(selId, groupId, accId) {
   const grp = document.getElementById(groupId);
-  const sel = document.getElementById(selId);
-  if (!grp || !sel) return;
+  if (!grp) return;
   const layers = getAcc(accId)?.layers || [];
   if (!layers.length) { grp.style.display='none'; return; }
-  sel.innerHTML = '<option value="">不指定分層</option>' +
-    layers.map(l=>{
-      const bal = layerDynamicBalance(accId, l.id);
-      return `<option value="${l.id}">${escHtml(l.label)}（${fmt(bal)}）</option>`;
-    }).join('');
+  renderLayerPicker(selId, layers.map(l => ({
+    id: l.id, label: l.label, color: l.color||null, balanceText: fmt(layerDynamicBalance(accId, l.id))
+  })), '');
   grp.style.display = '';
 }
 function onPayAccChange(srcVal) {
@@ -8949,23 +8996,72 @@ function recalcPayMultiTotal() {
   const amtEl = document.getElementById('pyAmt');
   if (amtEl && total > 0) amtEl.value = total;
 }
+// ════════════════════════════════════════════════════════════════
+// LAYER PICKER（自訂分層選擇清單元件，取代原生 <select>，可依分層顏色上色）
+// baseId 對應一個 hidden input（存值，供既有 v(baseId) 讀取邏輯沿用不變）
+// ════════════════════════════════════════════════════════════════
+window._layerPickerData = window._layerPickerData || {};
+window._layerPickerOnChange = window._layerPickerOnChange || {};
+function renderLayerPicker(baseId, layers, selectedValue, emptyLabel) {
+  emptyLabel = emptyLabel || '不指定分層';
+  const trigger = document.getElementById(baseId+'_trigger');
+  const text    = document.getElementById(baseId+'_text');
+  const menu    = document.getElementById(baseId+'_menu');
+  const hidden  = document.getElementById(baseId);
+  if (!trigger || !text || !menu || !hidden) return;
+
+  const items = [{ id:'', label:emptyLabel, color:null }].concat(
+    layers.map(l => ({ id:l.id, label: l.label + (l.balanceText!=null?`（${l.balanceText}）`:''), color: l.color||null }))
+  );
+  window._layerPickerData[baseId] = items;
+
+  menu.innerHTML = items.map(it => `
+    <div class="layer-picker-item${it.id===selectedValue?' sel':''}" onclick="selectLayerPickerOption('${baseId}','${it.id}')">
+      ${it.color?`<span class="layer-picker-dot" style="background:${it.color}"></span>`:''}
+      <span${it.color?` style="color:${it.color};font-weight:600"`:''}>${escHtml(it.label)}</span>
+    </div>`).join('');
+
+  hidden.value = selectedValue || '';
+  const sel = items.find(it => it.id === (selectedValue||''));
+  text.textContent = sel ? sel.label : emptyLabel;
+  text.style.color = sel?.color || '';
+}
+function toggleLayerPicker(baseId) {
+  document.querySelectorAll('.layer-picker-menu.open').forEach(m => { if (m.id !== baseId+'_menu') m.classList.remove('open'); });
+  document.getElementById(baseId+'_menu')?.classList.toggle('open');
+}
+function selectLayerPickerOption(baseId, value) {
+  const items = window._layerPickerData[baseId] || [];
+  const it = items.find(x => x.id === value);
+  const hidden = document.getElementById(baseId);
+  const text   = document.getElementById(baseId+'_text');
+  const menu   = document.getElementById(baseId+'_menu');
+  if (hidden) hidden.value = value;
+  if (text) { text.textContent = it ? it.label : '不指定分層'; text.style.color = it?.color || ''; }
+  menu?.querySelectorAll('.layer-picker-item').forEach(el => el.classList.remove('sel'));
+  menu?.classList.remove('open');
+  if (window._layerPickerOnChange[baseId]) window._layerPickerOnChange[baseId](value);
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.layer-picker')) {
+    document.querySelectorAll('.layer-picker-menu.open').forEach(m => m.classList.remove('open'));
+  }
+});
+
 function onTfAccChange(side, accId) {
   const groupId   = side==='from' ? 'tfFromLayerGroup' : 'tfToLayerGroup';
-  const singleId  = side==='from' ? 'tfFromSingleDiv'  : 'tfToSingleDiv';
   const multiId   = side==='from' ? 'tfFromMultiDiv'   : 'tfToMultiDiv';
-  const selId     = side==='from' ? 'tfFromLayer'       : 'tfToLayer';
+  const baseId    = side==='from' ? 'tfFromLayer'       : 'tfToLayer';
   const grp = document.getElementById(groupId);
-  const sel = document.getElementById(selId);
-  if (!grp || !sel) return;
+  if (!grp) return;
 
   const layers = getAcc(accId)?.layers || [];
   if (!layers.length) { grp.style.display='none'; return; }
 
-  sel.innerHTML = '<option value="">不指定分層</option>' +
-    layers.map(l=>{
-      const bal = layerDynamicBalance(accId, l.id);
-      return `<option value="${l.id}">${escHtml(l.label)}（${fmt(bal)}）</option>`;
-    }).join('');
+  renderLayerPicker(baseId, layers.map(l=>({
+    id: l.id, label: l.label, color: l.color||null,
+    balanceText: fmt(layerDynamicBalance(accId, l.id))
+  })), '');
   grp.style.display = '';
 
   // 若多分層模式已開，重新渲染分層輸入列表
@@ -9052,13 +9148,12 @@ function onTfMultiChk(side, layerId) {
 }
 
 function recalcTfMultiTotal(side) {
-  if (side !== 'from') return;
-  const list = document.getElementById('tfFromMultiList');
+  const list = document.getElementById(side==='from' ? 'tfFromMultiList' : 'tfToMultiList');
   if (!list) return;
+  const prefix = `tf${side}chk_`;
   const total = [...list.querySelectorAll('input[type="checkbox"]:checked')].reduce((s,chk)=>{
-    // id 格式：tffromchk_{layerId}
-    const layerId = chk.id.slice('tffromchk_'.length);
-    const a = +(document.getElementById(`tffromamt_${layerId}`)?.value)||0;
+    const layerId = chk.id.slice(prefix.length);
+    const a = +(document.getElementById(`tf${side}amt_${layerId}`)?.value)||0;
     return s+a;
   },0);
   const amtEl = document.getElementById('tfAmt');
@@ -9160,37 +9255,51 @@ function renderFeLayers() {
   if (srcVal.startsWith('account_')) srcLayers = getAcc(srcVal.split('_')[1])?.layers || [];
   else if (srcVal.startsWith('card_')) srcLayers = getCard(srcVal.split('_')[1])?.layers || [];
 
-  const layerOpts = srcLayers.map(l =>
-    `<option value="${l.id}" data-label="${escAttr(l.label)}" data-color="${l.color||'#888'}">${escHtml(l.label)}</option>`
-  ).join('');
-
   if (!layers.length) {
     wrap.innerHTML = '<div style="font-size:12px;color:var(--tx-muted)">尚無分層，點「＋ 選擇分層」加入</div>';
     syncFeTotal(); return;
   }
 
   wrap.innerHTML = layers.map((l, i) => {
-    const selOpts = srcLayers.length
-      ? `<select class="form-select" style="flex:1;height:32px;font-size:13px" onchange="updateFeLayerSel(${i},this)">
-           <option value="">選擇分層</option>
-           ${srcLayers.map(sl => `<option value="${sl.id}" data-label="${escAttr(sl.label)}" data-color="${sl.color||'#888'}"${sl.id===l.layerId?' selected':''}>${escHtml(sl.label)}</option>`).join('')}
-         </select>`
+    const baseId = `feLayerSel_${i}`;
+    const pickerHtml = srcLayers.length
+      ? `<div class="layer-picker" id="${baseId}_picker" style="flex:1">
+           <div class="form-select layer-picker-trigger" id="${baseId}_trigger" onclick="toggleLayerPicker('${baseId}')" style="height:32px;font-size:13px">
+             <span class="layer-picker-trigger-text" id="${baseId}_text">選擇分層</span>
+             <span class="layer-picker-caret">▾</span>
+           </div>
+           <input type="hidden" id="${baseId}" value="">
+           <div class="layer-picker-menu" id="${baseId}_menu"></div>
+         </div>`
       : `<span style="font-size:12px;color:var(--tx-muted);flex:1">請先選擇帳戶/卡片</span>`;
     return `<div class="layer-bar" style="gap:8px;align-items:center">
       <div style="width:12px;height:12px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
-      ${selOpts}
+      ${pickerHtml}
       <button class="btn btn-danger btn-icon btn-sm" onclick="removeFeLayer(${i})">✕</button>
     </div>`;
   }).join('');
+
+  // 逐列填入分層選項（顏色套用分層自己的顏色）並註冊選取後的回呼
+  if (srcLayers.length) {
+    layers.forEach((l, i) => {
+      const baseId = `feLayerSel_${i}`;
+      window._layerPickerOnChange[baseId] = (val) => applyFeLayerSelection(i, val);
+      renderLayerPicker(baseId, srcLayers.map(sl=>({ id:sl.id, label:sl.label, color:sl.color||'#888' })), l.layerId||'', '選擇分層');
+    });
+  }
   syncFeTotal();
 }
 
-function updateFeLayerSel(idx, sel) {
+function applyFeLayerSelection(idx, layerId) {
   const layers = getFeLayersData(); if (!layers[idx]) return;
-  const opt = sel.options[sel.selectedIndex];
-  layers[idx].layerId = sel.value;
-  layers[idx].label   = opt.dataset.label || '';
-  layers[idx].color   = opt.dataset.color || '#888';
+  const srcVal = document.getElementById('feSrc')?.value || '';
+  let srcLayers = [];
+  if (srcVal.startsWith('account_')) srcLayers = getAcc(srcVal.split('_')[1])?.layers || [];
+  else if (srcVal.startsWith('card_')) srcLayers = getCard(srcVal.split('_')[1])?.layers || [];
+  const sl = srcLayers.find(x=>x.id===layerId);
+  layers[idx].layerId = layerId;
+  layers[idx].label   = sl?.label || '';
+  layers[idx].color   = sl?.color || '#888';
   setFeLayersData(layers); renderFeLayers();
 }
 
@@ -10270,10 +10379,9 @@ function toggleCustomDays(period) {
 // 帳戶來源切換時，動態顯示分層選單
 function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
   const group = document.getElementById('tLayerGroup');
-  const sel   = document.getElementById('tLayer');
   const feeGroup = document.getElementById('tFeeGroup');
   const fxGroup  = document.getElementById('tFxGroup');
-  if (!group || !sel) return;
+  if (!group) return;
 
   if (feeGroup) feeGroup.style.display = srcVal.startsWith('card_') ? '' : 'none';
 
@@ -10314,8 +10422,7 @@ function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
   if (!layers.length) { group.style.display='none'; return; }
 
   // 填充單選分層
-  sel.innerHTML = '<option value="">不指定分層</option>' +
-    layers.map(l => {
+  const layerOptsData = layers.map(l => {
       let display;
       if (srcVal.startsWith('account_')) {
         const accId = srcVal.split('_')[1];
@@ -10337,9 +10444,9 @@ function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
           display = fmt(consumed);
         }
       }
-      return `<option value="${l.id}"${l.id===preLayerId?' selected':''}>${l.label}（${display}）</option>`;
-    }).join('');
-  if (preLayerId) sel.value = preLayerId;
+      return { id: l.id, label: l.label, color: l.color||null, balanceText: display };
+    });
+  renderLayerPicker('tLayer', layerOptsData, preLayerId||'');
 
   // 若是編輯多分層記錄，切換到多分層模式
   const toggle = document.getElementById('tMultiLayerToggle');
@@ -10358,15 +10465,13 @@ function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
 // ════════════════════════════════════════════════════════════════
 function onTplSrcChange(srcVal, preLayerId) {
   const group = document.getElementById('tplLayerGroup');
-  const sel = document.getElementById('tplLayer');
-  if (!group || !sel) return;
-  if (!srcVal) { group.style.display='none'; sel.innerHTML=''; return; }
+  if (!group) return;
+  if (!srcVal) { group.style.display='none'; return; }
   let layers = [];
   if (srcVal.startsWith('account_')) layers = getAcc(srcVal.split('_')[1])?.layers || [];
   else if (srcVal.startsWith('card_')) layers = getCard(srcVal.split('_')[1])?.layers || [];
-  if (!layers.length) { group.style.display='none'; sel.innerHTML=''; return; }
-  sel.innerHTML = '<option value="">不指定分層</option>' +
-    layers.map(l=>`<option value="${l.id}"${l.id===preLayerId?' selected':''}>${escHtml(l.label)}</option>`).join('');
+  if (!layers.length) { group.style.display='none'; return; }
+  renderLayerPicker('tplLayer', layers.map(l=>({ id:l.id, label:l.label, color:l.color||null })), preLayerId||'');
   group.style.display = '';
 }
 function saveTemplate(id) {
@@ -10745,9 +10850,14 @@ function openQuickAdd() {
     </div>
     <div class="form-group" id="qaLayerGroup" style="display:none">
       <label class="form-label">扣款分層（選填）</label>
-      <select class="form-select" id="qaLayer">
-        <option value="">不指定分層</option>
-      </select>
+      <div class="layer-picker" id="qaLayer_picker">
+        <div class="form-select layer-picker-trigger" id="qaLayer_trigger" onclick="toggleLayerPicker('qaLayer')">
+          <span class="layer-picker-trigger-text" id="qaLayer_text">不指定分層</span>
+          <span class="layer-picker-caret">▾</span>
+        </div>
+        <input type="hidden" id="qaLayer" value="">
+        <div class="layer-picker-menu" id="qaLayer_menu"></div>
+      </div>
       <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 選擇後可追蹤每筆消費從哪個分層支出</div>
     </div>
     <div class="form-group" id="qaFeeGroup" style="display:none">
@@ -10776,9 +10886,8 @@ function openQuickAdd() {
 // 快速記帳帳戶切換 → 動態顯示分層、手續費
 function onQaSrcChange(srcVal) {
   const group    = document.getElementById('qaLayerGroup');
-  const sel      = document.getElementById('qaLayer');
   const feeGroup = document.getElementById('qaFeeGroup');
-  if (!group || !sel) return;
+  if (!group) return;
 
   // 手續費：只在信用卡時顯示
   if (feeGroup) feeGroup.style.display = srcVal.startsWith('card_') ? '' : 'none';
@@ -10793,8 +10902,7 @@ function onQaSrcChange(srcVal) {
   }
 
   if (!layers.length) { group.style.display = 'none'; return; }
-  sel.innerHTML = '<option value="">不指定分層</option>' +
-    layers.map(l => {
+  const layerOpts = layers.map(l => {
       let display;
       if (srcVal.startsWith('account_')) {
         const accId = srcVal.split('_')[1];
@@ -10806,8 +10914,9 @@ function onQaSrcChange(srcVal) {
           .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
         display = fmt((l.amount||0) + txAmt);
       }
-      return `<option value="${l.id}">${escHtml(l.label)}（${display}）</option>`;
-    }).join('');
+      return { id: l.id, label: l.label, color: l.color||null, balanceText: display };
+    });
+  renderLayerPicker('qaLayer', layerOpts, '');
   group.style.display = '';
 }
 
@@ -11867,12 +11976,20 @@ function _refreshInstBoundLayerOptions(presetVal) {
   const card = getCard(sId);
   const layers = (card?.layers||[]) || [];
   const curInstId = (modalType==='editInstall') ? editTarget : null;
-  const opts = layers
+  const layerItems = layers
     .filter(l => !l.boundInstallId || l.boundInstallId===curInstId)
-    .map(l => `<option value="${sId}_${l.id}">${escHtml(l.label)}</option>`).join('');
+    .map(l => ({ id: `${sId}_${l.id}`, label: l.label, color: l.color||null }));
   wrap.innerHTML = `<div class="form-group"><label class="form-label">綁定信用卡分層（選填）<span style="font-size:11px;color:var(--tx-muted);margin-left:4px">綁定後，該分層的分期金額會自動同步這筆分期追蹤的進度</span></label>
-    <select class="form-select" id="instBoundLayer"><option value="">不綁定</option>${opts}</select></div>`;
-  setTimeout(()=>{ const el=document.getElementById('instBoundLayer'); if (el && presetVal) el.value = presetVal; }, 0);
+    <div class="layer-picker" id="instBoundLayer_picker">
+      <div class="form-select layer-picker-trigger" id="instBoundLayer_trigger" onclick="toggleLayerPicker('instBoundLayer')">
+        <span class="layer-picker-trigger-text" id="instBoundLayer_text">不綁定</span>
+        <span class="layer-picker-caret">▾</span>
+      </div>
+      <input type="hidden" id="instBoundLayer" value="">
+      <div class="layer-picker-menu" id="instBoundLayer_menu"></div>
+    </div>
+  </div>`;
+  renderLayerPicker('instBoundLayer', layerItems, presetVal||'', '不綁定');
 }
 
 // ════════════════════════════════════════════════════════════════
