@@ -3550,6 +3550,34 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mum8brzdnjkhu",
+      "date": "2026-09-24",
+      "amount": -831,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mq8v1xxlmsfhq",
+      "transferPairId": "mum8brzdct9g1",
+      "transferPairTxnId": "mum8brzdarprb"
+    },
+    {
+      "id": "mum8brzdarprb",
+      "date": "2026-09-24",
+      "amount": 831,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "msoaaqi4bf9j2",
+      "transferPairId": "mum8brzdct9g1",
+      "transferPairTxnId": "mum8brzdnjkhu"
     }
   ],
   "fixedExpenses": [],
