@@ -11816,14 +11816,38 @@ async function forceUpdateStockPrices() {
   else toast(`⚠ 股價抓取全部失敗：${failed.join('、')}`,'danger');
 }
 async function fetchSingleStock(symbol) {
+  let lastErr='';
+
+  // 台股優先直接打證交所官方介面（不透過任何代理，最穩定）
+  if (/\.TW$/i.test(symbol)) {
+    const code = symbol.replace(/\.TW$/i,'');
+    const twseUrl = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?json=1&delay=0&ex_ch=tse_${code}.tw|otc_${code}.tw`;
+    try {
+      const res = await fetch(twseUrl, {signal:AbortSignal.timeout(8000)});
+      if (res.ok) {
+        const data = await res.json();
+        const row = data?.msgArray?.[0];
+        const price = parseFloat(row?.z);
+        if (row && !isNaN(price) && row.z !== '-') {
+          const prev = parseFloat(row.y) || price;
+          const change = price - prev, changePct = prev ? (change/prev*100) : 0;
+          stockPrices[symbol.toUpperCase()]={price,change,changePct,currency:'TWD',name:row.n||symbol,updatedAt:Date.now()};
+          return {ok:true};
+        }
+        lastErr = '證交所無資料';
+      } else {
+        lastErr = `證交所 HTTP ${res.status}`;
+      }
+    } catch(e) { lastErr = '證交所：'+(e.message||String(e)); }
+  }
+
+  // 其餘股票，或證交所介面失敗 → 退回 Yahoo + 代理鏈
   const base='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol)+'?interval=1d&range=1d';
   const proxies=[
     'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(base),
     'https://api.allorigins.win/raw?url='+encodeURIComponent(base),
     'https://thingproxy.freeboard.io/fetch/'+base,
   ];
-  let lastErr='';
-  // 先試直連
   for(const url of [base,...proxies]){
     try{
       const res=await fetch(url,{signal:AbortSignal.timeout(8000)});
