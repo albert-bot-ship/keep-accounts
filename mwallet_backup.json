@@ -3642,6 +3642,23 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "muqdo6spuxjw2",
+      "date": "2026-09-30",
+      "amount": -8000,
+      "desc": "",
+      "category": "mp9mudorweuu2",
+      "sourceId": "mov4sadxpcepw",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt9nf0j6och",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": true,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
