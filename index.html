@@ -11093,6 +11093,7 @@ function requestNotifyPermission() {
 }
 
 function checkBackupReminder() {
+  return; // 備份提醒橫幅已停用
   const last = parseInt(localStorage.getItem('mwallet_last_backup') || '0');
   const interval = parseInt(localStorage.getItem('mwallet_backup_interval') || '30');
   const daysSince = (Date.now() - last) / 86400000;
