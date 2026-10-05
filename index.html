@@ -2030,6 +2030,56 @@ function layerDynamicBalance(accId, layerId) {
     .reduce((s,a)=>s+a.amount, 0);
   return (layer.amount||0) + txSum + mlSum + allocSum;
 }
+
+// 逐筆累計餘額（即時計算，不寫入資料）
+// 依 日期 → 建立時間（id 時間戳）排序，逐筆推算每筆交易當下的分層餘額／帳戶總餘額
+// 計算口徑與 layerDynamicBalance / accountBalance 一致；信用卡交易不計算
+function buildTxnRunningBalances() {
+  const state = {};
+  DB.bankAccounts.forEach(a=>{
+    const ls = {}; let tot = 0;
+    (a.layers||[]).forEach(l=>{ ls[l.id] = l.amount||0; tot += l.amount||0; });
+    state[a.id] = { ls, tot, isFx: a.accType==='外幣' };
+  });
+  const idTs = id => { const n = parseInt(String(id||'').slice(0,-5), 36); return isNaN(n) ? 0 : n; };
+  const txnIds = new Set(DB.transactions.map(t=>t.id));
+  const allocByTxn = {}, looseAllocs = [];
+  (DB.layerAllocations||[]).forEach(a=>{
+    if (a.txnId && txnIds.has(a.txnId)) (allocByTxn[a.txnId] = allocByTxn[a.txnId]||[]).push(a);
+    else looseAllocs.push(a);
+  });
+  const events = [
+    ...DB.transactions.filter(t=>t.sourceType==='account' && state[t.sourceId]).map(t=>({date:t.date||'', ts:idTs(t.id), id:t.id, t})),
+    ...looseAllocs.filter(a=>state[a.accId]).map(a=>({date:a.date||'', ts:idTs(a.id), id:a.id, a}))
+  ].sort((x,y)=> x.date.localeCompare(y.date) || (x.ts-y.ts) || String(x.id).localeCompare(String(y.id)));
+  const map = {};
+  events.forEach(e=>{
+    if (e.a) {
+      const st = state[e.a.accId];
+      if (st.ls[e.a.layerId] !== undefined) st.ls[e.a.layerId] += e.a.amount||0;
+      return;
+    }
+    const t = e.t, s = state[t.sourceId];
+    const v = (s.isFx && t.fxAmount!=null) ? t.fxAmount : t.amount;
+    s.tot += v;
+    const touched = new Set();
+    if (t.layerId && s.ls[t.layerId] !== undefined) { s.ls[t.layerId] += v; touched.add(t.layerId); }
+    (t.layerAmounts||[]).forEach(la=>{
+      if (s.ls[la.layerId] !== undefined) { s.ls[la.layerId] += la.amount||0; touched.add(la.layerId); }
+    });
+    (allocByTxn[t.id]||[]).forEach(a=>{
+      const st = state[a.accId];
+      if (st && st.ls[a.layerId] !== undefined) {
+        st.ls[a.layerId] += a.amount||0;
+        if (a.accId === t.sourceId) touched.add(a.layerId);
+      }
+    });
+    map[t.id] = touched.size
+      ? { type:'layer', items:[...touched].map(lid=>({ lid, bal:s.ls[lid] })) }
+      : { type:'total', bal:s.tot };
+  });
+  return map;
+}
 function rangedTxns() {
   const now = new Date();
   const t0 = today();
@@ -6712,6 +6762,19 @@ function txnTable(txns, withActions, periodInfo) {
 
   const total = txns.reduce((s,t)=>s+t.amount-(t.fee&&t.amount<0?t.fee:0),0);
 
+  // 逐筆餘額顯示（僅銀行帳戶；有分層顯示分層餘額，無分層顯示帳戶總餘額）
+  const runBal = buildTxnRunningBalances();
+  const balLine = (t) => {
+    const r = runBal[t.id]; if (!r) return '';
+    const f = n => `<span style="${n<0?'color:var(--tx-red)':''}">${n<0?'−':''}${fmt(n)}</span>`;
+    if (r.type === 'total') return `帳戶餘額 ${f(r.bal)}`;
+    const acc = getAcc(t.sourceId);
+    return r.items.map(it=>{
+      const label = (acc?.layers||[]).find(l=>l.id===it.lid)?.label || '分層';
+      return `${escHtml(label)} 餘額 ${f(it.bal)}`;
+    }).join('<br>');
+  };
+
   // ══ 桌面版 TABLE ══════════════════════════════════
   prevDate = null;
   let lastPeriodDesktop = 'INIT';
@@ -6755,7 +6818,7 @@ function txnTable(txns, withActions, periodInfo) {
       <td>${escHtml(t.desc)}${t.fxCurrency&&t.fxAmount?' <span style="font-size:10px;color:var(--tx-muted)">'+t.fxCurrency+' '+t.fxAmount.toLocaleString()+'</span>':''}${sysTags}${mlBadge}${layerBadge}${feeBadge}${userTagBadges}</td>
       <td><span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span></td>
       <td style="white-space:nowrap">${sourceName(t)}</td>
-      <td class="${amtCls}" style="white-space:nowrap">${sign}${fmt(Math.abs(t.amount))}</td>
+      <td class="${amtCls}" style="white-space:nowrap">${sign}${fmt(Math.abs(t.amount))}${(()=>{const b=balLine(t);return b?`<div style="font-size:11px;font-weight:400;color:var(--tx-muted);margin-top:2px">${b}</div>`:'';})()}</td>
       <td style="color:var(--tx-secondary);font-size:12px">${escHtml(t.notes||'—')}</td>
       ${act}
     </tr>${mlDetailRow}`;
@@ -6819,6 +6882,7 @@ function txnTable(txns, withActions, periodInfo) {
         <div class="txn-card-amount ${amtCls}">${sign}${fmt(Math.abs(t.amount))}</div>
         ${actBtns}
       </div>
+      ${(()=>{const b=balLine(t);return b?`<div class="txn-card-bal" style="text-align:right;font-size:11px;color:var(--tx-muted);margin-top:2px;line-height:1.5">${b}</div>`:'';})()}
       <div class="txn-card-bottom">
         <span class="txn-card-date">${t.date}</span>
         <span style="color:var(--tx-muted)">·</span>
