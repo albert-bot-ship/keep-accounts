@@ -4052,6 +4052,23 @@
       "layerId": "mtm8xyfv8xhlf",
       "transferPairId": "mux19yulrgxsn",
       "transferPairTxnId": "mux19yulk24oc"
+    },
+    {
+      "id": "mux1fdkm6s5qq",
+      "date": "2026-10-07",
+      "amount": 2000,
+      "desc": "爸爸轉咖啡錢",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt7wruf1yp4",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
