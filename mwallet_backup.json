@@ -226,6 +226,13 @@
           "amount": 0,
           "color": "#0400fa",
           "goal": null
+        },
+        {
+          "id": "muyysu8k282y7",
+          "label": "公司旅遊補助金",
+          "amount": 45000,
+          "color": "#b762e4",
+          "goal": null
         }
       ],
       "last4": "",
@@ -3459,7 +3466,9 @@
       "fee": 0,
       "isSavingsAllocation": false,
       "isTransferOut": false,
-      "isFixed": false
+      "isFixed": false,
+      "reimbursed": true,
+      "reimbursedDate": "2026-10-08"
     },
     {
       "id": "mum7q26hr4gf4",
@@ -3476,7 +3485,9 @@
       "fee": 0,
       "isSavingsAllocation": false,
       "isTransferOut": false,
-      "isFixed": false
+      "isFixed": false,
+      "reimbursed": true,
+      "reimbursedDate": "2026-10-08"
     },
     {
       "id": "mum83zdmf9yj4",
@@ -4109,6 +4120,40 @@
       "notes": "",
       "isRedemption": false,
       "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
+    },
+    {
+      "id": "muyyvuv16ah3q",
+      "date": "2026-10-08",
+      "amount": 647,
+      "desc": "",
+      "category": "mp9msdpowi02o",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mt84rxv5bsopq",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
+    },
+    {
+      "id": "muyywhfoc20e1",
+      "date": "2026-10-08",
+      "amount": 754,
+      "desc": "公務車加油",
+      "category": "mp9msdpowi02o",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mtmc464rie9ta",
       "tags": [],
       "fee": 0,
       "isSavingsAllocation": false,
