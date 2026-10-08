@@ -2610,6 +2610,35 @@ function getAnomalousTxns() {
   });
 }
 
+// 偏高消費明細：在 getAnomalousTxns() 結果上補上「上月同分層平均」供健康卡清單顯示（判斷邏輯不變）
+function getAnomalyDetails() {
+  const list = getAnomalousTxns();
+  const now = new Date();
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const lastYM = lastMonthDate.getFullYear()+'-'+String(lastMonthDate.getMonth()+1).padStart(2,'0');
+  const stat = {};
+  DB.transactions.filter(t=>t.date.startsWith(lastYM)&&t.amount<0&&!t.isTransfer&&t.layerId).forEach(t=>{
+    if (!stat[t.layerId]) stat[t.layerId] = {sum:0,count:0};
+    stat[t.layerId].sum += Math.abs(t.amount);
+    stat[t.layerId].count += 1;
+  });
+  return list.map(t=>{
+    const s = stat[t.layerId];
+    const avg = s ? s.sum/s.count : 0;
+    const src = t.sourceType==='card' ? getCard(t.sourceId) : getAcc(t.sourceId);
+    const layer = (src?.layers||[]).find(l=>l.id===t.layerId);
+    return { t, avg, count: s?s.count:0, ratio: avg>0 ? Math.abs(t.amount)/avg : 0, layer };
+  }).sort((a,b)=> b.t.date.localeCompare(a.t.date));
+}
+let healthAnomalyOpen = false;
+function toggleHealthAnomaly() {
+  healthAnomalyOpen = !healthAnomalyOpen;
+  const box = document.getElementById('healthAnomalyList');
+  const arw = document.getElementById('healthAnomalyArrow');
+  if (box) box.style.display = healthAnomalyOpen ? 'flex' : 'none';
+  if (arw) arw.textContent = healthAnomalyOpen ? '▾' : '▸';
+}
+
 function calcHealthScore() {
   const now = new Date();
   const ym = nowYM();
@@ -2650,7 +2679,7 @@ function calcHealthScore() {
   // 異常消費：單筆金額明顯高於該分層上個月平均
   const anomalousTxns = getAnomalousTxns();
   if (anomalousTxns.length > 0) {
-    notes.push({icon:'🔴',txt:`${anomalousTxns.length} 筆消費金額明顯偏高`,val:`超過上月同分層平均 ${getAnomalyMultiplier()} 倍`});
+    notes.push({icon:'🔴',txt:`${anomalousTxns.length} 筆消費金額明顯偏高`,val:`超過上月同分層平均 ${getAnomalyMultiplier()} 倍`,detail:'anomaly'});
   }
 
   score = Math.max(0, Math.min(100, score));
@@ -2681,7 +2710,21 @@ function renderHealthScore() {
       <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:4px">本月財務健康</div>
       <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:${color};margin-bottom:8px">${label}</div>
       <div style="display:flex;flex-direction:column;gap:4px">
-        ${notes.map(n=>`<div style="font-size:11px;color:var(--tx-secondary)">${n.icon} ${n.txt}${n.val?` <span style="color:var(--tx-muted)">${n.val}</span>`:''}</div>`).join('')}
+        ${notes.map(n=>{
+          if (n.detail !== 'anomaly') return `<div style="font-size:11px;color:var(--tx-secondary)">${n.icon} ${n.txt}${n.val?` <span style="color:var(--tx-muted)">${n.val}</span>`:''}</div>`;
+          const items = getAnomalyDetails().map(d=>`<div style="padding:6px 8px;border-radius:8px;background:var(--bg-secondary);font-size:11px;line-height:1.5">
+              <div style="display:flex;justify-content:space-between;gap:8px">
+                <span style="color:var(--tx-primary);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.t.date.slice(5).replace('-','/')}　${escHtml(d.t.desc||'—')}</span>
+                <span style="color:var(--tx-red);font-weight:700;white-space:nowrap">−${fmt(Math.abs(d.t.amount))}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;gap:8px;color:var(--tx-muted)">
+                <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(sourceName(d.t))}／${escHtml(d.layer?.label||'—')}</span>
+                <span style="white-space:nowrap">上月平均 ${fmt(Math.round(d.avg))}（${d.count} 筆）· ${d.ratio.toFixed(1)} 倍</span>
+              </div>
+            </div>`).join('');
+          return `<div style="font-size:11px;color:var(--tx-secondary);cursor:pointer" onclick="toggleHealthAnomaly()">${n.icon} ${n.txt}${n.val?` <span style="color:var(--tx-muted)">${n.val}</span>`:''} <span id="healthAnomalyArrow" style="color:var(--tx-muted)">${healthAnomalyOpen?'▾':'▸'}</span></div>
+            <div id="healthAnomalyList" style="display:${healthAnomalyOpen?'flex':'none'};flex-direction:column;gap:4px;margin:2px 0 4px 18px">${items}</div>`;
+        }).join('')}
       </div>
     </div>
   </div>`;
