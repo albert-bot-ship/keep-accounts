@@ -4163,6 +4163,34 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mv4t45jw6gcx2",
+      "date": "2026-10-12",
+      "amount": -2741,
+      "desc": "轉帳 → 遠東銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mtmc464rie9ta",
+      "transferPairId": "mv4t45jw1tth8",
+      "transferPairTxnId": "mv4t45jw9h781"
+    },
+    {
+      "id": "mv4t45jw9h781",
+      "date": "2026-10-12",
+      "amount": 2741,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4un0o9i6ja",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowtbbfi5phoq",
+      "transferPairId": "mv4t45jw1tth8",
+      "transferPairTxnId": "mv4t45jw6gcx2"
     }
   ],
   "fixedExpenses": [],
