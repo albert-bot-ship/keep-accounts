@@ -4287,6 +4287,23 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mv8dl9qhd2gx4",
+      "date": "2026-10-15",
+      "amount": 1700,
+      "desc": "老婆頭髮錢",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt8rfv4npge",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
