@@ -3474,3 +3474,10 @@ body.m-easter-shake{ animation:mEasterShake .5s ease; }
   65% { opacity:.25; }
   100%{ opacity:0; }
 }
+
+/* ── 列表分組樣式：日期膠囊標籤 / 本期・上一期分界列 ── */
+.date-pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:700;line-height:1.6;background:rgba(77,159,255,.16);color:#4D9FFF;white-space:nowrap}
+body.light-theme .date-pill{background:rgba(0,87,184,.10);color:#0057B8}
+.period-row-cur{border-left:4px solid #4D9FFF !important;background:rgba(77,159,255,.12) !important}
+body.light-theme .period-row-cur{border-left-color:#0057B8 !important;background:rgba(0,87,184,.08) !important}
+.period-row-prev{border-left:4px solid #8888aa !important;background:rgba(136,136,170,.12) !important}
