@@ -5535,7 +5535,7 @@ function renderTransfers() {
     let groupRow = '';
     if (p.date !== prevTfDate) {
       const d = new Date(p.date+'T00:00:00');
-      groupRow = `<tr class="txn-date-group-row"><td colspan="5">${p.date.slice(5).replace('-','/')}　週${weekdays[d.getDay()]}</td></tr>`;
+      groupRow = `<tr class="txn-date-group-row"><td colspan="5" style="padding:10px 12px 4px"><span class="date-pill">${p.date.slice(5).replace('-','/')} 週${weekdays[d.getDay()]}</span></td></tr>`;
       prevTfDate = p.date;
     }
     return `${groupRow}<tr class="txn-row">
@@ -5572,7 +5572,7 @@ function renderTransfers() {
     let groupHdr = '';
     if (p.date !== prevTfDateM) {
       const d = new Date(p.date+'T00:00:00');
-      groupHdr = `<div class="txn-date-group-row" style="padding:8px 14px 4px;font-size:12px;font-weight:600;color:var(--tx-muted)">${p.date.slice(5).replace('-','/')}　週${weekdays[d.getDay()]}</div>`;
+      groupHdr = `<div class="txn-date-group-row" style="padding:10px 14px 4px"><span class="date-pill">${p.date.slice(5).replace('-','/')} 週${weekdays[d.getDay()]}</span></div>`;
       prevTfDateM = p.date;
     }
     return `${groupHdr}<div class="txn-card-mobile">
@@ -6803,10 +6803,11 @@ function txnTable(txns, withActions, periodInfo) {
     const text = isCur
       ? `📌 本期消費　${periodInfo.curStart.slice(5)} ～ ${periodInfo.curEnd.slice(5)}`
       : `📋 上一期　${periodInfo.prevStart.slice(5)} ～ ${periodInfo.prevEnd.slice(5)}`;
-    const style = 'padding:10px 12px 4px;font-weight:700;font-size:12px;color:var(--tx-primary);background:var(--bg-secondary);border-top:2px solid var(--bdr-subtle)';
+    const style = 'padding:10px 12px 8px;font-weight:700;font-size:12px;color:var(--tx-primary);border-radius:0';
+    const pCls = isCur ? 'period-row-cur' : 'period-row-prev';
     return mobile
-      ? `<div class="txn-period-group-row" style="${style}">${text}</div>`
-      : `<tr class="txn-period-group-row"><td colspan="${withActions?7:5}" style="${style}">${text}</td></tr>`;
+      ? `<div class="txn-period-group-row ${pCls}" style="${style}">${text}</div>`
+      : `<tr class="txn-period-group-row"><td colspan="${withActions?7:5}" class="${pCls}" style="${style}">${text}</td></tr>`;
   };
 
   // ── 共用資料處理 ──────────────────────────────────
@@ -6870,7 +6871,7 @@ function txnTable(txns, withActions, periodInfo) {
     let groupRow = '';
     if (withActions && t.date !== prevDate) {
       const d = new Date(t.date+'T00:00:00');
-      groupRow = `<tr class="txn-date-group-row"><td colspan="7">${t.date.slice(5).replace('-','/')}　週${weekdays[d.getDay()]}</td></tr>`;
+      groupRow = `<tr class="txn-date-group-row"><td colspan="7" style="padding:10px 12px 4px"><span class="date-pill">${t.date.slice(5).replace('-','/')} 週${weekdays[d.getDay()]}</span></td></tr>`;
       prevDate = t.date;
     }
     const mlDetailRow = hasML ? `<tr id="mldetail_d_${t.id}" style="display:none;background:var(--bg-secondary)">
@@ -6932,7 +6933,7 @@ function txnTable(txns, withActions, periodInfo) {
     let groupHdr = '';
     if (withActions && t.date !== prevDate) {
       const d = new Date(t.date+'T00:00:00');
-      groupHdr = `<div class="txn-date-group-row" style="display:flex"><td colspan="1">${t.date.slice(5).replace('-','/')}　週${weekdays[d.getDay()]}</td></div>`;
+      groupHdr = `<div class="txn-date-group-row" style="padding:10px 14px 4px"><span class="date-pill">${t.date.slice(5).replace('-','/')} 週${weekdays[d.getDay()]}</span></div>`;
       prevDate = t.date;
     }
     const chkBox = (withActions&&batchMode)
