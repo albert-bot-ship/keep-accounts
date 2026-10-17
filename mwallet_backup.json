@@ -3933,7 +3933,7 @@
     },
     {
       "id": "muy1dkdlo2c7h",
-      "date": "2026-10-07",
+      "date": "2026-10-08",
       "amount": -175,
       "desc": "711",
       "category": "mov4018zwuesg",
@@ -4099,7 +4099,7 @@
     },
     {
       "id": "mv0sqfv4dd3z4",
-      "date": "2026-10-09",
+      "date": "2026-10-07",
       "amount": 10058,
       "desc": "繳款入帳 — CUBE",
       "category": "mq0967uv5w2s3",
@@ -4108,11 +4108,17 @@
       "notes": "",
       "isPayment": true,
       "isTransfer": false,
-      "transferPairTxnId": "mv0sqfv4rf8f5"
+      "transferPairTxnId": "mv0sqfv4rf8f5",
+      "isRedemption": false,
+      "layerId": null,
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false
     },
     {
       "id": "mv0sqk8ji3uj9",
-      "date": "2026-10-10",
+      "date": "2026-10-07",
       "amount": -1967,
       "desc": "美金保單（分期 11/12）",
       "category": "mp9mudorweuu2",
@@ -4121,7 +4127,12 @@
       "notes": "",
       "isFixed": false,
       "tags": [],
-      "installId": "msogxtnznyymh"
+      "installId": "msogxtnznyymh",
+      "isRedemption": false,
+      "layerId": null,
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false
     },
     {
       "id": "mv2lhqnppqm2g",
