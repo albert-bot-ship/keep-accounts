@@ -327,7 +327,7 @@
         <div class="page-title">消費記錄</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="copyLastTxn()" title="複製最後一筆消費">📋 複製上筆</button>
-          <button class="btn btn-primary" onclick="openModal('addTxn')">＋ 新增記錄</button>
+          <button class="btn btn-primary" onclick="openAddTxnForFilterSource()">＋ 新增記錄</button>
         </div>
       </div>
       <div id="txnSourceChip"></div>
@@ -2360,6 +2360,8 @@ function generateSubscriptionTxns(debug=false) {
 // ════════════════════════════════════════════════════════════════
 const PAGE_ORDER = ['dashboard','cards','accounts','txns','transfers','fixed','install','analytics','subscriptions','exchange','invest','goals','settings'];
 let currentPage = 'dashboard';
+// 返回帳戶/卡片頁時要自動展開的項目（{page, id}），由 goToTxnFilterSource 設定、navigateTo 消耗
+let _pendingExpandItem = null;
 
 function nav(el, page) {
   document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
@@ -2378,6 +2380,12 @@ function navigateTo(page) {
   if (page === 'accounts') expandedAccounts.clear();
   if (page === 'cards') expandedCards.clear();
   if (page === 'accounts' || page === 'cards') expandedLayerGroups.clear();
+  // 由消費紀錄頁「返回來源」時，只展開該張卡片/帳戶本身（不展開分層摘要），用完即清空
+  if (_pendingExpandItem && _pendingExpandItem.page === page) {
+    if (page === 'cards')    expandedCards.add(_pendingExpandItem.id);
+    if (page === 'accounts') expandedAccounts.add(_pendingExpandItem.id);
+  }
+  _pendingExpandItem = null;
   if (dir) target.classList.add(dir);
   target.classList.add('active');
   currentPage = page;
@@ -6282,18 +6290,36 @@ function renderTxnSourceChip() {
   const item   = isCard ? getCard(id) : getAcc(id);
   if (!item) { chipEl.innerHTML = ''; return; }
   const icon = isCard ? '💳' : '🏦';
-  chipEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:8px;background:var(--bg-secondary);border-radius:8px;font-size:12px;width:fit-content">
+  chipEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+  <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--bg-secondary);border-radius:8px;font-size:12px;width:fit-content">
     <span style="color:var(--tx-muted)">來自：</span>
     <span style="cursor:pointer;color:var(--m-blue);font-weight:600" onclick="goToTxnFilterSource()" title="返回帳戶/卡片">${icon} ${escHtml(item.name)}</span>
     <span style="cursor:pointer;color:var(--tx-muted);padding:0 4px" onclick="clearTxnFilters()" title="清除篩選">✕</span>
+  </div>
+  <button class="btn btn-primary btn-sm" style="border-radius:999px" onclick="openAddTxnForFilterSource()" title="新增此${isCard?'卡片':'帳戶'}的記錄">${isCard?'＋ 記一筆消費':'＋ 記一筆帳'}</button>
   </div>`;
 }
 
-// 返回目前篩選來源（帳戶或卡片）所在頁面，並高亮該張卡片（不自動開啟編輯視窗）
+// 消費紀錄頁新增記錄：若目前有篩選來源（由卡片/帳戶點入明細），自動預選該卡片/帳戶；否則維持原本空白新增
+function openAddTxnForFilterSource() {
+  if (currentTxnFilterSource) {
+    const isCard = currentTxnFilterSource.startsWith('card_');
+    const id     = isCard ? currentTxnFilterSource.slice(5) : currentTxnFilterSource.slice(8);
+    if (isCard ? getCard(id) : getAcc(id)) {
+      if (isCard) openModal('addTxn', null, id);
+      else        openModal('addTxn', null, null, id);
+      return;
+    }
+  }
+  openModal('addTxn');
+}
+
+// 返回目前篩選來源（帳戶或卡片）所在頁面，展開並高亮該張卡片（不自動開啟編輯視窗）
 function goToTxnFilterSource() {
   if (!currentTxnFilterSource) return;
   const isCard = currentTxnFilterSource.startsWith('card_');
   const id     = isCard ? currentTxnFilterSource.slice(5) : currentTxnFilterSource.slice(8);
+  _pendingExpandItem = { page: isCard ? 'cards' : 'accounts', id };
   navToItem(isCard ? 'cards' : 'accounts', (isCard ? 'card-' : 'account-') + id);
 }
 
