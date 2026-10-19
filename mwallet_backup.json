@@ -14,10 +14,9 @@
         {
           "id": "mowulbb3xlf57",
           "label": "南山年繳",
-          "amount": 1967,
+          "amount": 25571,
           "color": "#54b02d",
-          "monthlyAmt": 1967,
-          "boundInstallId": "msogxtnznyymh",
+          "monthlyAmt": 3934,
           "reimbursable": false
         },
         {
@@ -4906,6 +4905,20 @@
         "2026-09",
         "2026-10"
       ],
+      "boundCardId": "mov4et7fpt7kr",
+      "boundLayerId": "mowulbb3xlf57"
+    },
+    {
+      "id": "mvew17yiepycq",
+      "desc": "儲蓄保單-6",
+      "totalAmt": 23605,
+      "months": 12,
+      "day": 1,
+      "category": "mp9mudorweuu2",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "paidMonths": [],
       "boundCardId": "mov4et7fpt7kr",
       "boundLayerId": "mowulbb3xlf57"
     }
