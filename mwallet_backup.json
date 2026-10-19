@@ -16,7 +16,7 @@
           "label": "南山年繳",
           "amount": 25572,
           "color": "#54b02d",
-          "monthlyAmt": 3935,
+          "monthlyAmt": 1967,
           "reimbursable": false
         },
         {
@@ -4920,7 +4920,8 @@
       "notes": "",
       "paidMonths": [],
       "boundCardId": "mov4et7fpt7kr",
-      "boundLayerId": "mowulbb3xlf57"
+      "boundLayerId": "mowulbb3xlf57",
+      "startYM": "TBD"
     }
   ],
   "autoRules": [
