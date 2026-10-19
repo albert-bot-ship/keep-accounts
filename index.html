@@ -8268,16 +8268,21 @@ function openModal(type,id,preCard,preAcc,extraId) {
 
   else if (type==='addCardLayer'||type==='editCardLayer') {
     t=clayer?'編輯消費分層':'新增消費分層';
-    const boundInst = clayer?.boundInstallId ? (DB.installments||[]).find(i=>i.id===clayer.boundInstallId) : null;
-    const isBound = !!boundInst;
+    const boundInsts = clayer ? getLayerBoundInsts(id, extraId) : [];
+    const isBound = boundInsts.length > 0;
     b=`<input type="hidden" id="clCardId" value="${id}">
     <input type="hidden" id="clLayId" value="${extraId||''}">
     <div class="form-group"><label class="form-label">分層名稱</label><input class="form-input" id="clLabel" value="${escAttr(clayer?.label||'')}" placeholder="e.g. 日常、旅遊、餐飲"></div>
     ${isBound?`
     <div class="form-group" style="background:rgba(28,105,212,.08);border:1px solid rgba(28,105,212,.3);border-radius:var(--r);padding:10px 12px">
-      <div style="font-size:12px;color:var(--m-blue);font-weight:600">🔗 已綁定分期追蹤「${escHtml(boundInst.desc)}」</div>
-      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">支出金額／每月分期金額由分期追蹤自動同步，請至「分期追蹤」頁面編輯進度；如需手動調整此分層，請先解除綁定</div>
-      <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="unbindCardLayerInstall('${id}','${extraId}')">🔓 解除綁定</button>
+      <div style="font-size:12px;color:var(--m-blue);font-weight:600">🔗 已綁定 ${boundInsts.length} 筆分期追蹤</div>
+      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">支出金額／每月分期金額為下列分期的加總，自動同步，請至「分期追蹤」頁面編輯進度；如需手動調整此分層，請先全部解除綁定</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${boundInsts.map(bi=>{
+        const biPaid=(bi.paidMonths||[]).length, biDone=biPaid>=bi.months;
+        return `<div style="display:flex;align-items:center;gap:8px;font-size:12px">
+          <span style="flex:1;min-width:0;color:var(--tx-primary)">${escHtml(bi.desc)} <span style="color:var(--tx-muted)">${biDone?'已完成':fmt(Math.round(bi.totalAmt/bi.months))+'/月・'+biPaid+'/'+bi.months+' 期'}</span></span>
+          <button type="button" class="btn btn-ghost btn-sm" style="flex-shrink:0" onclick="unbindCardLayerInstall('${id}','${extraId}','${bi.id}')">🔓 解除</button>
+        </div>`;}).join('')}</div>
     </div>` : ''}
     <div class="form-group">
       <label class="form-label">支出金額（NT$）</label>
@@ -11366,45 +11371,59 @@ function calcApply() {
 // ════════════════════════════════════════════════════════════════
 function ensureInstallments() { if (!DB.installments) DB.installments=[]; }
 
-// 將分期追蹤的進度同步到綁定的信用卡分層（每月分期金額 + 剩餘總額）
-// 繳完時自動清空該分層的分期欄位，避免儀表板「剩餘生活費」持續誤扣已結清的分期
+// 取得綁定在某張信用卡某個分層上的所有分期追蹤（以分期上的 boundCardId / boundLayerId 為唯一依據）
+function getLayerBoundInsts(cardId, layerId) {
+  return (DB.installments||[]).filter(i=>i.boundCardId===cardId && i.boundLayerId===layerId);
+}
+
+// 依「所有綁定此分層、且尚未繳完」的分期重新計算分層金額（多筆分期可共用同一分層）
+// 每月分期金額 = 各筆每期金額加總；支出金額 = 各筆（剩餘期數 × 每期金額）加總
+// 已無任何未完成分期時清空分層的分期欄位，避免儀表板「剩餘生活費」持續誤扣
+function syncCardLayerInstalls(cardId, layerId) {
+  const card = getCard(cardId); if (!card) return;
+  const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return;
+  let monthlySum = 0, remainSum = 0;
+  getLayerBoundInsts(cardId, layerId).forEach(inst=>{
+    const paid = (inst.paidMonths||[]).length;
+    if (paid >= inst.months) return;
+    const monthlyAmt = Math.round(inst.totalAmt / inst.months);
+    monthlySum += monthlyAmt;
+    remainSum  += (inst.months - paid) * monthlyAmt;
+  });
+  if (monthlySum > 0) {
+    layer.monthlyAmt = monthlySum;
+    layer.amount = remainSum;
+  } else {
+    layer.monthlyAmt = '';
+    layer.amount = 0;
+  }
+  delete layer.boundInstallId; // 舊版單一綁定欄位，已改由分期端反查，不再使用
+}
+
+// 將某筆分期的進度同步到它綁定的信用卡分層（實際會重算該分層上所有綁定分期的加總）
 function syncInstallBoundLayer(instId) {
   const inst = DB.installments.find(i=>i.id===instId);
   if (!inst || !inst.boundCardId || !inst.boundLayerId) return;
-  const card = getCard(inst.boundCardId); if (!card) return;
-  const layer = (card.layers||[]).find(l=>l.id===inst.boundLayerId); if (!layer) return;
-  const paid = (inst.paidMonths||[]).length;
-  const isComplete = paid >= inst.months;
-  if (isComplete) {
-    layer.monthlyAmt = '';
-    layer.amount = 0;
-  } else {
-    const monthlyAmt = Math.round(inst.totalAmt / inst.months);
-    const remain = inst.months - paid;
-    layer.monthlyAmt = monthlyAmt;
-    layer.amount = remain * monthlyAmt;
-  }
+  syncCardLayerInstalls(inst.boundCardId, inst.boundLayerId);
 }
 
-// 解除分期追蹤與信用卡分層的綁定：清空分層的分期欄位與雙向參照，不留殘值
+// 解除某筆分期與信用卡分層的綁定：只移除這一筆，分層金額依剩下的綁定分期重算
 function unbindInstallLayer(inst) {
   if (!inst || !inst.boundCardId || !inst.boundLayerId) return;
-  const card = getCard(inst.boundCardId);
-  const layer = card && (card.layers||[]).find(l=>l.id===inst.boundLayerId);
-  if (layer) { layer.monthlyAmt = ''; layer.amount = 0; layer.boundInstallId = null; }
+  const cardId = inst.boundCardId, layerId = inst.boundLayerId;
   inst.boundCardId = null;
   inst.boundLayerId = null;
+  syncCardLayerInstalls(cardId, layerId);
 }
 
-// 供信用卡分層編輯畫面的「解除綁定」按鈕使用
-function unbindCardLayerInstall(cardId, layerId) {
+// 供信用卡分層編輯畫面的「解除」按鈕使用：解除指定的那一筆分期
+function unbindCardLayerInstall(cardId, layerId, instId) {
   const card = getCard(cardId); if (!card) return;
   const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return;
-  if (!layer.boundInstallId) return;
-  const inst = DB.installments.find(i=>i.id===layer.boundInstallId);
-  if (inst) unbindInstallLayer(inst);
-  else { layer.monthlyAmt=''; layer.amount=0; layer.boundInstallId=null; }
-  saveDB(); closeModal(); renderCards(); toast('已解除分期綁定','info');
+  const inst = DB.installments.find(i=>i.id===instId && i.boundCardId===cardId && i.boundLayerId===layerId);
+  if (!inst) return;
+  unbindInstallLayer(inst);
+  saveDB(); closeModal(); renderCards(); toast('已解除「'+inst.desc+'」的分期綁定','info');
 }
 
 function renderInstall() {
@@ -11471,8 +11490,6 @@ function saveInstall() {
       Object.assign(ex,obj); // 編輯時不動 paidMonths，保留原本已記錄的還款進度
       if (boundCardId && boundLayerId) {
         ex.boundCardId=boundCardId; ex.boundLayerId=boundLayerId;
-        const card=getCard(boundCardId), layer=card&&(card.layers||[]).find(l=>l.id===boundLayerId);
-        if (layer) layer.boundInstallId=ex.id;
         syncInstallBoundLayer(ex.id);
       }
       toast('分期已更新','success');
@@ -11487,11 +11504,7 @@ function saveInstall() {
     const newInst={id:newId,...obj,paidMonths};
     if (boundCardId && boundLayerId) { newInst.boundCardId=boundCardId; newInst.boundLayerId=boundLayerId; }
     DB.installments.push(newInst);
-    if (boundCardId && boundLayerId) {
-      const card=getCard(boundCardId), layer=card&&(card.layers||[]).find(l=>l.id===boundLayerId);
-      if (layer) layer.boundInstallId=newId;
-      syncInstallBoundLayer(newId);
-    }
+    if (boundCardId && boundLayerId) syncInstallBoundLayer(newId);
     toast('分期新增成功','success');
   }
   saveDB(); closeModal(); renderInstall(); renderCards();
@@ -12169,7 +12182,7 @@ function _openInstallModal(type, id) {
 }
 
 // 依目前選擇的扣款來源，動態顯示「綁定信用卡分層」下拉選單（僅來源為信用卡時顯示）
-// 已被其他分期追蹤綁定的分層會排除，避免一個分層同時被兩筆分期綁定造成同步互相覆蓋
+// 多筆分期可共用同一分層（分層金額為所有綁定分期的加總），已被其他分期綁定的分層仍可選，並標示已綁定筆數
 function _refreshInstBoundLayerOptions(presetVal) {
   const wrap = document.getElementById('instBoundLayerWrap'); if (!wrap) return;
   const srcVal = document.getElementById('instSrc')?.value || '';
@@ -12178,9 +12191,10 @@ function _refreshInstBoundLayerOptions(presetVal) {
   const card = getCard(sId);
   const layers = (card?.layers||[]) || [];
   const curInstId = (modalType==='editInstall') ? editTarget : null;
-  const layerItems = layers
-    .filter(l => !l.boundInstallId || l.boundInstallId===curInstId)
-    .map(l => ({ id: `${sId}_${l.id}`, label: l.label, color: l.color||null }));
+  const layerItems = layers.map(l => {
+    const others = getLayerBoundInsts(sId, l.id).filter(i => i.id !== curInstId).length;
+    return { id: `${sId}_${l.id}`, label: others ? `${l.label}（已綁 ${others} 筆分期）` : l.label, color: l.color||null };
+  });
   wrap.innerHTML = `<div class="form-group"><label class="form-label">綁定信用卡分層（選填）<span style="font-size:11px;color:var(--tx-muted);margin-left:4px">綁定後，該分層的分期金額會自動同步這筆分期追蹤的進度</span></label>
     <div class="layer-picker" id="instBoundLayer_picker">
       <div class="form-select layer-picker-trigger" id="instBoundLayer_trigger" onclick="toggleLayerPicker('instBoundLayer')">
