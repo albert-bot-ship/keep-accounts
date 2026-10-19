@@ -4527,6 +4527,40 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mvev22zz9viev",
+      "date": "2026-10-19",
+      "amount": -1168,
+      "desc": "台中市月票汽車",
+      "category": "mov4018zncy6t",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
+    },
+    {
+      "id": "mvev2r9cz53hb",
+      "date": "2026-10-19",
+      "amount": -218,
+      "desc": "台中市月票機車",
+      "category": "mov4018zncy6t",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
@@ -4851,7 +4885,7 @@
   "installments": [
     {
       "id": "msogxtnznyymh",
-      "desc": "美金保單",
+      "desc": "儲蓄保單-5",
       "totalAmt": 23605,
       "months": 12,
       "day": 10,
