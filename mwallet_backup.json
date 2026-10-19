@@ -14,9 +14,9 @@
         {
           "id": "mowulbb3xlf57",
           "label": "南山年繳",
-          "amount": 25571,
+          "amount": 25572,
           "color": "#54b02d",
-          "monthlyAmt": 3934,
+          "monthlyAmt": 3935,
           "reimbursable": false
         },
         {
@@ -4913,7 +4913,7 @@
       "desc": "儲蓄保單-6",
       "totalAmt": 23605,
       "months": 12,
-      "day": 1,
+      "day": 10,
       "category": "mp9mudorweuu2",
       "sourceId": "mov4et7fpt7kr",
       "sourceType": "card",
