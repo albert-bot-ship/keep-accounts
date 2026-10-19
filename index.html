@@ -8280,7 +8280,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${boundInsts.map(bi=>{
         const biPaid=(bi.paidMonths||[]).length, biDone=biPaid>=bi.months;
         return `<div style="display:flex;align-items:center;gap:8px;font-size:12px">
-          <span style="flex:1;min-width:0;color:var(--tx-primary)">${escHtml(bi.desc)} <span style="color:var(--tx-muted)">${biDone?'已完成':fmt(Math.round(bi.totalAmt/bi.months))+'/月・'+biPaid+'/'+bi.months+' 期'}</span></span>
+          <span style="flex:1;min-width:0;color:var(--tx-primary)">${escHtml(bi.desc)} <span style="color:var(--tx-muted)">${biDone?'已完成':fmt(instPeriodAmt(bi,biPaid+1))+'/月・'+biPaid+'/'+bi.months+' 期'}</span></span>
           <button type="button" class="btn btn-ghost btn-sm" style="flex-shrink:0" onclick="unbindCardLayerInstall('${id}','${extraId}','${bi.id}')">🔓 解除</button>
         </div>`;}).join('')}</div>
     </div>` : ''}
@@ -11376,6 +11376,22 @@ function getLayerBoundInsts(cardId, layerId) {
   return (DB.installments||[]).filter(i=>i.boundCardId===cardId && i.boundLayerId===layerId);
 }
 
+// 分期每期金額（自動算）：每期 = 總金額 ÷ 期數取整數，除不盡的零頭全部加在第一期
+// n 為第幾期（1 起算）；例：23,605 分 12 期 → 第1期 1,968，第2期起 1,967，合計剛好 23,605
+function instPeriodAmt(inst, n) {
+  const months = inst.months||1;
+  const base = Math.floor(inst.totalAmt / months);
+  const first = inst.totalAmt - base * (months - 1);
+  return n === 1 ? first : base;
+}
+// 分期剩餘未繳總額 = 總金額 − 已繳各期金額（已繳完為 0）
+function instRemainAmt(inst) {
+  const paid = (inst.paidMonths||[]).length;
+  if (paid >= inst.months) return 0;
+  if (paid === 0) return inst.totalAmt;
+  return inst.totalAmt - instPeriodAmt(inst, 1) - (paid - 1) * instPeriodAmt(inst, 2);
+}
+
 // 依「所有綁定此分層、且尚未繳完」的分期重新計算分層金額（多筆分期可共用同一分層）
 // 每月分期金額 = 各筆每期金額加總；支出金額 = 各筆（剩餘期數 × 每期金額）加總
 // 已無任何未完成分期時清空分層的分期欄位，避免儀表板「剩餘生活費」持續誤扣
@@ -11386,9 +11402,8 @@ function syncCardLayerInstalls(cardId, layerId) {
   getLayerBoundInsts(cardId, layerId).forEach(inst=>{
     const paid = (inst.paidMonths||[]).length;
     if (paid >= inst.months) return;
-    const monthlyAmt = Math.round(inst.totalAmt / inst.months);
-    monthlySum += monthlyAmt;
-    remainSum  += (inst.months - paid) * monthlyAmt;
+    monthlySum += instPeriodAmt(inst, paid + 1); // 下一期（本期）應繳金額
+    remainSum  += instRemainAmt(inst);
   });
   if (monthlySum > 0) {
     layer.monthlyAmt = monthlySum;
@@ -11431,15 +11446,18 @@ function renderInstall() {
   const wrap=document.getElementById('installList'); if(!wrap) return;
   if (!DB.installments.length) { wrap.innerHTML=emptyState('📅','尚無分期記錄','新增信用卡分期、貸款等分期追蹤項目'); return; }
   wrap.innerHTML = DB.installments.map(inst=>{
-    const monthlyAmt=Math.round(inst.totalAmt/inst.months);
     const paid=(inst.paidMonths||[]).length, remain=inst.months-paid;
+    const monthlyAmt=instPeriodAmt(inst, Math.min(paid+1, inst.months)); // 顯示下一期（本期）應繳金額
+    const remainAmt=instRemainAmt(inst);
+    const firstAmt=instPeriodAmt(inst,1), baseAmt=instPeriodAmt(inst,2);
+    const firstNote=(inst.months>1&&firstAmt!==baseAmt)?'第1期 '+fmt(firstAmt)+'・':'';
     const pct=Math.min(100,Math.round(paid/inst.months*100));
     const cat=getCat(inst.category);
     const src=inst.sourceType==='card'?getCard(inst.sourceId):getAcc(inst.sourceId);
     const curYM=nowYM(), alreadyPaid=(inst.paidMonths||[]).includes(curYM);
     const isComplete=paid>=inst.months;
     const barColor=isComplete?'var(--tx-green)':pct>=80?'var(--m-violet)':'var(--m-blue)';
-    return '<div class="install-item'+(isComplete?' install-done':'')+'"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div class="install-badge">'+(inst.day||1)+'</div><div style="flex:1"><div style="font-weight:600;font-size:14px">'+escHtml(inst.desc)+(isComplete?' <span class="badge badge-green">已完成</span>':'')+'</div><div style="font-size:11px;color:var(--tx-secondary);margin-top:3px"><span class="badge" style="background:'+cat.color+'22;color:'+cat.color+';border:1px solid '+cat.color+'55">'+cat.name+'</span>'+(src?'<span style="margin-left:6px">'+escHtml(src.name)+'</span>':'')+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:var(--tx-red)">−'+fmt(monthlyAmt)+'<span style="font-size:11px;color:var(--tx-muted)">/月</span></div><div style="font-size:11px;color:var(--tx-secondary)">共 '+fmt(inst.totalAmt)+'</div></div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="prog-wrap" style="flex:1"><div class="prog-bar-gradient" style="width:'+pct+'%;background:'+barColor+'"></div></div><span style="font-size:12px;color:var(--tx-secondary);flex-shrink:0">'+paid+'/'+inst.months+' 期（剩 '+remain+' 期）</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+(!isComplete&&!alreadyPaid?'<button class="btn btn-sm btn-success" onclick="payInstallMonth(\''+inst.id+'\')">✅ 本月已付 ('+curYM+')</button>':'')+(alreadyPaid&&!isComplete?'<span class="badge badge-green">✓ 本月已記帳</span>':'')+'<button class="btn btn-ghost btn-sm" onclick="openModal(\'editInstall\',\''+inst.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteInstall(\''+inst.id+'\')">🗑</button><span style="margin-left:auto;font-size:11px;color:var(--tx-muted)">剩餘 '+fmt(remain*monthlyAmt)+'</span></div></div>';
+    return '<div class="install-item'+(isComplete?' install-done':'')+'"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div class="install-badge">'+(inst.day||1)+'</div><div style="flex:1"><div style="font-weight:600;font-size:14px">'+escHtml(inst.desc)+(isComplete?' <span class="badge badge-green">已完成</span>':'')+'</div><div style="font-size:11px;color:var(--tx-secondary);margin-top:3px"><span class="badge" style="background:'+cat.color+'22;color:'+cat.color+';border:1px solid '+cat.color+'55">'+cat.name+'</span>'+(src?'<span style="margin-left:6px">'+escHtml(src.name)+'</span>':'')+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:var(--tx-red)">−'+fmt(monthlyAmt)+'<span style="font-size:11px;color:var(--tx-muted)">/月</span></div><div style="font-size:11px;color:var(--tx-secondary)">'+firstNote+'共 '+fmt(inst.totalAmt)+'</div></div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="prog-wrap" style="flex:1"><div class="prog-bar-gradient" style="width:'+pct+'%;background:'+barColor+'"></div></div><span style="font-size:12px;color:var(--tx-secondary);flex-shrink:0">'+paid+'/'+inst.months+' 期（剩 '+remain+' 期）</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+(!isComplete&&!alreadyPaid?'<button class="btn btn-sm btn-success" onclick="payInstallMonth(\''+inst.id+'\')">✅ 本月已付 ('+curYM+')</button>':'')+(alreadyPaid&&!isComplete?'<span class="badge badge-green">✓ 本月已記帳</span>':'')+'<button class="btn btn-ghost btn-sm" onclick="openModal(\'editInstall\',\''+inst.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteInstall(\''+inst.id+'\')">🗑</button><span style="margin-left:auto;font-size:11px;color:var(--tx-muted)">剩餘 '+fmt(remainAmt)+'</span></div></div>';
   }).join('');
 }
 function payInstallMonth(id) {
@@ -11447,7 +11465,7 @@ function payInstallMonth(id) {
   const inst=DB.installments.find(i=>i.id===id); if(!inst) return;
   const curYM=nowYM();
   if((inst.paidMonths||[]).includes(curYM)){toast('本月已記帳','info');return;}
-  const monthlyAmt=Math.round(inst.totalAmt/inst.months);
+  const monthlyAmt=instPeriodAmt(inst, (inst.paidMonths||[]).length+1); // 第一期含零頭，之後為一般每期金額
   const d=String(Math.min(inst.day||1,28)).padStart(2,'0');
   DB.transactions.push({id:uid(),date:curYM+'-'+d,amount:-Math.abs(monthlyAmt),
     desc:inst.desc+'（分期 '+((inst.paidMonths||[]).length+1)+'/'+inst.months+'）',
