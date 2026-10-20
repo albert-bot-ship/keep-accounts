@@ -4000,6 +4000,23 @@
       "isPayment": true,
       "isTransfer": false,
       "transferPairTxnId": "mvg0fxr6br0kg"
+    },
+    {
+      "id": "mvg1kbrzo479h",
+      "date": "2026-09-13",
+      "amount": -258,
+      "desc": "拉雅",
+      "category": "mov4018zwuesg",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
