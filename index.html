@@ -1969,6 +1969,60 @@ function bankTxMonths(accId) {
   });
 }
 
+// 列出某張信用卡從「目前週期」往回推的帳單週期（新到舊），推到 earliest 日期為止，至少 minCount 期（上限 36 期）
+function cardPeriodList(card, earliest, minCount) {
+  const periods = [];
+  let cur = card.billingDay ? cardBillingPeriod(card) : cardBillingPeriod({ ...card, billingDay: 1 });
+  for (let i = 0; i < 36 && cur; i++) {
+    periods.push({ periodStart: cur.periodStart, periodEnd: cur.periodEnd });
+    if ((!earliest || cur.periodStart <= earliest) && periods.length >= (minCount||1)) break;
+    cur = cardPrevBillingPeriodFrom(card, cur);
+  }
+  return periods;
+}
+// 日期屬於哪一期（新的期別優先，交界日重疊時算在較新的一期）；不在任何一期回傳 -1
+function cardPeriodIndexForDate(periods, date) {
+  return periods.findIndex(p => date >= p.periodStart && date <= p.periodEnd);
+}
+// 信用卡每期「應繳 / 已繳」彙總，供消費紀錄分組標題比對繳款
+// 應繳 = 該期非繳款記錄的淨額（消費 + 手續費 − 退款/折抵）
+// 已繳 = 指定繳這一期的繳款（payForPeriodEnd）；未指定的舊繳款自動算在「繳款日所在期別的前一期」
+function cardPeriodSummary(cardId, minCount) {
+  const card = getCard(cardId); if (!card) return [];
+  const tx = DB.transactions.filter(t => t.sourceType === 'card' && t.sourceId === cardId);
+  const earliest = tx.length ? tx.reduce((m, t) => (t.date < m ? t.date : m), tx[0].date) : null;
+  const periods = cardPeriodList(card, earliest, minCount).map(p => ({ ...p, due: 0, paid: 0, autoPaid: 0 }));
+  tx.forEach(t => {
+    if (t.isPayment) {
+      if (!(t.amount > 0)) return;
+      let idx;
+      if (t.payForPeriodEnd) idx = periods.findIndex(p => p.periodEnd === t.payForPeriodEnd);
+      else { const d = cardPeriodIndexForDate(periods, t.date); idx = d >= 0 ? d + 1 : -1; }
+      if (idx >= 0 && idx < periods.length) {
+        periods[idx].paid += t.amount;
+        if (!t.payForPeriodEnd) periods[idx].autoPaid += t.amount;
+      }
+      return;
+    }
+    const idx = cardPeriodIndexForDate(periods, t.date);
+    if (idx < 0) return;
+    periods[idx].due += -t.amount + (t.amount < 0 ? (t.fee || 0) : 0);
+  });
+  periods.forEach(p => { p.due = Math.round(p.due); p.paid = Math.round(p.paid); });
+  return periods;
+}
+// 繳款畫面／編輯繳款記錄用的「繳哪一期」選項（預設上一期）
+function cardPayPeriodOptionsHtml(cardId, selectedEnd, withAuto) {
+  const periods = cardPeriodSummary(cardId, 6);
+  const sel = selectedEnd === undefined ? (periods[1]?.periodEnd || '') : selectedEnd;
+  const md = s => s.slice(5).replace('-', '/');
+  return (withAuto ? `<option value=""${!sel?' selected':''}>自動判斷（繳款日的前一期）</option>` : '')
+    + periods.map((p, i) => {
+      const name = i === 0 ? '本期' : i === 1 ? '上一期' : p.periodStart.slice(0,4)+'/'+md(p.periodStart);
+      return `<option value="${p.periodEnd}"${p.periodEnd===sel?' selected':''}>${name}　${i<2?md(p.periodStart)+' ～ ':'～ '}${md(p.periodEnd)}（應繳 ${fmt(p.due)}・已繳 ${fmt(p.paid)}）</option>`;
+    }).join('');
+}
+
 // 列出某張信用卡「有交易記錄」的所有帳單週期（供選擇性刪除單月帳單用）
 // 從目前週期往回推，直到沒有更早的交易為止（安全上限 36 期，約 3 年）
 function cardTxPeriods(cardId) {
@@ -6795,14 +6849,13 @@ function renderTxns() {
   if (txnCurrentPage > totalPages2) txnCurrentPage = Math.max(1, totalPages2);
   const start2 = (txnCurrentPage - 1) * TXN_PAGE_SIZE;
   const pagedTxns = txns.slice(start2, start2 + TXN_PAGE_SIZE);
-  // 篩選單一信用卡時，計算該卡本期/上一期帳單週期，供列表分組標示
+  // 篩選單一信用卡時，計算該卡每一期帳單週期（含應繳/已繳），供列表分組標示
   let periodInfo = null;
   if (srcVal && srcVal.startsWith('card_')) {
     const _pCard = getCard(srcVal.slice(5));
     if (_pCard) {
-      const _cur = cardBillingPeriod(_pCard);
-      const _prev = cardPrevBillingPeriod(_pCard);
-      if (_cur && _prev) periodInfo = { curStart:_cur.periodStart, curEnd:_cur.periodEnd, prevStart:_prev.periodStart, prevEnd:_prev.periodEnd };
+      const _periods = cardPeriodSummary(_pCard.id, 2);
+      if (_periods.length) periodInfo = { periods: _periods };
     }
   }
   document.getElementById('txnTableWrap').innerHTML =
@@ -6817,23 +6870,40 @@ function txnTable(txns, withActions, periodInfo) {
   if (!txns.length) return emptyState('📋','無消費記錄','點擊「新增記錄」開始記帳','txns');
   const weekdays = ['日','一','二','三','四','五','六'];
   let prevDate = null;
-  // 本期/上一期 判斷（僅在篩選單一信用卡時傳入 periodInfo）
+  // 期別判斷（僅在篩選單一信用卡時傳入 periodInfo）：回傳期別索引，0 = 本期、1 = 上一期、2 以後 = 更早
   const periodLabelForDate = (date) => {
     if (!periodInfo) return null;
-    if (date >= periodInfo.curStart && date <= periodInfo.curEnd) return 'cur';
-    if (date >= periodInfo.prevStart && date <= periodInfo.prevEnd) return 'prev';
-    return null;
+    const idx = cardPeriodIndexForDate(periodInfo.periods, date);
+    return idx >= 0 ? idx : null;
   };
-  const periodHeaderHtml = (label, mobile) => {
-    const isCur = label === 'cur';
-    const text = isCur
-      ? `📌 本期消費　${periodInfo.curStart.slice(5)} ～ ${periodInfo.curEnd.slice(5)}`
-      : `📋 上一期　${periodInfo.prevStart.slice(5)} ～ ${periodInfo.prevEnd.slice(5)}`;
+  const periodHeaderHtml = (idx, mobile) => {
+    const p = periodInfo.periods[idx];
+    const md = s => s.slice(5).replace('-', '/');
+    const range = `${md(p.periodStart)} ～ ${md(p.periodEnd)}`;
+    const text = idx === 0 ? `📌 本期消費　${range}`
+               : idx === 1 ? `📋 上一期　${range}`
+               : `🗂 ${p.periodStart.slice(0,4)}/${range}`;
+    // 繳款狀態：本期尚未出帳只顯示累計；上一期以前比對應繳與已繳
+    let status;
+    if (idx === 0) {
+      status = `目前累計 ${fmt(p.due)}` + (p.paid ? `・已繳 ${fmt(p.paid)}` : '');
+    } else if (p.due <= 0 && !p.paid) {
+      status = '無應繳';
+    } else if (!p.paid) {
+      status = `應繳 ${fmt(p.due)}・<span style="color:var(--tx-red)">未繳</span>`;
+    } else {
+      const diff = p.paid - p.due;
+      status = `應繳 ${fmt(p.due)}・已繳 ${fmt(p.paid)} ` + (Math.abs(diff) < 1
+        ? '<span style="color:var(--tx-green)">✅ 已繳清</span>'
+        : `<span style="color:var(--tx-red)">⚠️ 差額 ${diff>0?'+':'−'}${fmt(Math.abs(diff))}</span>`);
+    }
+    if (idx > 0 && p.autoPaid) status += '<span style="color:var(--tx-muted);font-weight:400">（含自動判斷的繳款）</span>';
+    const inner = `<div style="display:flex;justify-content:space-between;align-items:center;gap:4px 10px;flex-wrap:wrap"><span>${text}</span><span style="font-size:11px;font-weight:600;color:var(--tx-secondary)">${status}</span></div>`;
     const style = 'padding:10px 12px 8px;font-weight:700;font-size:12px;color:var(--tx-primary);border-radius:0';
-    const pCls = isCur ? 'period-row-cur' : 'period-row-prev';
+    const pCls = idx === 0 ? 'period-row-cur' : idx === 1 ? 'period-row-prev' : 'period-row-old';
     return mobile
-      ? `<div class="txn-period-group-row ${pCls}" style="${style}">${text}</div>`
-      : `<tr class="txn-period-group-row"><td colspan="${withActions?7:5}" class="${pCls}" style="${style}">${text}</td></tr>`;
+      ? `<div class="txn-period-group-row ${pCls}" style="${style}">${inner}</div>`
+      : `<tr class="txn-period-group-row"><td colspan="${withActions?7:5}" class="${pCls}" style="${style}">${inner}</td></tr>`;
   };
 
   // ── 共用資料處理 ──────────────────────────────────
@@ -6889,7 +6959,7 @@ function txnTable(txns, withActions, periodInfo) {
     let periodRow = '';
     if (periodInfo) {
       const pLabel = periodLabelForDate(t.date);
-      if (pLabel !== lastPeriodDesktop && (pLabel === 'cur' || pLabel === 'prev')) {
+      if (pLabel !== lastPeriodDesktop && pLabel !== null) {
         periodRow = periodHeaderHtml(pLabel, false);
       }
       lastPeriodDesktop = pLabel;
@@ -6951,7 +7021,7 @@ function txnTable(txns, withActions, periodInfo) {
     let periodHdr = '';
     if (periodInfo) {
       const pLabel = periodLabelForDate(t.date);
-      if (pLabel !== lastPeriodMobile && (pLabel === 'cur' || pLabel === 'prev')) {
+      if (pLabel !== lastPeriodMobile && pLabel !== null) {
         periodHdr = periodHeaderHtml(pLabel, true);
       }
       lastPeriodMobile = pLabel;
@@ -8400,6 +8470,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
     <div style="margin-top:4px">
       <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 10px;width:100%" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.textContent=this.textContent.includes('▼')?'▲ 收合備註與手續費':'▼ 備註 / 手續費（選填）'">▼ 備註 / 手續費（選填）</button>
       <div style="display:none;margin-top:6px">
+        ${txn&&txn.isPayment&&txn.sourceType==='card'&&getCard(txn.sourceId)?`<div class="form-group"><label class="form-label">繳哪一期</label><select class="form-select" id="tPayPeriod">${cardPayPeriodOptionsHtml(txn.sourceId, txn.payForPeriodEnd||'', true)}</select></div>`:''}
         <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tNotes" value="${escAttr(txn?.notes||'')}"></div>
         <div class="form-group" id="tFeeGroup" style="display:none">
           <label class="form-label">手續費（NT$，選填）</label>
@@ -8476,6 +8547,10 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>
     </div>
     <div class="form-group"><label class="form-label">繳款日期</label><input class="form-input" id="pyDate" type="date" value="${today()}"></div>
+    <div class="form-group"><label class="form-label">繳哪一期</label>
+      <select class="form-select" id="pyPeriod">${cardPayPeriodOptionsHtml(id)}</select>
+      <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">用來比對該期「應繳 / 已繳」，可在信用卡消費紀錄的期別標題查看</div>
+    </div>
     ${monthlyLayersHtml}
     <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="pyNotes"></div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-success" onclick="doPayment()">✅ 確認繳款</button>`;
@@ -9036,6 +9111,11 @@ function saveTxn() {
   if(modalType==='editTxn'){
     const thisTxn = DB.transactions.find(t=>t.id===editTarget);
     Object.assign(thisTxn, txnObj);
+    // 信用卡繳款記錄：更新「繳哪一期」（空值 = 自動判斷）
+    const payPeriodEl = document.getElementById('tPayPeriod');
+    if (payPeriodEl && thisTxn.isPayment) {
+      if (payPeriodEl.value) thisTxn.payForPeriodEnd = payPeriodEl.value; else delete thisTxn.payForPeriodEnd;
+    }
     if(thisTxn.isTransfer && thisTxn.transferPairTxnId) {
       const pair = DB.transactions.find(t=>t.id===thisTxn.transferPairTxnId);
       if(pair) { pair.date=txnObj.date; pair.notes=txnObj.notes; pair.amount=-txnObj.amount; }
@@ -9274,7 +9354,8 @@ function doPayment() {
   // 帳戶扣款
   DB.transactions.push({id:id1,date,amount:-Math.abs(amt),desc:'信用卡繳款 — '+(card?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isPayment:true,isTransfer:false,layerId,layerAmounts:layerAmounts||undefined,transferPairTxnId:id2});
   // 信用卡入帳（抵銷負債）
-  DB.transactions.push({id:id2,date,amount:+Math.abs(amt),desc:'繳款入帳 — '+(card?.name||''),category:lastCat,sourceId:cardId,sourceType:'card',notes,isPayment:true,isTransfer:false,transferPairTxnId:id1});
+  const payForPeriodEnd = v('pyPeriod') || undefined; // 這筆繳款是繳哪一期（以該期結束日識別）
+  DB.transactions.push({id:id2,date,amount:+Math.abs(amt),desc:'繳款入帳 — '+(card?.name||''),category:lastCat,sourceId:cardId,sourceType:'card',notes,isPayment:true,isTransfer:false,transferPairTxnId:id1,payForPeriodEnd});
   // 扣除各分期分層剩餘總額
   (card?.layers||[]).filter(l=>l.monthlyAmt!=null&&l.monthlyAmt!=='').forEach(l=>{
     const deductInput = document.getElementById('pyDeduct_'+l.id);
