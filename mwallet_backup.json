@@ -4017,6 +4017,23 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mvhjwujea52ph",
+      "date": "2026-10-16",
+      "amount": 1500,
+      "desc": "南山利息",
+      "category": "mpmsd41fqkl4o",
+      "sourceId": "mov6n7tlob32s",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": null,
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
