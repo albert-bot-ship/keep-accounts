@@ -4221,6 +4221,34 @@
       ],
       "transferPairId": "mvjwmn2s5fx8q",
       "transferPairTxnId": "mvjwmn2sbb9vm"
+    },
+    {
+      "id": "mvjx0mhn3r11r",
+      "date": "2026-10-23",
+      "amount": -1585,
+      "desc": "信用卡繳款 — 玉山中友卡",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov74st8ti4ry",
+      "sourceType": "account",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "layerId": "mowtfdp3hzho9",
+      "transferPairTxnId": "mvjx0mhns8rcw"
+    },
+    {
+      "id": "mvjx0mhns8rcw",
+      "date": "2026-10-23",
+      "amount": 1585,
+      "desc": "繳款入帳 — 玉山中友卡",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4i6w2jfqzb",
+      "sourceType": "card",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "transferPairTxnId": "mvjx0mhn3r11r",
+      "payForPeriodEnd": "2026-10-19"
     }
   ],
   "fixedExpenses": [],
