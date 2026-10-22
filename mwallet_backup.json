@@ -4096,6 +4096,131 @@
       "isSavingsAllocation": true,
       "isTransferOut": false,
       "isFixed": false
+    },
+    {
+      "id": "mvjwi2hm6mj0w",
+      "date": "2026-10-23",
+      "amount": -1585,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null,
+      "layerAmounts": [
+        {
+          "layerId": "mowt3b5ret5t3",
+          "amount": -286
+        },
+        {
+          "layerId": "mpco4ljzg8q79",
+          "amount": -299
+        },
+        {
+          "layerId": "mtm8xyfv8xhlf",
+          "amount": -1000
+        }
+      ],
+      "transferPairId": "mvjwi2hmymb19",
+      "transferPairTxnId": "mvjwi2hmolnt1"
+    },
+    {
+      "id": "mvjwi2hmolnt1",
+      "date": "2026-10-23",
+      "amount": 1585,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mvg0jap15r6vh",
+      "transferPairId": "mvjwi2hmymb19",
+      "transferPairTxnId": "mvjwi2hm6mj0w"
+    },
+    {
+      "id": "mvjwj8llcfgyv",
+      "date": "2026-10-23",
+      "amount": -531,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mp76aznhv0bb6",
+      "transferPairId": "mvjwj8llqy0md",
+      "transferPairTxnId": "mvjwj8llo113g"
+    },
+    {
+      "id": "mvjwj8llo113g",
+      "date": "2026-10-23",
+      "amount": 531,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mpco4ljzg8q79",
+      "transferPairId": "mvjwj8llqy0md",
+      "transferPairTxnId": "mvjwj8llcfgyv"
+    },
+    {
+      "id": "mvjwkyt1fe283",
+      "date": "2026-10-23",
+      "amount": 38594,
+      "desc": "",
+      "category": "mp9mrsge4di8n",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt3b5ret5t3",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
+    },
+    {
+      "id": "mvjwmn2sbb9vm",
+      "date": "2026-10-23",
+      "amount": -18500,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "mvjwmn2s5fx8q",
+      "transferPairTxnId": "mvjwmn2swwar8"
+    },
+    {
+      "id": "mvjwmn2swwar8",
+      "date": "2026-10-23",
+      "amount": 18500,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null,
+      "layerAmounts": [
+        {
+          "layerId": "mp76aznhv0bb6",
+          "amount": 3000
+        },
+        {
+          "layerId": "mquh4t2tofm0s",
+          "amount": 15500
+        }
+      ],
+      "transferPairId": "mvjwmn2s5fx8q",
+      "transferPairTxnId": "mvjwmn2sbb9vm"
     }
   ],
   "fixedExpenses": [],
