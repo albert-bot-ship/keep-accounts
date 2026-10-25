@@ -4249,6 +4249,114 @@
       "isTransfer": false,
       "transferPairTxnId": "mvjx0mhn3r11r",
       "payForPeriodEnd": "2026-10-19"
+    },
+    {
+      "id": "mvnc9nzi4tync",
+      "date": "2026-10-24",
+      "amount": -90,
+      "desc": "iCloud+（訂閱）",
+      "category": "mov4018zsf3sq",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isFixed": false,
+      "fee": 0,
+      "layerId": "mowvgma9od1k8"
+    },
+    {
+      "id": "mvncdq1d7ezx0",
+      "date": "2026-10-23",
+      "amount": -9349,
+      "desc": "",
+      "category": "mowszknj43v9u",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mp76aznhv0bb6",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
+    },
+    {
+      "id": "mvncerr7d3ojo",
+      "date": "2026-10-24",
+      "amount": -1430,
+      "desc": "平祿",
+      "category": "mov4018zwuesg",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
+    },
+    {
+      "id": "mvncfqi75nnt2",
+      "date": "2026-10-24",
+      "amount": 540,
+      "desc": "胖子平祿錢",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "msoaaqi4bf9j2",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
+    },
+    {
+      "id": "mvncgdzv8xw8o",
+      "date": "2026-10-25",
+      "amount": -699,
+      "desc": "中華電信",
+      "category": "mpkpd5uhst1z2",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mpco4ljzg8q79",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
+    },
+    {
+      "id": "mvncht3zbiqn4",
+      "date": "2026-10-25",
+      "amount": -1290,
+      "desc": "轉胖子",
+      "category": "mov4018zwuesg",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": null,
+      "layerAmounts": [
+        {
+          "layerId": "mowt3b5ret5t3",
+          "amount": -1000
+        },
+        {
+          "layerId": "mpco4ljzg8q79",
+          "amount": -290
+        }
+      ],
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
@@ -4295,6 +4403,9 @@
     "2026-10": [],
     "sub_mpnnfir9wzefb_2026-10-01": [
       "mpnnfir9wzefb"
+    ],
+    "sub_mpnngiv8dmk9t_2026-10-24": [
+      "mpnngiv8dmk9t"
     ]
   },
   "categories": [
@@ -4650,7 +4761,7 @@
       "amount": 90,
       "fee": 0,
       "cycle": "month",
-      "nextDate": "2026-10-24",
+      "nextDate": "2026-11-24",
       "color": "#1abc9c",
       "icon": "☁️",
       "srcId": "card_mov4et7fpt7kr",
