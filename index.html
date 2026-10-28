@@ -780,9 +780,14 @@
               <button class="btn btn-ghost btn-sm" onclick="exportData()">📤 匯出備份</button>
               <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">📥 匯入備份</button>
               <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+              <button class="btn btn-ghost btn-sm" onclick="openGithubUpload()">🚀 上傳 GitHub</button>
               <button class="btn btn-ghost btn-sm" onclick="repairTransferPairs()">🔗 修復轉帳配對</button>
               <button class="btn btn-ghost btn-sm" onclick="repairPaymentPairs()">💳 修復繳款配對</button>
               <button class="btn btn-danger btn-sm" onclick="confirmClearAll()">🗑 清除資料</button>
+            </div>
+            <div style="margin-bottom:14px">
+              <div style="font-size:11px;color:var(--tx-muted);margin-bottom:6px">GitHub 上傳頁網址（「🚀 上傳 GitHub」按鈕開啟此網址）</div>
+              <input class="form-input" id="githubUploadUrl" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="e.g. https://github.com/帳號/repo名稱/upload/main" onchange="saveGithubUploadUrl(this.value)">
             </div>
             <div style="border-top:1px solid var(--bdr-subtle);padding-top:12px">
               <div style="font-size:11px;color:var(--tx-muted);margin-bottom:6px">本機儲存空間</div>
@@ -7939,7 +7944,27 @@ function toggleAcctIncludeTotal(type, id, checked) {
 // ════════════════════════════════════════════════════════════════
 // SETTINGS
 // ════════════════════════════════════════════════════════════════
+// GitHub 上傳頁網址：存在 DB（隨備份 JSON 一起上傳 GitHub，換裝置載入後仍在）
+function saveGithubUploadUrl(val) {
+  const url = (val||'').trim();
+  if (url && !/^https:\/\//i.test(url)) { toast('網址需以 https:// 開頭','warning'); return; }
+  DB.githubUploadUrl = url;
+  saveDB();
+  toast(url ? 'GitHub 上傳頁網址已儲存，記得匯出備份上傳一次' : '已清除 GitHub 上傳頁網址','success');
+}
+function openGithubUpload() {
+  const url = (DB.githubUploadUrl||'').trim();
+  if (!url) {
+    toast('請先在下方填寫 GitHub 上傳頁網址','warning');
+    document.getElementById('githubUploadUrl')?.focus();
+    return;
+  }
+  window.open(url, '_blank');
+}
+
 function renderSettings() {
+  const ghUrlEl = document.getElementById('githubUploadUrl');
+  if (ghUrlEl && document.activeElement !== ghUrlEl) ghUrlEl.value = DB.githubUploadUrl || '';
   const wrap = document.getElementById('catList');
   if (!DB.categories.length) { wrap.innerHTML=emptyState('🏷','尚無類別'); return; }
 
