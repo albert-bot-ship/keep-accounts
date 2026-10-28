@@ -4642,6 +4642,49 @@
       "layerId": "mowt9nf0j6och",
       "transferPairId": "mvrvjohbacdwn",
       "transferPairTxnId": "mvrvjohbf4viy"
+    },
+    {
+      "id": "mvrvphkx3fc6c",
+      "date": "2026-10-28",
+      "amount": -4085,
+      "desc": "轉帳 → 國泰主帳戶",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null,
+      "layerAmounts": [
+        {
+          "layerId": "mquh4t2tofm0s",
+          "amount": -2500
+        },
+        {
+          "layerId": "mvg0jap15r6vh",
+          "amount": -1585
+        }
+      ],
+      "transferPairId": "mvrvphkxrmy9s",
+      "transferPairTxnId": "mvrvphkx601ql"
+    },
+    {
+      "id": "mvrvphkx601ql",
+      "date": "2026-10-28",
+      "amount": 4085,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mq0967uv5w2s3",
+      "sourceId": "mov74st8ti4ry",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowtfdp3hzho9",
+      "transferPairId": "mvrvphkxrmy9s",
+      "transferPairTxnId": "mvrvphkx3fc6c",
+      "isRedemption": false,
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false
     }
   ],
   "fixedExpenses": [],
