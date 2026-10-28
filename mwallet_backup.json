@@ -5135,5 +5135,6 @@
     "minCount": 2,
     "tolerance": 20
   },
-  "anomalyMultiplier": 1.5
+  "anomalyMultiplier": 1.5,
+  "githubUploadUrl": "https://github.com/albert-bot-ship/keep-accounts"
 }
