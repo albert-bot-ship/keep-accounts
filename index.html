@@ -2357,6 +2357,52 @@ function daysUntilDue(card) {
   if (d < now) d.setMonth(d.getMonth()+1);
   return Math.ceil((d - now) / 86400000);
 }
+// 信用卡帳單繳款狀態（與明細頁期別標題「應繳／已繳」同一套計算）
+// 看「上一期」帳單；若更早一期（上上期）逾期未繳清，優先回報那一期
+// state：paid 已繳清｜over 多繳｜none 無應繳｜short 已繳但還差｜unpaid 未繳
+function cardBillStatus(card) {
+  if (!card || !card.dueDay) return null;
+  const periods = cardPeriodSummary(card.id, 3);
+  const now = new Date(); const todayD = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // 該期的繳款截止日：期別結束日之後第一個「繳款截止日（幾號）」，月份天數不足時取月底
+  const dueDateAfter = end => {
+    const [y,m,d] = end.split('-').map(Number);
+    const mk = (yy, mm) => new Date(yy, mm, Math.min(card.dueDay, new Date(yy, mm+1, 0).getDate()));
+    let dt = mk(y, m-1);
+    if (dt <= new Date(y, m-1, d)) dt = mk(y, m);
+    return dt;
+  };
+  const check = idx => {
+    const p = periods[idx]; if (!p) return null;
+    const diff = Math.round(p.paid - p.due);
+    let state;
+    if (p.due <= 0 && p.paid <= 0) state = 'none';
+    else if (Math.abs(diff) < 1) state = 'paid';
+    else if (diff > 0) state = 'over';
+    else state = p.paid > 0 ? 'short' : 'unpaid';
+    const dueDate = dueDateAfter(p.periodEnd);
+    const daysLeft = Math.round((dueDate - todayD) / 86400000);
+    const needPay = state === 'short' || state === 'unpaid';
+    return { idx, state, due:p.due, paid:p.paid, remain:Math.max(0, -diff), over:Math.max(0, diff),
+             dueDate, daysLeft, needPay, overdue: needPay && daysLeft < 0 };
+  };
+  const older = check(2);
+  if (older && older.overdue) return older;
+  return check(1);
+}
+// 繳款狀態的顯示文字與緊急程度（level：urgent 紅｜warn 橘｜normal｜ok 已處理）
+function cardBillLabel(s) {
+  if (!s) return null;
+  if (s.state === 'paid') return { text:'✅ 已繳清', level:'ok' };
+  if (s.state === 'over') return { text:`✅ 已繳（多繳 ${fmt(s.over)}）`, level:'ok' };
+  if (s.state === 'none') return { text:'✅ 無應繳', level:'ok' };
+  const amt = s.state === 'short' ? `還差 ${fmt(s.remain)}` : `待繳 ${fmt(s.remain)}`;
+  if (s.overdue)          return { text:`🔴 逾期 ${-s.daysLeft} 天・${amt}`, level:'urgent' };
+  if (s.daysLeft === 0)   return { text:`⚠ 今日截止・${amt}`, level:'urgent' };
+  if (s.daysLeft <= 2)    return { text:`⚠ ${s.daysLeft}天後到期・${amt}`, level:'urgent' };
+  if (s.daysLeft <= 5)    return { text:`${s.daysLeft}天後繳款・${amt}`, level:'warn' };
+  return { text:`${s.daysLeft}天後繳款・${amt}`, level:'normal' };
+}
 function daysUntilBilling(card) {
   if (!card.billingDay) return null;
   const now = new Date();
@@ -3667,10 +3713,11 @@ function showDynamicIsland(text, duration=7000) {
   diTimeout = setTimeout(()=>{ el.classList.remove('expand','pill'); }, duration);
 }
 function checkDynamicIslandDue() {
-  const urgent = DB.creditCards.find(c=>{ const d=daysUntilDue(c); return d!==null&&d<=3&&d>=0; });
+  // 連動繳款狀態：已繳清不跳出；逾期或 3 天內到期且未繳清才提醒
+  const urgent = DB.creditCards.find(c=>{ const s=cardBillStatus(c); return s&&s.needPay&&(s.overdue||s.daysLeft<=3); });
   if (urgent) {
-    const d = daysUntilDue(urgent);
-    showDynamicIsland(d===0?`${urgent.name} 今日到期`:`${urgent.name} 還有 ${d} 天`, 7000);
+    const s = cardBillStatus(urgent);
+    showDynamicIsland(`${urgent.name} ${cardBillLabel(s).text.replace(/^(🔴|⚠)\s*/u, '')}`, 7000);
   }
 }
 
@@ -5268,18 +5315,17 @@ function renderNotificationCenter() {
   const todayStr = today();
   const items = [];
 
-  // 信用卡繳款到期
+  // 信用卡繳款到期（連動上一期繳款狀態：已繳清不提醒；逾期未繳持續提醒）
   DB.creditCards.forEach(c=>{
-    const d = daysUntilDue(c);
-    if (d!==null && d<=7 && d>=0) {
-      const urgency = d<=2 ? '🔴' : d<=5 ? '🟡' : '🟢';
-      items.push({
-        icon: urgency,
-        title: `${c.name} 繳款`,
-        desc: d===0 ? '今日到期！' : `${d} 天後到期`,
-        urgent: d<=2
-      });
-    }
+    const s = cardBillStatus(c);
+    if (!s || !s.needPay || (!s.overdue && s.daysLeft > 7)) return;
+    const urgent = s.overdue || s.daysLeft <= 2;
+    items.push({
+      icon: urgent ? '🔴' : s.daysLeft<=5 ? '🟡' : '🟢',
+      title: `${c.name} 繳款`,
+      desc: cardBillLabel(s).text.replace(/^(🔴|⚠)\s*/u, ''),
+      urgent
+    });
   });
 
   // 固定消費即將扣款
@@ -6069,12 +6115,12 @@ function renderDashboard() {
   document.getElementById('dashCards').innerHTML =
     DB.creditCards.map(c=>{
       const periodSpend=cardPeriodTotalSpend(c);
-      const due=daysUntilDue(c);
-      const dueCls=due!==null?(due<=2?'a-over':due<=5?'a-neg':''):'';
+      const billLbl=cardBillLabel(cardBillStatus(c)); // 連動上一期繳款狀態
+      const dueCls=billLbl?(billLbl.level==='urgent'?'a-over':billLbl.level==='warn'?'a-neg':''):'';
       return `<div class="layer-bar dash-link" style="border-left:3px solid ${c.color}" onclick="navToItem('cards','card-${c.id}')" title="前往信用卡詳情">
         <div style="width:8px;height:8px;border-radius:50%;background:${c.color};flex-shrink:0"></div>
         <span style="flex:1;font-size:13px">${c.name}</span>
-        ${due!==null?`<span class="${dueCls}" style="font-size:11px;margin-right:8px">${due<=0?'今日截止':due+'天後繳款'}</span>`:''}
+        ${billLbl?`<span class="${dueCls}" style="font-size:11px;margin-right:8px">${billLbl.text}</span>`:''}
         <span class="layer-amt a-neg">−${fmt(periodSpend)}</span>
         <span class="dash-link-arrow">›</span>
       </div>`;
@@ -6213,9 +6259,11 @@ function renderCards() {
     const billing = daysUntilBilling(c);
     const barColor= used>80?'var(--m-red)':used>50?'var(--warn)':'var(--m-blue)';
     // 繳款日 badge（紅/橘/綠）
-    const dueCls  = due!==null?(due<=2?'glow-red-txt':due<=5?'orange-txt':'green-txt'):'';
-    const dueHtml = due!==null
-      ? `<div class="due-badge ${dueCls}">${due<=0?'⚠ 今日繳款截止':due<=2?'⚠ '+due+'天後到期':due+'天後繳款'}</div>`
+    // 連動上一期繳款狀態：已繳清顯示 ✅，未繳顯示待繳/還差金額，逾期顯示 🔴
+    const billLbl = cardBillLabel(cardBillStatus(c));
+    const dueCls  = billLbl?(billLbl.level==='urgent'?'glow-red-txt':billLbl.level==='warn'?'orange-txt':'green-txt'):'';
+    const dueHtml = billLbl
+      ? `<div class="due-badge ${dueCls}">${billLbl.text}</div>`
       : '';
     // 結帳日 badge（天藍，靠近時慢閃）
     const bilCls  = billing!==null?(billing<=2?'billing-blink-fast':billing<=5?'billing-blink':''):'';
@@ -11215,28 +11263,17 @@ function checkDueNotifications() {
   if (localStorage.getItem('mwallet_notify_enabled') === 'false') return;
   const advDays = parseInt(localStorage.getItem('mwallet_notify_days') || '5');
   DB.creditCards.forEach(card => {
-    if (!card.dueDay) return;
-    const days = daysUntilDue(card);
-    if (days === null) return;
+    // 連動上一期繳款狀態（與明細頁同一套計算）：已繳清不推播；逾期未繳每天提醒
+    const s = cardBillStatus(card);
+    if (!s || !s.needPay) return;
     const notifyKey = 'mwallet_notified_' + card.id + '_' + today();
-    if (days <= advDays && days >= 0 && !sessionStorage.getItem(notifyKey)) {
-      // 計算上一期帳單金額（結帳日前一個月的消費）
-      const now = new Date();
-      const billingDay = card.billingDay || 1;
-      const prevEnd = new Date(now.getFullYear(), now.getMonth(), billingDay);
-      const prevStart = new Date(now.getFullYear(), now.getMonth()-1, billingDay+1);
-      const pf = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      const prevSpend = DB.transactions
-        .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.amount<0&&!t.isPayment&&t.date>=pf(prevStart)&&t.date<=pf(prevEnd))
-        .reduce((s,t)=>s+Math.abs(t.amount),0);
-      const prevPaid = DB.transactions
-        .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.isPayment&&t.amount>0&&t.date>=pf(prevEnd)&&t.date<=today())
-        .reduce((s,t)=>s+t.amount,0);
-      const billAmt = Math.max(0, prevSpend - prevPaid);
-      const amtStr = billAmt > 0 ? `，待繳 ${fmt(billAmt)}` : '，已結清';
-      const msg = days === 0
-        ? `${card.name} 今日繳款截止${amtStr}`
-        : `${card.name} 還有 ${days} 天到繳款截止日${amtStr}`;
+    if ((s.overdue || s.daysLeft <= advDays) && !sessionStorage.getItem(notifyKey)) {
+      const amtStr = s.state === 'short' ? `，還差 ${fmt(s.remain)}` : `，待繳 ${fmt(s.remain)}`;
+      const msg = s.overdue
+        ? `${card.name} 已逾期 ${-s.daysLeft} 天${amtStr}`
+        : s.daysLeft === 0
+          ? `${card.name} 今日繳款截止${amtStr}`
+          : `${card.name} 還有 ${s.daysLeft} 天到繳款截止日${amtStr}`;
       new Notification('M WALLET 繳款提醒', {
         body: msg,
         icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%230057B8"/><text y="44" x="10" font-size="40" fill="white">M</text></svg>'
