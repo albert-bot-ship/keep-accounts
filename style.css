@@ -3513,3 +3513,5 @@ body.light-theme .period-row-prev{border-left-color:#7E57C2 !important;backgroun
 .dls-seg{display:inline-flex;border:1px solid var(--bdr-subtle);border-radius:6px;overflow:hidden;font-size:11px;font-weight:400;flex-shrink:0}
 .dls-seg span{padding:2px 8px;color:var(--tx-muted);cursor:pointer}
 .dls-seg span.a{background:color-mix(in srgb, var(--tx-blue) 18%, transparent);color:var(--tx-primary);font-weight:600}
+.dls-acc-name{color:var(--nc-d, var(--tx-primary));overflow:hidden;text-overflow:ellipsis}
+.light-theme .dls-acc-name{color:var(--nc-l, var(--tx-primary))}
