@@ -338,7 +338,7 @@
           <div class="txn-tb-bar">
             <input type="text" class="form-input txn-tb-search" id="txnSearch" placeholder="🔍 搜尋內容或備註" oninput="renderTxns()">
             <button class="txn-tb-btn" id="filterToggleBtn" onclick="toggleTxnFilter()">篩選</button>
-            <button class="txn-tb-btn" id="batchModeBtn" onclick="enterBatchMode()">☑ 批量刪除</button>
+            <button class="txn-tb-btn" id="batchModeBtn" onclick="toggleBatchMode()">☑ 批量刪除</button>
             <button class="txn-tb-btn" onclick="openBillSplit()">🧮 分攤</button>
             <div class="txn-tb-menu" id="txnExportMenu">
               <button class="txn-tb-btn" onclick="toggleTxnExportMenu(event)">📤 匯出 ▾</button>
@@ -7300,9 +7300,35 @@ function txnTable(txns, withActions, periodInfo) {
   };
 
   // ══ 桌面版 TABLE ══════════════════════════════════
+  // 固定欄寬（table-layout:fixed）、金額靠右、名稱與標籤分兩行、標籤統一中性樣式、操作收進「⋯」
+  // 有操作欄（消費紀錄頁）時，日期改由每日標題顯示，不另設日期欄；儀表板「最近消費」仍保留日期欄
+  const showDateCol = !withActions;
+  const tagHtml = (txt, opt={}) => `<span class="txn-tag${opt.warn?' warn':''}">${opt.dot?`<i style="background:${opt.dot}"></i>`:''}${txt}</span>`;
+  const neutralTags = (t) => {
+    const out = [];
+    if (t.fxCurrency && t.fxAmount) out.push(tagHtml(escHtml(t.fxCurrency+' '+t.fxAmount.toLocaleString())));
+    if (t.isFixed) out.push(tagHtml('固定'));
+    if (t.isPayment) out.push(tagHtml('繳款'));
+    if (t.isTransfer) out.push(tagHtml('轉帳'));
+    if (t.isTransferOut) out.push(tagHtml('轉出'));
+    if (t.isRedemption) out.push(tagHtml('折抵'));
+    if (t.isSavingsAllocation) out.push(tagHtml('📈 資產配置'));
+    const reimb = (t.sourceType==='card'&&t.layerId) ? (getCard(t.sourceId)?.layers||[]).find(l=>l.id===t.layerId&&l.reimbursable) : null;
+    if (reimb) out.push(t.reimbursed ? tagHtml('✅ 已核銷') : tagHtml('🧾 待核銷', {warn:true}));
+    if (t.layerAmounts?.length) out.push(`<span class="txn-tag clickable" onclick="event.stopPropagation();toggleMLDetail('${t.id}')">▶ ${t.layerAmounts.length} 分層</span>`);
+    else if (t.layerId) {
+      const src = t.sourceType==='card' ? getCard(t.sourceId) : getAcc(t.sourceId);
+      const layer = (src?.layers||[]).find(l=>l.id===t.layerId);
+      if (layer) out.push(tagHtml(escHtml(layer.label), {dot: layer.color||'#888'}));
+    }
+    if (t.fee && t.fee > 0) out.push(tagHtml('手續費 +'+fmt(t.fee)));
+    (t.tags||[]).forEach(tid => { const tg=(DB.userTags||[]).find(x=>x.id===tid); if (tg) out.push(tagHtml('#'+escHtml(tg.name), {dot: tg.color})); });
+    return out.length ? `<div class="txn-tags">${out.join('')}</div>` : '';
+  };
+  const cols = (withActions?1:0) + (showDateCol?1:0) + 5 + (withActions?1:0);
   prevDate = null;
   let lastPeriodDesktop = 'INIT';
-  const rows = processed.map(({t, cat, amtCls, sign, sysTags, userTagBadges, feeBadge, hasML, mlBadge, layerBadge}) => {
+  const rows = processed.map(({t, cat, amtCls, sign, hasML}) => {
     let periodRow = '';
     if (periodInfo) {
       const pLabel = periodLabelForDate(t.date);
@@ -7314,50 +7340,57 @@ function txnTable(txns, withActions, periodInfo) {
     let groupRow = '';
     if (withActions && t.date !== prevDate) {
       const d = new Date(t.date+'T00:00:00');
-      groupRow = `<tr class="txn-date-group-row"><td colspan="7" style="padding:10px 12px 4px"><span class="date-pill">${t.date.slice(5).replace('-','/')} 週${weekdays[d.getDay()]}</span></td></tr>`;
+      groupRow = `<tr class="txn-date-group-row"><td colspan="${cols}"><span class="date-pill">${t.date.slice(5).replace('-','/')} 週${weekdays[d.getDay()]}</span></td></tr>`;
       prevDate = t.date;
     }
     const mlDetailRow = hasML ? `<tr id="mldetail_d_${t.id}" style="display:none;background:var(--bg-secondary)">
-      <td colspan="${withActions?7:5}" style="padding:6px 16px 10px 40px">
+      <td colspan="${cols}" style="padding:6px 16px 10px 24px">
         <div style="display:flex;flex-wrap:wrap;gap:6px">
           ${t.layerAmounts.map(la=>{
             const src = t.sourceType==='card'?getCard(t.sourceId):getAcc(t.sourceId);
             const layer=(src?.layers||[]).find(l=>l.id===la.layerId);
-            if (layer) return `<span style="font-size:12px;background:${layer.color||'#888'}22;color:${layer.color||'#888'};border:1px solid ${layer.color||'#888'}55;border-radius:12px;padding:2px 10px">${escHtml(layer.label)}　${la.amount<0?'−':'+'}${fmt(Math.abs(la.amount))}</span>`;
-            return `<span style="font-size:12px;background:#88888822;color:var(--tx-muted);border:1px solid #88888855;border-radius:12px;padding:2px 10px">⚠️ 分層已異動　${la.amount<0?'−':'+'}${fmt(Math.abs(la.amount))}</span>`;
+            if (layer) return tagHtml(escHtml(layer.label)+'　'+(la.amount<0?'−':'+')+fmt(Math.abs(la.amount)), {dot: layer.color||'#888'});
+            return tagHtml('⚠️ 分層已異動　'+(la.amount<0?'−':'+')+fmt(Math.abs(la.amount)));
           }).join('')}
         </div>
       </td>
     </tr>` : '';
-    const chk = (withActions&&batchMode)
-      ?`<td style="width:36px;padding:0 8px"><input type="checkbox" class="txn-chk" data-id="${t.id}" onchange="updateBatchUI()" style="width:16px;height:16px;cursor:pointer" onclick="event.stopPropagation()"></td>`
-      :(withActions?'<td style="width:36px"></td>':'');
-    const act = (withActions&&!batchMode)
-      ?`<td style="white-space:nowrap"><button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editTxn','${t.id}')">✏️</button><button class="btn btn-danger btn-icon btn-sm" onclick="deleteTxn('${t.id}')">🗑</button></td>`
-      :(withActions?'<td></td>':'');
+    const chk = withActions
+      ? (batchMode
+          ? `<td class="txn-col-chk"><input type="checkbox" class="txn-chk" data-id="${t.id}" onchange="updateBatchUI()" onclick="event.stopPropagation()"></td>`
+          : '<td class="txn-col-chk"></td>')
+      : '';
+    const act = withActions
+      ? (batchMode ? '<td class="txn-col-act"></td>'
+          : `<td class="txn-col-act"><button type="button" class="txn-more-btn" onclick="event.stopPropagation();openTxnRowMenu(event,'${t.id}')" aria-label="更多操作">⋯</button></td>`)
+      : '';
     const rowClick = batchMode?`onclick="toggleRowSelect(this)" style="cursor:pointer"`:'';
+    const b = balLine(t);
     return `${periodRow}${groupRow}<tr class="txn-row" ${rowClick}>
       ${chk}
-      <td style="white-space:nowrap">${t.date}</td>
-      <td>${escHtml(t.desc)}${t.fxCurrency&&t.fxAmount?' <span style="font-size:10px;color:var(--tx-muted)">'+t.fxCurrency+' '+t.fxAmount.toLocaleString()+'</span>':''}${sysTags}${mlBadge}${layerBadge}${feeBadge}${userTagBadges}</td>
-      <td><span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span></td>
-      <td style="white-space:nowrap">${sourceName(t)}</td>
-      <td class="${amtCls}" style="white-space:nowrap">${sign}${fmt(Math.abs(t.amount))}${(()=>{const b=balLine(t);return b?`<div style="font-size:11px;font-weight:400;color:var(--tx-muted);margin-top:2px">${b}</div>`:'';})()}</td>
-      <td style="color:var(--tx-secondary);font-size:12px">${escHtml(t.notes||'—')}</td>
+      ${showDateCol?`<td class="txn-col-date">${t.date.slice(5).replace('-','/')}</td>`:''}
+      <td class="txn-col-desc"><span class="txn-desc-name">${escHtml(t.desc)}</span>${neutralTags(t)}</td>
+      <td><span class="txn-cat"><i style="background:${cat.color}"></i>${escHtml(cat.name)}</span></td>
+      <td class="txn-col-src">${sourceName(t)}</td>
+      <td class="txn-col-amt ${amtCls}">${sign}${fmt(Math.abs(t.amount))}${b?`<div class="txn-bal">${b}</div>`:''}</td>
+      <td class="txn-col-note">${escHtml(t.notes||'—')}</td>
       ${act}
     </tr>${mlDetailRow}`;
   }).join('');
-  const cols  = withActions?7:5;
-  const chkTh = withActions?'<th style="width:32px"></th>':'';
-  const actTh = withActions?'<th>操作</th>':'';
-  const tableHtml = `<div class="txn-table-desktop"><table>
-    <thead><tr>${chkTh}<th>日期</th><th>內容</th><th>類別</th><th>帳戶/卡片</th><th>金額</th><th>備註</th>${actTh}</tr></thead>
+  const colgroup = '<colgroup>'
+    + (withActions?'<col style="width:40px">':'')
+    + (showDateCol?'<col style="width:64px">':'')
+    + '<col style="width:34%"><col style="width:14%"><col style="width:16%"><col style="width:16%"><col style="width:20%">'
+    + (withActions?'<col style="width:48px">':'')
+    + '</colgroup>';
+  const tableHtml = `<div class="txn-table-desktop"><table class="txn-table">
+    ${colgroup}
+    <thead><tr>${withActions?'<th></th>':''}${showDateCol?'<th>日期</th>':''}<th>內容</th><th>類別</th><th>帳戶／卡片</th><th class="txn-col-amt">金額</th><th>備註</th>${withActions?'<th></th>':''}</tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr style="background:var(--bg-secondary)">
-      ${withActions?'<td></td>':''}
-      <td colspan="4" style="padding:10px 14px;font-size:11px;color:var(--tx-muted)">共 ${txns.length} 筆</td>
-      <td style="padding:10px 14px;font-weight:700;font-family:var(--ff-display);font-size:15px;color:${total<0?'var(--tx-red)':'var(--tx-green)'}">${total>=0?'+':'−'}${fmt(Math.abs(total))}</td>
-      <td colspan="${withActions?2:0}"></td>
+    <tfoot><tr>
+      <td colspan="${(withActions?1:0)+(showDateCol?1:0)+3}">共 ${txns.length} 筆</td>
+      <td class="txn-col-amt" style="font-weight:700;font-family:var(--ff-display);font-size:15px;color:${total<0?'var(--tx-red)':'var(--tx-green)'}">${total>=0?'+':'−'}${fmt(Math.abs(total))}</td>
+      <td colspan="${1+(withActions?1:0)}"></td>
     </tr></tfoot>
   </table></div>`;
 
@@ -7437,9 +7470,32 @@ function txnTable(txns, withActions, periodInfo) {
 
 let batchMode = false;
 
+// 消費紀錄每列的「⋯」選單（編輯／刪除）：共用一個浮動選單，定位在按鈕旁
+function openTxnRowMenu(ev, id) {
+  let m = document.getElementById('txnRowMenu');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'txnRowMenu'; m.className = 'txn-row-menu';
+    document.body.appendChild(m);
+    document.addEventListener('click', e => { if (!e.target.closest?.('#txnRowMenu')) m.classList.remove('open'); });
+    window.addEventListener('scroll', () => m.classList.remove('open'), true);
+  }
+  m.innerHTML = `<button type="button" onclick="document.getElementById('txnRowMenu').classList.remove('open');openModal('editTxn','${id}')">✏️ 編輯</button>`
+              + `<button type="button" class="danger" onclick="document.getElementById('txnRowMenu').classList.remove('open');deleteTxn('${id}')">🗑 刪除</button>`;
+  const r = ev.currentTarget.getBoundingClientRect();
+  m.classList.add('open');
+  const mw = m.offsetWidth, mh = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.right - mw)) + 'px';
+  m.style.top  = (r.bottom + mh + 8 > window.innerHeight ? r.top - mh - 4 : r.bottom + 4) + 'px';
+}
+
+// 批量刪除：工具列按鈕切換成「✕ 結束批量」，可隨時返回（底部操作列的「取消」也保留）
+function toggleBatchMode() { batchMode ? exitBatchMode() : enterBatchMode(); }
 function enterBatchMode() {
   batchMode = true;
-  document.getElementById('batchModeBtn').style.display = 'none';
+  const bmBtn = document.getElementById('batchModeBtn');
+  if (bmBtn) { bmBtn.textContent = '✕ 結束批量'; bmBtn.classList.add('on'); }
+
   const bar = document.getElementById('batchActionBar');
   bar.style.display = 'flex';
   // 重繪表格讓 checkbox 欄位出現，並啟用整行點選
@@ -7447,7 +7503,8 @@ function enterBatchMode() {
 }
 function exitBatchMode() {
   batchMode = false;
-  document.getElementById('batchModeBtn').style.display = '';
+  const bmBtn = document.getElementById('batchModeBtn');
+  if (bmBtn) { bmBtn.textContent = '☑ 批量刪除'; bmBtn.classList.remove('on'); bmBtn.style.display = ''; }
   const bar = document.getElementById('batchActionBar');
   bar.style.display = 'none';
   renderTxns();
