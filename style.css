@@ -1047,24 +1047,18 @@ body:has(.backup-banner:not([style*="display:none"])) .fab-btn{
   transition: background .18s ease, transform .15s ease;
   cursor: default;
 }
-.txn-row::before {
-  content: '';
-  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--m-blue);
-  border-radius: 2px 0 0 2px;
-  opacity: 0;
-  transition: opacity .2s ease;
-}
+/* 左側藍色指示條：改用第一格的內陰影（表格列上的 ::before 會被 Chrome 當成多一格，造成欄位錯位） */
+.txn-row > td:first-child { transition: box-shadow .2s ease; }
 .txn-row:hover {
   background: var(--bg-card-hov) !important;
 }
-.txn-row:hover::before { opacity: 1; }
+.txn-row:hover > td:first-child { box-shadow: inset 3px 0 0 var(--m-blue); }
 
 /* 批量選取高亮 */
 .txn-row-selected {
   background: rgba(0,87,184,.13) !important;
 }
-.txn-row-selected::before { opacity: 1 !important; }
+.txn-row-selected > td:first-child { box-shadow: inset 3px 0 0 var(--m-blue) !important; }
 
 /* ══════════════════════════════════════════════════════════════
    CSS 加強 6 — 輸入框 focus 光暈
@@ -3611,3 +3605,19 @@ body.light-theme .period-row-prev{border-left-color:#7E57C2 !important;backgroun
 .txn-row-menu button{display:block;width:100%;text-align:left;padding:8px 10px;border:none;border-radius:6px;background:none;color:var(--tx-primary);font-size:13px;cursor:pointer;font-family:inherit}
 .txn-row-menu button:hover{background:var(--bg-secondary)}
 .txn-row-menu button.danger{color:var(--tx-red)}
+
+/* ══ 消費紀錄手機版卡片（與電腦版相同的顏色與標籤規則）══ */
+.txn-card-mobile .txn-card-top{align-items:center;margin-bottom:4px}
+.txn-card-mobile .txn-card-desc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;word-break:normal}
+.txn-card-mobile .txn-card-amount{font-variant-numeric:tabular-nums}
+.txn-card-mobile .txn-more-btn{flex-shrink:0;margin-right:-6px}
+.txn-card-meta{display:flex;align-items:center;gap:6px;min-width:0;font-size:12px;color:var(--tx-secondary)}
+.txn-card-meta .txn-cat{flex-shrink:0}
+.txn-card-sep{color:var(--tx-muted)}
+.txn-card-meta .txn-card-source{max-width:none;flex:0 1 auto;min-width:0;font-size:12px}
+.txn-card-meta .txn-card-date{font-size:12px}
+.txn-card-mark{font-size:13px;cursor:pointer;flex-shrink:0}
+.txn-card-bal{margin-left:auto;text-align:right;font-size:11px;color:var(--tx-muted);line-height:1.4;white-space:nowrap;flex-shrink:0}
+.txn-card-mobile .txn-tags{margin-top:5px}
+.txn-card-mobile .txn-card-notes{font-style:normal;margin-top:4px}
+.txn-card-marks{display:flex;gap:6px;margin-top:8px}
