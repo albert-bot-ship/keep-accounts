@@ -3495,7 +3495,9 @@ body.light-theme .period-row-prev{border-left-color:#7E57C2 !important;backgroun
 .dls-mini-btn{font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--bdr-subtle);background:var(--bg-primary);color:var(--tx-secondary);cursor:pointer}
 .dls-section-label{font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin:12px 2px 2px}
 .dls-group{border-top:1px solid var(--bdr-subtle);padding:8px 0 10px}
-.dls-group-head{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;margin-bottom:6px}
+.dls-group-head{display:grid;grid-template-columns:minmax(0,1fr) auto 118px 34px;align-items:center;gap:10px;margin-bottom:6px}
+.dls-group-period{display:flex;justify-content:flex-end}
+.dls-group-period:empty{display:none}
 .dls-group-name{display:flex;align-items:center;gap:8px;min-width:0;font-size:13px;font-weight:600;color:var(--tx-primary);white-space:nowrap}
 .dls-group-sum{font-size:12px;color:var(--tx-secondary);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
 .dls-link{font-size:11px;color:var(--tx-blue);background:none;border:none;padding:2px 0;cursor:pointer;min-width:30px;text-align:right}
@@ -3515,3 +3517,25 @@ body.light-theme .period-row-prev{border-left-color:#7E57C2 !important;backgroun
 .dls-seg span.a{background:color-mix(in srgb, var(--tx-blue) 18%, transparent);color:var(--tx-primary);font-weight:600}
 .dls-acc-name{color:var(--nc-d, var(--tx-primary));overflow:hidden;text-overflow:ellipsis}
 .light-theme .dls-acc-name{color:var(--nc-l, var(--tx-primary))}
+/* 已選分層：慢速呼吸閃爍 */
+@keyframes dlsPulse{
+  0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--c) 0%, transparent);background:color-mix(in srgb, var(--c) 12%, var(--bg-secondary))}
+  50%{box-shadow:0 0 0 3px color-mix(in srgb, var(--c) 28%, transparent);background:color-mix(in srgb, var(--c) 22%, var(--bg-secondary))}
+}
+.dls-chip.on{animation:dlsPulse 2.4s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){ .dls-chip.on{animation:none} }
+/* 手機窄螢幕：縮小期別按鈕與小計欄，讓卡名有足夠空間 */
+@media (max-width:480px){
+  .dls-group-head{grid-template-columns:minmax(0,1fr) auto 96px 30px;gap:6px}
+  .dls-seg span{padding:2px 5px}
+}
+.dls-result-main{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:2px}
+.dls-result-left{min-width:0}
+.dls-result-daily{font-size:12px;color:var(--tx-secondary);margin-top:1px}
+.dls-result-daily b{font-weight:700}
+.dls-result-days{display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0}
+.dls-result-days b{font-family:var(--ff-display);font-size:28px;font-weight:700;line-height:1.1}
+.dls-result-days span{font-size:10px;color:var(--tx-muted)}
+.dls-progress{margin-top:10px;height:6px;background:var(--bg-primary);border-radius:3px;overflow:hidden}
+.dls-progress div{height:100%;background:linear-gradient(90deg,var(--m-blue),var(--m-violet));border-radius:3px;transition:width .8s ease}
+.dls-progress-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--tx-muted);margin-top:3px}
