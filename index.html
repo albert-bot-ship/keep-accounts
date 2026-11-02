@@ -5927,7 +5927,7 @@ function renderCCLayerSelector() {
 
   // ── 群組（帳戶／信用卡）：全部攤開，標題列固定三段：名稱｜已選與小計｜全選或清除 ──
   // 按鈕共用同一組格線（電腦 4 欄、手機 2 欄），未選為灰色，選取後才顯示分層顏色
-  const groupHtml = (kind, name, items, extraHead) => {
+  const groupHtml = (kind, name, items, extraHead, color) => {
     const keys = items.map(it => it.key);
     const selItems = items.filter(it => it.sel);
     const sub = selItems.reduce((s,it) => s + it.amt, 0);
@@ -5935,7 +5935,7 @@ function renderCCLayerSelector() {
     const keysArg = escAttr(JSON.stringify(keys));
     let g = '<div class="dls-group">';
     g += '<div class="dls-group-head">'
-       + '<span class="dls-group-name">'+escHtml(name)+(extraHead||'')+'</span>'
+       + '<span class="dls-group-name"><span class="dls-acc-name" style="'+accNameColorVars(color)+'">'+escHtml(name)+'</span>'+(extraHead||'')+'</span>'
        + '<span class="dls-group-sum">'+selItems.length+'/'+items.length+'　'
        + (selItems.length ? (kind==='cc'?'−':'')+nt(sub) : '—')+'</span>'
        + (allSel
@@ -5962,7 +5962,7 @@ function renderCCLayerSelector() {
           html: chipHtml('bank', sel, l.accColor, l.label, (l.actual<0?'−':'')+Math.abs(Math.round(l.actual)).toLocaleString('zh-TW'),
                  'toggleBankLayer(\''+l.accId+'\',\''+l.layerId+'\','+(!sel)+')') };
       });
-      html += groupHtml('bank', acc?.name || ls[0].accName, items);
+      html += groupHtml('bank', acc?.name || ls[0].accName, items, '', acc?.color);
     });
   }
 
@@ -5987,12 +5987,41 @@ function renderCCLayerSelector() {
         const sb = (m, t) => '<span class="'+(mode===m?'a':'')+'" onclick="setCCCardPeriodMode(\''+cardId+'\',\''+m+'\')">'+t+'</span>';
         seg = '<span class="dls-seg">' + sb('prev','上期') + sb('current','本期') + sb('next','下期') + '</span>';
       }
-      html += groupHtml('cc', card?.name || ls[0].cardName, items, seg);
+      html += groupHtml('cc', card?.name || ls[0].cardName, items, seg, card?.color);
     });
   }
 
   html += '</div>';
   el.innerHTML = html;
+}
+
+// 帳戶／卡片名稱文字顏色：用帳戶設定的顏色，並依主題自動調整可讀性
+//   深色模式：太暗的顏色往白色調亮；淺色模式：太淺的顏色往黑色加深
+//   兩個版本都寫成 CSS 變數，切換主題時由 CSS 自動套用，不需重新繪製
+function _ncHexToRgb(hex) {
+  let s = String(hex||'').trim().replace('#','');
+  if (s.length === 3) s = s.split('').map(ch => ch+ch).join('');
+  if (!/^[0-9a-f]{6}$/i.test(s)) return null;
+  return [0,2,4].map(i => parseInt(s.slice(i,i+2), 16));
+}
+function _ncRelLum([r,g,b]) {
+  const f = v => { v /= 255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+  return 0.2126*f(r) + 0.7152*f(g) + 0.0722*f(b);
+}
+function _ncRgbHex(rgb) { return '#' + rgb.map(v => Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join(''); }
+function readableColorFor(hex, theme) {
+  const rgb = _ncHexToRgb(hex); if (!rgb) return null;
+  let cur = rgb.slice();
+  for (let i = 0; i < 20; i++) {
+    const L = _ncRelLum(cur);
+    if (theme === 'light' ? L <= 0.3 : L >= 0.15) break;
+    cur = theme === 'light' ? cur.map(v => v*0.88) : cur.map(v => v + (255-v)*0.15);
+  }
+  return _ncRgbHex(cur);
+}
+function accNameColorVars(hex) {
+  const d = readableColorFor(hex, 'dark'), l = readableColorFor(hex, 'light');
+  return d && l ? '--nc-d:'+d+';--nc-l:'+l : '';
 }
 
 // 信用卡期別：整張卡的分層一起切換（分期分層不受影響）
