@@ -7382,11 +7382,11 @@ function txnTable(txns, withActions, periodInfo) {
     + (showDateCol?'<col style="width:64px">':'')
     // 百分比欄位合計 75%，備註欄不設寬度、吃剩餘空間，避免百分比加上固定寬度後超過 100% 而出現左右捲動
     + '<col style="width:32%"><col style="width:13%"><col style="width:15%"><col style="width:15%"><col>'
-    + (withActions?'<col style="width:48px">':'')
+    + (withActions?'<col style="width:56px">':'')
     + '</colgroup>';
   const tableHtml = `<div class="txn-table-desktop"><table class="txn-table">
     ${colgroup}
-    <thead><tr>${withActions?'<th></th>':''}${showDateCol?'<th>日期</th>':''}<th>內容</th><th>類別</th><th>帳戶／卡片</th><th class="txn-col-amt">金額</th><th>備註</th>${withActions?'<th></th>':''}</tr></thead>
+    <thead><tr>${withActions?'<th></th>':''}${showDateCol?'<th>日期</th>':''}<th>內容</th><th>類別</th><th>帳戶／卡片</th><th class="txn-col-amt">金額</th><th>備註</th>${withActions?'<th class="txn-col-act">操作</th>':''}</tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr>
       <td colspan="${(withActions?1:0)+(showDateCol?1:0)+3}">共 ${txns.length} 筆</td>
