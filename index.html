@@ -334,54 +334,79 @@
       <div id="txnSourceChip"></div>
       <div class="table-container">
         <div class="table-toolbar" style="flex-wrap:wrap;gap:6px">
-          <!-- 固定列：搜尋 + 篩選toggle + 功能按鈕 -->
-          <div style="display:flex;gap:6px;width:100%;align-items:center;flex-wrap:wrap">
-            <input type="text" class="form-input" id="txnSearch" placeholder="🔍 搜尋內容/備註..." style="flex:1;min-width:120px" oninput="renderTxns()">
-            <button class="btn btn-ghost btn-sm filter-toggle-btn" id="filterToggleBtn" onclick="toggleTxnFilter()">篩選 ▾</button>
-            <div class="table-toolbar-right" style="margin-left:0">
-              <button class="btn btn-ghost btn-sm" id="batchModeBtn" onclick="enterBatchMode()">☑ 批量刪除</button>
-              <button class="btn btn-ghost btn-sm" onclick="openBillSplit()">🧮 分攤</button>
-              <button class="btn btn-success btn-sm" onclick="exportExcel()">📥 Excel</button>
-              <button class="btn btn-ghost btn-sm" onclick="exportPDF()">📄 PDF</button>
+          <!-- 固定列：搜尋 + 篩選 + 功能按鈕（樣式統一；Excel/PDF 收進「匯出」選單） -->
+          <div class="txn-tb-bar">
+            <input type="text" class="form-input txn-tb-search" id="txnSearch" placeholder="🔍 搜尋內容或備註" oninput="renderTxns()">
+            <button class="txn-tb-btn" id="filterToggleBtn" onclick="toggleTxnFilter()">篩選</button>
+            <button class="txn-tb-btn" id="batchModeBtn" onclick="enterBatchMode()">☑ 批量刪除</button>
+            <button class="txn-tb-btn" onclick="openBillSplit()">🧮 分攤</button>
+            <div class="txn-tb-menu" id="txnExportMenu">
+              <button class="txn-tb-btn" onclick="toggleTxnExportMenu(event)">📤 匯出 ▾</button>
+              <div class="txn-tb-dd">
+                <button type="button" onclick="closeTxnExportMenu();exportExcel()">📊 Excel</button>
+                <button type="button" onclick="closeTxnExportMenu();exportPDF()">📄 PDF</button>
+              </div>
             </div>
           </div>
-          <!-- 可收合篩選面板 -->
+          <!-- 目前套用的篩選條件（可個別移除） -->
+          <div id="txnFilterChips" class="txn-filter-chips"></div>
+          <!-- 可收合篩選面板：每個欄位都有名稱，改了立即生效 -->
           <div id="txnFilterPanel" class="txn-filter-panel" onkeydown="if(event.key==='Enter'){event.preventDefault();applyTxnFilter();}">
-            <div style="display:flex;gap:4px;flex-wrap:wrap;padding-bottom:6px;border-bottom:1px solid var(--bdr-subtle);margin-bottom:4px">
-              <span style="font-size:11px;color:var(--tx-muted);align-self:center;margin-right:2px">快選：</span>
-              <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="setQuickDateFilter('salary')">本期</button>
-              <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="setQuickDateFilter('month')">本月</button>
-              <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="setQuickDateFilter('30')">近30天</button>
-              <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="setQuickDateFilter('7')">近7天</button>
-              <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="setQuickDateFilter('today')">今天</button>
-            </div>
-            <input type="date" class="form-input" id="filterFrom" style="width:135px" onchange="updateFilterBtn();renderTxns()">
-            <span style="color:var(--tx-muted);align-self:center">—</span>
-            <input type="date" class="form-input" id="filterTo" style="width:135px" onchange="updateFilterBtn();renderTxns()">
-            <select class="form-select" id="filterSource" style="width:145px" onchange="updateFilterBtn();renderTxns()">
-              <option value="">全部帳戶/卡片</option>
-            </select>
-            <select class="form-select" id="filterCat" style="width:110px" onchange="updateFilterBtn();renderTxns()">
-              <option value="">全部類別</option>
-            </select>
-            <div class="layer-picker" id="filterLayer_picker" style="width:130px">
-              <div class="form-select layer-picker-trigger" id="filterLayer_trigger" onclick="toggleLayerPicker('filterLayer')">
-                <span class="layer-picker-trigger-text" id="filterLayer_text">全部分層</span>
-                <span class="layer-picker-caret">▾</span>
+            <div class="tfp-field tfp-wide">
+              <label class="tfp-label">期間</label>
+              <div class="tfp-seg" id="txnQuickSeg">
+                <span data-r="salary" onclick="setQuickDateFilter('salary')">本期</span>
+                <span data-r="month" onclick="setQuickDateFilter('month')">本月</span>
+                <span data-r="30" onclick="setQuickDateFilter('30')">近30天</span>
+                <span data-r="7" onclick="setQuickDateFilter('7')">近7天</span>
+                <span data-r="today" onclick="setQuickDateFilter('today')">今天</span>
+                <span data-r="all" onclick="setQuickDateFilter('all')">不限</span>
+                <span data-r="custom" onclick="document.getElementById('filterFrom')?.focus()">自訂</span>
               </div>
-              <input type="hidden" id="filterLayer" value="">
-              <div class="layer-picker-menu" id="filterLayer_menu"></div>
+              <div class="tfp-dates">
+                <input type="date" class="form-input" id="filterFrom" onchange="updateFilterBtn();renderTxns()">
+                <span class="tfp-tilde">～</span>
+                <input type="date" class="form-input" id="filterTo" onchange="updateFilterBtn();renderTxns()">
+              </div>
             </div>
-            <select class="form-select" id="filterType" style="width:95px" onchange="updateFilterBtn();renderTxns()">
-              <option value="">全部</option>
-              <option value="expense">支出</option>
-              <option value="income">收入</option>
-            </select>
-            <select class="form-select" id="filterTag" style="width:100px" onchange="updateFilterBtn();renderTxns()">
-              <option value="">全部標籤</option>
-            </select>
-            <button class="btn btn-ghost btn-sm" onclick="clearTxnFilters()">✕ 清除篩選</button>
-            <button class="btn btn-primary btn-sm" onclick="applyTxnFilter()">✓ 確定</button>
+            <div class="tfp-field">
+              <label class="tfp-label" for="filterSource">帳戶／卡片</label>
+              <select class="form-select" id="filterSource" onchange="updateFilterBtn();renderTxns()">
+                <option value="">全部帳戶/卡片</option>
+              </select>
+            </div>
+            <div class="tfp-field">
+              <label class="tfp-label">分層</label>
+              <div class="layer-picker" id="filterLayer_picker">
+                <div class="form-select layer-picker-trigger" id="filterLayer_trigger" onclick="toggleLayerPicker('filterLayer')">
+                  <span class="layer-picker-trigger-text" id="filterLayer_text">全部分層</span>
+                  <span class="layer-picker-caret">▾</span>
+                </div>
+                <input type="hidden" id="filterLayer" value="">
+                <div class="layer-picker-menu" id="filterLayer_menu"></div>
+              </div>
+            </div>
+            <div class="tfp-field">
+              <label class="tfp-label" for="filterCat">類別</label>
+              <select class="form-select" id="filterCat" onchange="updateFilterBtn();renderTxns()">
+                <option value="">全部類別</option>
+              </select>
+            </div>
+            <div class="tfp-field">
+              <label class="tfp-label" for="filterTag">標籤</label>
+              <select class="form-select" id="filterTag" onchange="updateFilterBtn();renderTxns()">
+                <option value="">全部標籤</option>
+              </select>
+            </div>
+            <div class="tfp-field">
+              <label class="tfp-label">收支</label>
+              <input type="hidden" id="filterType" value="">
+              <div class="tfp-seg" id="txnTypeSeg">
+                <span data-v="" onclick="setTxnTypeFilter('')">全部</span>
+                <span data-v="expense" onclick="setTxnTypeFilter('expense')">支出</span>
+                <span data-v="income" onclick="setTxnTypeFilter('income')">收入</span>
+              </div>
+            </div>
           </div>
         </div>
         <div id="txnTableWrap"></div>
@@ -2713,6 +2738,8 @@ function setQuickDateFilter(range) {
   } else if (range==='salary') {
     const s = getSalaryCycle();
     from = s.from; to = s.to;
+  } else if (range==='all') {
+    from = ''; to = ''; // 不限日期
   }
   const elFrom = document.getElementById('filterFrom');
   const elTo   = document.getElementById('filterTo');
@@ -5570,6 +5597,82 @@ function saveSalaryAllocs(txnDate, accId, txnId) {
   });
 }
 
+// ── 消費紀錄工具列：匯出選單 ──
+function toggleTxnExportMenu(ev) {
+  ev?.stopPropagation();
+  document.getElementById('txnExportMenu')?.classList.toggle('open');
+}
+function closeTxnExportMenu() { document.getElementById('txnExportMenu')?.classList.remove('open'); }
+document.addEventListener('click', e => { if (!e.target.closest?.('#txnExportMenu')) closeTxnExportMenu(); });
+
+// 收支篩選（分段按鈕；值存在隱藏欄位 filterType，沿用原本的篩選邏輯）
+function setTxnTypeFilter(v) {
+  const el = document.getElementById('filterType'); if (el) el.value = v;
+  updateFilterBtn(); renderTxns();
+}
+
+// 目前日期區間對應哪個快選（用於分段按鈕高亮與條件標籤文字）
+function _txnQuickRangeOf(from, to) {
+  if (!from && !to) return 'all';
+  const now = new Date(), pad = n => String(n).padStart(2,'0');
+  const f2 = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const back = n => { const d = new Date(now); d.setDate(d.getDate()-n); return f2(d); };
+  const t = f2(now);
+  const s = getSalaryCycle();
+  if (from===s.from && to===s.to) return 'salary';
+  if (from===`${now.getFullYear()}-${pad(now.getMonth()+1)}-01` && to===t) return 'month';
+  if (from===back(29) && to===t) return '30';
+  if (from===back(6) && to===t) return '7';
+  if (from===t && to===t) return 'today';
+  return 'custom';
+}
+
+// 搜尋列下方「目前條件」標籤：每個條件可按 ✕ 個別移除，另有「清除全部」
+function renderTxnFilterChips() {
+  const wrap = document.getElementById('txnFilterChips'); if (!wrap) return;
+  const val = id => document.getElementById(id)?.value || '';
+  const selText = id => { const el = document.getElementById(id); return el && el.selectedIndex > 0 ? el.options[el.selectedIndex].text : ''; };
+  const chips = [];
+  const from = val('filterFrom'), to = val('filterTo');
+  const r = _txnQuickRangeOf(from, to);
+  if (r !== 'all') {
+    const md = s => s ? s.slice(5).replace('-','/') : '…';
+    const name = {salary:'本期', month:'本月', '30':'近30天', '7':'近7天', today:'今天'}[r];
+    chips.push({ txt:(name ? name+' ' : '')+md(from)+'～'+md(to), clr:"setQuickDateFilter('all')" });
+  }
+  // 帳戶／卡片已由上方「來自：…」標籤顯示，這裡只計入條件數，不重複顯示標籤
+  const srcCount = val('filterSource') ? 1 : 0;
+  if (val('filterLayer'))  chips.push({ txt:document.getElementById('filterLayer_text')?.textContent || '分層', clr:"clearTxnFilterField('filterLayer')" });
+  if (val('filterCat'))    chips.push({ txt:selText('filterCat'), clr:"clearTxnFilterField('filterCat')" });
+  if (val('filterTag'))    chips.push({ txt:selText('filterTag'), clr:"clearTxnFilterField('filterTag')" });
+  if (val('filterType'))   chips.push({ txt:val('filterType')==='expense'?'支出':'收入', clr:"setTxnTypeFilter('')" });
+  // 分段按鈕高亮
+  document.querySelectorAll('#txnQuickSeg span').forEach(sp => sp.classList.toggle('a', sp.dataset.r === r));
+  document.querySelectorAll('#txnTypeSeg span').forEach(sp => sp.classList.toggle('a', sp.dataset.v === val('filterType')));
+  // 篩選按鈕上的條件數
+  const btn = document.getElementById('filterToggleBtn');
+  if (btn) {
+    const open = document.getElementById('txnFilterPanel')?.classList.contains('open');
+    const cnt = chips.length + srcCount;
+    btn.innerHTML = '篩選' + (cnt ? ' <span class="txn-tb-cnt">'+cnt+'</span>' : '') + (open ? ' ▴' : ' ▾');
+    btn.classList.toggle('on', cnt > 0 || !!open);
+  }
+  wrap.innerHTML = chips.length
+    ? '<span class="tfc-lbl">目前條件：</span>' + chips.map(c => '<span class="tfc-chip">'+escHtml(c.txt)+'<button type="button" onclick="'+c.clr+'" aria-label="移除">✕</button></span>').join('')
+      + '<button type="button" class="tfc-clear" onclick="clearTxnFilters()">清除全部</button>'
+    : '';
+}
+// 移除單一篩選條件
+function clearTxnFilterField(id) {
+  if (id === 'filterLayer') {
+    const h = document.getElementById('filterLayer'); if (h) h.value = '';
+    const t = document.getElementById('filterLayer_text'); if (t) { t.textContent = '全部分層'; t.style.color = ''; }
+  } else {
+    const el = document.getElementById(id); if (el) el.selectedIndex = 0;
+  }
+  updateFilterBtn(); renderTxns();
+}
+
 function toggleTxnFilter() {
   const panel = document.getElementById('txnFilterPanel');
   const btn = document.getElementById('filterToggleBtn');
@@ -5578,18 +5681,14 @@ function toggleTxnFilter() {
   updateFilterBtn(isOpen);
 }
 function updateFilterBtn(forceOpen) {
-  const panel = document.getElementById('txnFilterPanel');
-  const btn = document.getElementById('filterToggleBtn');
-  if (!btn || !panel) return;
-  const isOpen = forceOpen !== undefined ? forceOpen : panel.classList.contains('open');
-  const hasFilter = ['filterFrom','filterTo','filterSource','filterCat','filterLayer','filterType','filterTag']
-    .some(id => { const el=document.getElementById(id); return el && el.value; });
-  btn.textContent = isOpen ? '篩選 ▴' : (hasFilter ? '篩選 ●' : '篩選 ▾');
-  btn.classList.toggle('has-filter', hasFilter && !isOpen);
+  // 篩選按鈕狀態與條件標籤統一由 renderTxnFilterChips 處理
+  renderTxnFilterChips();
 }
+
 function clearTxnFilters() {
   ['filterFrom','filterTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  ['filterSource','filterCat','filterType','filterTag'].forEach(id=>{const el=document.getElementById(id);if(el)el.selectedIndex=0;});
+  ['filterSource','filterCat','filterTag'].forEach(id=>{const el=document.getElementById(id);if(el)el.selectedIndex=0;});
+  const ftEl=document.getElementById('filterType'); if(ftEl) ftEl.value='';
   const flHidden=document.getElementById('filterLayer'); if(flHidden) flHidden.value='';
   const flText=document.getElementById('filterLayer_text'); if(flText){ flText.textContent='全部分層'; flText.style.color=''; }
   updateFilterBtn();
@@ -7079,6 +7178,7 @@ function renderTxns() {
   // 記錄目前篩選來源（供「返回設定」按鈕與來源標籤使用），並渲染標籤
   currentTxnFilterSource = srcVal || null;
   renderTxnSourceChip();
+  renderTxnFilterChips();
 
   let txns=[...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date));
   if (from)     txns=txns.filter(t=>t.date>=from);
