@@ -7380,7 +7380,8 @@ function txnTable(txns, withActions, periodInfo) {
   const colgroup = '<colgroup>'
     + (withActions?'<col style="width:40px">':'')
     + (showDateCol?'<col style="width:64px">':'')
-    + '<col style="width:34%"><col style="width:14%"><col style="width:16%"><col style="width:16%"><col style="width:20%">'
+    // 百分比欄位合計 75%，備註欄不設寬度、吃剩餘空間，避免百分比加上固定寬度後超過 100% 而出現左右捲動
+    + '<col style="width:32%"><col style="width:13%"><col style="width:15%"><col style="width:15%"><col>'
     + (withActions?'<col style="width:48px">':'')
     + '</colgroup>';
   const tableHtml = `<div class="txn-table-desktop"><table class="txn-table">
@@ -7415,48 +7416,42 @@ function txnTable(txns, withActions, periodInfo) {
     const chkBox = (withActions&&batchMode)
       ?`<input type="checkbox" class="txn-chk" data-id="${t.id}" onchange="updateBatchUI()" style="width:16px;height:16px;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation()">`
       :'';
-    const mlDetail = hasML?`<div id="mldetail_m_${t.id}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr-subtle)">
+    const mlDetail = hasML?`<div id="mldetail_m_${t.id}" style="display:none;margin-top:6px">
       <div style="display:flex;flex-wrap:wrap;gap:4px">
         ${t.layerAmounts.map(la=>{
           const src=t.sourceType==='card'?getCard(t.sourceId):getAcc(t.sourceId);
           const layer=(src?.layers||[]).find(l=>l.id===la.layerId);
-          if (layer) return `<span style="font-size:11px;background:${layer.color||'#888'}22;color:${layer.color||'#888'};border:1px solid ${layer.color||'#888'}55;border-radius:10px;padding:2px 8px">${escHtml(layer.label)} ${la.amount<0?'−':'+'}${fmt(Math.abs(la.amount))}</span>`;
-          return `<span style="font-size:11px;background:#88888822;color:var(--tx-muted);border:1px solid #88888855;border-radius:10px;padding:2px 8px">⚠️ 分層已異動 ${la.amount<0?'−':'+'}${fmt(Math.abs(la.amount))}</span>`;
+          if (layer) return tagHtml(escHtml(layer.label)+' '+(la.amount<0?'−':'+')+fmt(Math.abs(la.amount)), {dot: layer.color||'#888'});
+          return tagHtml('⚠️ 分層已異動 '+(la.amount<0?'−':'+')+fmt(Math.abs(la.amount)));
         }).join('')}
       </div>
     </div>` : '';
-    const actBtns = (withActions&&!batchMode)
-      ?`<div style="display:flex;gap:4px;flex-shrink:0">
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="event.stopPropagation();openModal('editTxn','${t.id}')">✏️</button>
-          <button class="btn btn-danger btn-icon btn-sm" onclick="event.stopPropagation();deleteTxn('${t.id}')">🗑</button>
-        </div>`
-      :'';
+    // 手機版卡片：與電腦版相同的顏色與標籤規則
+    //   第一行：名稱（左）＋金額（右）＋「⋯」
+    //   第二行：類別色點＋文字 · 帳戶／卡片（消費紀錄頁有日期標籤，不再重複日期）；分層餘額靠右
+    //   第三行：中性標籤（分層、自訂標籤有色點；待核銷保留橘色）
+    const moreBtn = (withActions&&!batchMode)
+      ? `<button type="button" class="txn-more-btn" onclick="event.stopPropagation();openTxnRowMenu(event,'${t.id}')" aria-label="更多操作">⋯</button>`
+      : '';
     const rowClick = batchMode?`onclick="toggleRowSelect(this)" style="cursor:pointer"`:'';
+    const b = balLine(t);
     return `${periodHdr}${groupHdr}<div class="txn-card-mobile" ${rowClick}>
       <div class="txn-card-top">
         ${chkBox}
-        <div class="txn-card-desc">${escHtml(t.desc||'（未填）')}${t.fxCurrency&&t.fxAmount?`<span style="font-size:10px;color:var(--tx-muted);margin-left:6px">${t.fxCurrency} ${t.fxAmount.toLocaleString()}</span>`:''}</div>
+        <div class="txn-card-desc">${escHtml(t.desc||'（未填）')}</div>
         <div class="txn-card-amount ${amtCls}">${sign}${fmt(Math.abs(t.amount))}</div>
-        ${actBtns}
+        ${moreBtn}
       </div>
-      <div class="txn-card-bottom">
-        <span class="txn-card-date">${t.date}</span>
-        <span style="color:var(--tx-muted)">·</span>
+      <div class="txn-card-meta">
+        <span class="txn-cat"><i style="background:${cat.color}"></i>${escHtml(cat.name)}</span>
+        <span class="txn-card-sep">·</span>
         <span class="txn-card-source">${sourceName(t)}</span>
-        <span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55;font-size:10px">${cat.name}</span>
-        <span class="txn-card-tags">${sysTags}${mlBadge}${layerBadge}${feeBadge}${userTagBadges}</span>
-        ${t.mark && TXN_MARKS[t.mark] ? `<span title="${TXN_MARKS[t.mark].label}" style="font-size:13px;cursor:pointer" onclick="event.stopPropagation();setTxnMark('${t.id}',null)">${TXN_MARKS[t.mark].emoji}</span>` : ''}
-        ${(()=>{const b=balLine(t);return b?`<span class="txn-card-bal" style="margin-left:auto;text-align:right;font-size:12px;font-weight:600;color:var(--tx-primary);line-height:1.5;white-space:nowrap">${b}</span>`:'';})()}
+        ${withActions?'':`<span class="txn-card-sep">·</span><span class="txn-card-date">${t.date.slice(5).replace('-','/')}</span>`}
+        ${b?`<span class="txn-card-bal">${b}</span>`:''}
       </div>
+      ${neutralTags(t)}
       ${t.notes?`<div class="txn-card-notes">${escHtml(t.notes)}</div>`:''}
       ${mlDetail}
-      ${!batchMode&&withActions?`<div style="display:flex;gap:6px;padding:6px 0 2px;border-top:1px solid var(--bdr-subtle);margin-top:6px">
-        ${Object.entries(TXN_MARKS).map(([k,v])=>`
-          <button onclick="event.stopPropagation();setTxnMark('${t.id}','${k}')"
-            style="flex:1;padding:3px;border:1px solid ${t.mark===k?v.color:'var(--bdr-subtle)'};border-radius:6px;background:${t.mark===k?v.color+'22':'transparent'};font-size:12px;cursor:pointer;color:${v.color}">
-            ${v.emoji} ${v.label}
-          </button>`).join('')}
-      </div>`:''}
     </div>`;
   }).join('');
   const mobileTotal = `<div style="padding:10px 14px;border-top:1px solid var(--bdr-subtle);display:flex;justify-content:space-between;font-size:12px;color:var(--tx-muted)">
