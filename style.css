@@ -3495,7 +3495,7 @@ body.light-theme .period-row-prev{border-left-color:#7E57C2 !important;backgroun
 .dls-mini-btn{font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--bdr-subtle);background:var(--bg-primary);color:var(--tx-secondary);cursor:pointer}
 .dls-section-label{font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin:12px 2px 2px}
 .dls-group{border-top:1px solid var(--bdr-subtle);padding:8px 0 10px}
-.dls-group-head{display:grid;grid-template-columns:minmax(0,1fr) auto 118px 34px;align-items:center;gap:10px;margin-bottom:6px}
+.dls-group-head{display:grid;grid-template-columns:minmax(0,1fr) auto 96px 34px;align-items:center;gap:10px;margin-bottom:6px}
 .dls-group-period{display:flex;justify-content:flex-end}
 .dls-group-period:empty{display:none}
 .dls-group-name{display:flex;align-items:center;gap:8px;min-width:0;font-size:13px;font-weight:600;color:var(--tx-primary);white-space:nowrap}
@@ -3526,7 +3526,7 @@ body.light-theme .period-row-prev{border-left-color:#7E57C2 !important;backgroun
 @media (prefers-reduced-motion: reduce){ .dls-chip.on{animation:none} }
 /* 手機窄螢幕：縮小期別按鈕與小計欄，讓卡名有足夠空間 */
 @media (max-width:480px){
-  .dls-group-head{grid-template-columns:minmax(0,1fr) auto 96px 30px;gap:6px}
+  .dls-group-head{grid-template-columns:minmax(0,1fr) auto 84px 30px;gap:6px}
   .dls-seg span{padding:2px 5px}
 }
 .dls-result-main{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:2px}
