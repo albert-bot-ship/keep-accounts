@@ -5921,36 +5921,33 @@ function renderCCLayerSelector() {
     html += '<div class="dls-result-big" style="color:'+(remain<0?'var(--tx-red)':remain<bankTotal*0.2?'var(--tx-warning)':'var(--tx-green)')+'">'+(remain<0?'−':'')+nt(remain)+'</div>';
     html += '<div class="dls-result-sub"><span>薪水合計 <b style="color:var(--tx-green)">'+nt(bankTotal)+'</b></span><span>扣除合計 <b style="color:var(--tx-red)">'+nt(ccTotal)+'</b></span></div>';
   } else {
-    html += '<div class="dls-result-empty">展開下方帳戶，點選分層開始計算</div>';
+    html += '<div class="dls-result-empty">點選下方分層開始計算</div>';
   }
   html += '</div>';
 
-  // ── 群組（帳戶／信用卡）：一列摘要，點開顯示分層膠囊 ──
-  const groupHtml = (gKey, kind, name, color, items) => {
+  // ── 群組（帳戶／信用卡）：全部攤開，標題列固定三段：名稱｜已選與小計｜全選或清除 ──
+  // 按鈕共用同一組格線（電腦 4 欄、手機 2 欄），未選為灰色，選取後才顯示分層顏色
+  const groupHtml = (kind, name, items, extraHead) => {
     const keys = items.map(it => it.key);
     const selItems = items.filter(it => it.sel);
     const sub = selItems.reduce((s,it) => s + it.amt, 0);
-    const open = dashLayerOpenGroups.has(gKey);
     const allSel = selItems.length === items.length;
-    let g = '<div class="dls-group'+(open?' open':'')+'">';
-    g += '<div class="dls-group-head" onclick="toggleDashLayerGroup(\''+gKey+'\')">'
-       + '<span class="dls-dot" style="background:'+color+'"></span>'
-       + '<span class="dls-group-name">'+escHtml(name)+'</span>'
-       + '<span class="dls-group-count">已選 '+selItems.length+'/'+items.length+'</span>'
-       + '<span class="dls-group-sum" style="color:'+(selItems.length?(kind==='bank'?'var(--tx-green)':'var(--tx-red)'):'var(--tx-muted)')+'">'
-       + (selItems.length ? (kind==='cc'?'−':'')+nt(sub) : '—') + '</span>'
-       + '<span class="dls-arrow">'+(open?'▾':'›')+'</span></div>';
-    if (open) {
-      g += '<div class="dls-group-body">';
-      g += '<div class="dls-group-tools">'
-         + (allSel ? '' : '<button type="button" class="dls-mini-btn" onclick="setDashLayerGroup(\''+kind+'\','+escAttr(JSON.stringify(keys))+',true)">全選</button>')
-         + (selItems.length ? '<button type="button" class="dls-mini-btn" onclick="setDashLayerGroup(\''+kind+'\','+escAttr(JSON.stringify(keys))+',false)">清除</button>' : '')
-         + '</div>';
-      g += '<div class="dls-chips">' + items.map(it => it.html).join('') + '</div>';
-      g += '</div>';
-    }
+    const keysArg = escAttr(JSON.stringify(keys));
+    let g = '<div class="dls-group">';
+    g += '<div class="dls-group-head">'
+       + '<span class="dls-group-name">'+escHtml(name)+(extraHead||'')+'</span>'
+       + '<span class="dls-group-sum">'+selItems.length+'/'+items.length+'　'
+       + (selItems.length ? (kind==='cc'?'−':'')+nt(sub) : '—')+'</span>'
+       + (allSel
+          ? '<button type="button" class="dls-link" onclick="setDashLayerGroup(\''+kind+'\','+keysArg+',false)">清除</button>'
+          : '<button type="button" class="dls-link" onclick="setDashLayerGroup(\''+kind+'\','+keysArg+',true)">全選</button>')
+       + '</div>';
+    g += '<div class="dls-chips">' + items.map(it => it.html).join('') + '</div>';
     return g + '</div>';
   };
+  const chipHtml = (kind, sel, color, label, amtTxt, onclick) =>
+    '<button type="button" class="dls-chip'+(sel?' on':'')+'" style="--c:'+color+'" onclick="'+onclick+'">'
+    + '<span class="dls-chip-name"><i></i><b>'+escHtml(label)+'</b></span><small>'+amtTxt+'</small></button>';
 
   // 銀行：依帳戶分組
   if (bankLayers.length > 0) {
@@ -5962,14 +5959,14 @@ function renderCCLayerSelector() {
       const items = ls.map(l => {
         const key = l.accId+'_'+l.layerId, sel = selectedBankLayers.has(key);
         return { key, sel, amt:l.actual,
-          html: '<button type="button" class="dls-chip bank'+(sel?' on':'')+'" onclick="toggleBankLayer(\''+l.accId+'\',\''+l.layerId+'\','+(!sel)+')">'
-              + '<b>'+escHtml(l.label)+'</b><small>'+(l.actual<0?'−':'')+nt(l.actual)+'</small></button>' };
+          html: chipHtml('bank', sel, l.accColor, l.label, (l.actual<0?'−':'')+Math.abs(Math.round(l.actual)).toLocaleString('zh-TW'),
+                 'toggleBankLayer(\''+l.accId+'\',\''+l.layerId+'\','+(!sel)+')') };
       });
-      html += groupHtml('bank_'+accId, 'bank', acc?.name || ls[0].accName, acc?.color || ls[0].accColor || '#1c69d4', items);
+      html += groupHtml('bank', acc?.name || ls[0].accName, items);
     });
   }
 
-  // 信用卡：依卡片分組，非分期分層下方有期別分段按鈕
+  // 信用卡：依卡片分組；期別以「整張卡」為單位，放在卡名右邊（分期分層不受期別影響）
   if (ccLayers.length > 0) {
     html += '<div class="dls-section-label">💳 扣除項目</div>';
     const cardIds = [...new Set(ccLayers.map(l => l.cardId))];
@@ -5978,18 +5975,19 @@ function renderCCLayerSelector() {
       const card = getCard(cardId);
       const items = ls.map(l => {
         const key = l.cardId+'_'+l.layerId, sel = selectedCCLayers.has(key);
-        const mode = ccLayerPeriodMode.get(key) || 'current';
         const amt = ccAmt(l);
-        let chip = '<button type="button" class="dls-chip cc'+(sel?' on':'')+'" onclick="toggleCCLayer(\''+l.cardId+'\',\''+l.layerId+'\','+(!sel)+')">'
-                 + '<b>'+escHtml(l.label)+(l.monthly!=null?'<span class="dls-tag">分期</span>':'')+'</b>'
-                 + '<small>'+nt(amt)+(l.monthly!=null?'/月':'')+'</small></button>';
-        if (l.monthly == null) {
-          const seg = (m, t) => '<span class="'+(mode===m?'a':'')+'" onclick="setCCLayerPeriodMode(\''+l.cardId+'\',\''+l.layerId+'\',\''+m+'\')">'+t+'</span>';
-          chip = '<div class="dls-ccw">' + chip + '<div class="dls-seg">' + seg('prev','上期') + seg('current','本期') + seg('next','下期') + '</div></div>';
-        }
-        return { key, sel, amt, html: chip };
+        return { key, sel, amt,
+          html: chipHtml('cc', sel, l.cardColor, l.label, Math.abs(Math.round(amt)).toLocaleString('zh-TW')+(l.monthly!=null?'/月':''),
+                 'toggleCCLayer(\''+l.cardId+'\',\''+l.layerId+'\','+(!sel)+')') };
       });
-      html += groupHtml('cc_'+cardId, 'cc', card?.name || ls[0].cardName, card?.color || ls[0].cardColor, items);
+      let seg = '';
+      const periodLs = ls.filter(l => l.monthly == null);
+      if (periodLs.length) {
+        const mode = ccLayerPeriodMode.get(periodLs[0].cardId+'_'+periodLs[0].layerId) || 'current';
+        const sb = (m, t) => '<span class="'+(mode===m?'a':'')+'" onclick="setCCCardPeriodMode(\''+cardId+'\',\''+m+'\')">'+t+'</span>';
+        seg = '<span class="dls-seg">' + sb('prev','上期') + sb('current','本期') + sb('next','下期') + '</span>';
+      }
+      html += groupHtml('cc', card?.name || ls[0].cardName, items, seg);
     });
   }
 
@@ -5997,9 +5995,16 @@ function renderCCLayerSelector() {
   el.innerHTML = html;
 }
 
+// 信用卡期別：整張卡的分層一起切換（分期分層不受影響）
+function setCCCardPeriodMode(cardId, mode) {
+  const card = getCard(cardId); if (!card) return;
+  (card.layers||[]).forEach(l => ccLayerPeriodMode.set(cardId+'_'+l.id, mode));
+  saveDashLayerSel();
+  renderDashboard();
+}
+
 // ── 剩餘生活費勾選：記住勾選與期別（只存在這支裝置，不寫入記帳資料）──
 const DASH_LAYER_SEL_KEY = 'mwallet_dash_layer_sel';
-let dashLayerOpenGroups = new Set(); // 目前展開的帳戶／卡片群組（不記憶，重新打開預設全部收合）
 function saveDashLayerSel() {
   try {
     localStorage.setItem(DASH_LAYER_SEL_KEY, JSON.stringify({
@@ -6015,10 +6020,6 @@ function loadDashLayerSel() {
     (d.cc||[]).forEach(k => selectedCCLayers.add(k));
     Object.entries(d.mode||{}).forEach(([k,v]) => ccLayerPeriodMode.set(k, v));
   } catch(e) {}
-}
-function toggleDashLayerGroup(gKey) {
-  if (dashLayerOpenGroups.has(gKey)) dashLayerOpenGroups.delete(gKey); else dashLayerOpenGroups.add(gKey);
-  renderCCLayerSelector();
 }
 // 群組「全選／清除」
 function setDashLayerGroup(kind, keys, on) {
