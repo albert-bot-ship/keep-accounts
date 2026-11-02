@@ -5360,5 +5360,18 @@
     "tolerance": 20
   },
   "anomalyMultiplier": 1.5,
-  "githubUploadUrl": "https://github.com/albert-bot-ship/keep-accounts"
+  "githubUploadUrl": "https://github.com/albert-bot-ship/keep-accounts",
+  "goals": [
+    {
+      "id": "mvyu5vo1zfrdb",
+      "name": "備用金",
+      "target": 50000,
+      "saved": 21297,
+      "savedMode": "link",
+      "linkedLayers": [
+        "mov74st8ti4ry|mowtfdp3hzho9"
+      ],
+      "deadline": ""
+    }
+  ]
 }
