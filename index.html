@@ -1359,6 +1359,9 @@ function loadDB() {
 
 function saveDB() {
   try {
+    // 清除已移除之投資持股功能的殘留欄位
+    delete DB.stockTrades;
+    (DB.bankAccounts||[]).forEach(a=>{ delete a.holdings; });
     const json = JSON.stringify(DB);
     localStorage.setItem('mwallet_db_cache', json);
     localStorage.setItem('mwallet_db_cache_ts', new Date().toISOString());
@@ -2237,6 +2240,119 @@ function layerBalanceTWD(accId, layerId) {
 // 依帳戶幣別格式化金額（外幣帳戶顯示外幣，其餘顯示 NT$）
 function fmtAccAmt(acc, n) {
   return acc && acc.accType === '外幣' && acc.currency ? fmtFX(n, acc.currency) : fmt(n);
+}
+// 帳戶記帳幣別（外幣帳戶回傳幣別代碼，其餘回傳 TWD）
+function accUnitCur(acc) {
+  return acc && acc.accType === '外幣' && acc.currency ? acc.currency.trim().toUpperCase() : 'TWD';
+}
+// 依幣別四捨五入（台幣、日圓、韓元等無小數，其餘 2 位）
+function roundCur(x, cur) {
+  const d = ['TWD','JPY','KRW','IDR','VND'].includes(cur) ? 0 : 2;
+  const m = Math.pow(10, d);
+  return Math.round(x * m) / m;
+}
+// 計入總資產、但因匯率尚未載入而暫不計入的外幣帳戶
+function fxPendingAccounts() {
+  return DB.bankAccounts.filter(a => a.includeInTotal !== false && accUnitCur(a) !== 'TWD' && !getRateTWD(a.currency));
+}
+
+// ── 轉帳／繳款的外幣設定區（prefix：'tf' 轉帳、'py' 繳款）──
+// 表單內匯率（1 外幣 = ? 台幣）；未填時用目前匯率，皆無時回傳 0
+function fxFormRate(prefix, cur) {
+  if (!cur || cur === 'TWD') return 1;
+  const val = parseFloat(document.getElementById(prefix + 'Rate_' + cur)?.value);
+  return val > 0 ? val : (getRateTWD(cur) || 0);
+}
+// 目前選擇的輸入幣別（未顯示外幣設定區時一律 TWD）
+function fxFormCur(prefix) {
+  const box = document.getElementById(prefix + 'FxBox');
+  if (!box || box.style.display === 'none') return 'TWD';
+  return document.getElementById(prefix + 'Cur')?.value || 'TWD';
+}
+// 表單幣別金額 → 指定帳戶的記帳單位（缺匯率時回傳 null）
+function fxFormToAcc(prefix, x, acc) {
+  const cur = fxFormCur(prefix), u = accUnitCur(acc);
+  if (u === cur) return x;
+  const rIn = fxFormRate(prefix, cur), rOut = fxFormRate(prefix, u);
+  if (!rIn || !rOut) return null;
+  return roundCur(x * rIn / rOut, u);
+}
+// 檢查所需匯率是否齊全
+function fxFormRatesOk(prefix, accs) {
+  const need = [fxFormCur(prefix), ...accs.map(accUnitCur)].filter(c => c !== 'TWD');
+  return need.every(c => fxFormRate(prefix, c) > 0);
+}
+// 渲染外幣設定區：curs = 涉及的外幣；defCur = 預設輸入幣別
+function renderFxBox(prefix, curs, defCur, amtLabelId, baseLabel) {
+  const box = document.getElementById(prefix + 'FxBox'); if (!box) return;
+  const lbl = document.getElementById(amtLabelId);
+  curs = curs.filter(c => /^[A-Z]{3}$/.test(c));
+  if (!curs.length) {
+    box.style.display = 'none'; box.innerHTML = '';
+    if (lbl) lbl.textContent = baseLabel + '（NT$）';
+    return;
+  }
+  if (!['TWD', ...curs].includes(defCur)) defCur = 'TWD';
+  box.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+    + '<span style="font-size:12px;color:var(--tx-secondary);white-space:nowrap">輸入幣別</span>'
+    + '<select class="form-select" id="' + prefix + 'Cur" style="width:auto;height:34px;font-size:13px" onchange="onFxBoxCurChange(\'' + prefix + '\',\'' + amtLabelId + '\',\'' + baseLabel + '\')">'
+    + ['TWD', ...curs].map(c => '<option value="' + c + '"' + (c === defCur ? ' selected' : '') + '>' + (c === 'TWD' ? '台幣 TWD' : '外幣 ' + c) + '</option>').join('')
+    + '</select></div>'
+    + curs.map(c => '<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx-secondary);margin-bottom:6px">'
+      + '<span style="white-space:nowrap">匯率：1 ' + c + ' =</span>'
+      + '<input class="form-input" type="number" step="any" id="' + prefix + 'Rate_' + c + '" value="' + (getRateTWD(c) ? +getRateTWD(c).toFixed(4) : '') + '" placeholder="輸入匯率" style="width:110px;height:32px;font-size:12px" oninput="updateFxPreview(\'' + prefix + '\')">'
+      + '<span>NT$</span></div>').join('')
+    + '<div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">💡 匯率可改成銀行實際成交匯率；分層金額也以上方幣別輸入</div>'
+    + '<div id="' + prefix + 'FxPreview" style="font-size:12px;color:var(--tx-secondary);min-height:16px"></div>';
+  box.style.display = '';
+  box.dataset.prevCur = defCur;
+  if (lbl) lbl.textContent = baseLabel + '（' + (defCur === 'TWD' ? 'NT$' : defCur) + '）';
+}
+// 切換輸入幣別：已填的金額（含分層金額）一併換算成新幣別
+function onFxBoxCurChange(prefix, amtLabelId, baseLabel) {
+  const box = document.getElementById(prefix + 'FxBox'); if (!box) return;
+  const oldCur = box.dataset.prevCur || 'TWD', newCur = fxFormCur(prefix);
+  const rOld = fxFormRate(prefix, oldCur), rNew = fxFormRate(prefix, newCur);
+  const lists = prefix === 'tf' ? ['tfFromMultiList', 'tfToMultiList'] : ['pyMultiList'];
+  const inputs = [document.getElementById(prefix + 'Amt'),
+    ...lists.flatMap(id => [...(document.getElementById(id)?.querySelectorAll('input[type="number"]') || [])])];
+  if (rOld && rNew) inputs.forEach(inp => {
+    const x = parseFloat(inp?.value);
+    if (inp && x) inp.value = roundCur(x * rOld / rNew, newCur);
+  });
+  box.dataset.prevCur = newCur;
+  const lbl = document.getElementById(amtLabelId);
+  if (lbl) lbl.textContent = baseLabel + '（' + (newCur === 'TWD' ? 'NT$' : newCur) + '）';
+  updateFxPreview(prefix);
+}
+// 換算預覽
+function updateFxPreview(prefix) {
+  const el = document.getElementById(prefix + 'FxPreview'); if (!el) return;
+  const amt = Math.abs(+(document.getElementById(prefix + 'Amt')?.value) || 0);
+  if (!amt) { el.textContent = ''; return; }
+  if (prefix === 'tf') {
+    const f = getAcc(v('tfFrom')), t = getAcc(v('tfTo'));
+    if (!fxFormRatesOk('tf', [f, t])) { el.textContent = '⚠ 請輸入匯率'; return; }
+    el.textContent = '轉出 ' + fmtAccAmt(f, fxFormToAcc('tf', amt, f)) + '　→　轉入 ' + fmtAccAmt(t, fxFormToAcc('tf', amt, t));
+  } else {
+    const a = getAcc((v('pyFrom') || '').split('_')[1]);
+    if (!a) { el.textContent = ''; return; }
+    if (!fxFormRatesOk('py', [a])) { el.textContent = '⚠ 請輸入匯率'; return; }
+    const cur = fxFormCur('py');
+    el.textContent = '帳戶扣款 ' + fmtAccAmt(a, fxFormToAcc('py', amt, a)) + '　·　信用卡入帳 ' + fmt(cur === 'TWD' ? amt : amt * fxFormRate('py', cur));
+  }
+}
+function renderTfFxBox() {
+  const f = getAcc(v('tfFrom')), t = getAcc(v('tfTo'));
+  const curs = [...new Set([accUnitCur(f), accUnitCur(t)].filter(c => c !== 'TWD'))];
+  renderFxBox('tf', curs, accUnitCur(f), 'tfAmtLabel', '金額');
+  updateFxPreview('tf');
+}
+function renderPayFxBox() {
+  const a = getAcc((v('pyFrom') || '').split('_')[1]);
+  const u = accUnitCur(a);
+  renderFxBox('py', u !== 'TWD' ? [u] : [], 'TWD', 'pyAmtLabel', '繳款金額');
+  updateFxPreview('py');
 }
 
 // 分層動態餘額 = 初始金額 + 所有標記此分層的交易加減
@@ -3308,7 +3424,7 @@ function updateSidebarBal() {
   const cardsBal = document.getElementById('navBalCards');
   const accBal   = document.getElementById('navBalAccounts');
   if (cardsBal) {
-    const debt = DB.creditCards.reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
+    const debt = DB.creditCards.filter(c=>c.includeInTotal!==false).reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
     cardsBal.textContent  = debt>0 ? '−'+fmt(debt) : '✓';
     cardsBal.className    = 'nav-bal '+(debt>0?'bal-neg':'bal-pos');
   }
@@ -3528,6 +3644,7 @@ function renderNetWorth() {
         <div style="font-family:var(--ff-display);font-size:15px;font-weight:700;color:${nwColor}">${netWorth>=0?'+':'−'}${fmt(Math.abs(netWorth))}</div>
       </div>
     </div>
+    ${fxPendingAccounts().length ? '<div style="font-size:11px;color:var(--warn);margin:-4px 0 10px;text-align:center">⚠ 不含外幣帳戶（匯率載入中）</div>' : ''}
     <!-- 分類摘要 -->
     <div style="border-top:1px solid var(--bdr-subtle);padding-top:10px;margin-bottom:4px">
       ${groupRows}
@@ -5953,7 +6070,8 @@ function renderCCLayerSelector() {
   // ── 結果區（剩餘生活費 + 合計 + 全部清除）──
   let html = '<div class="dls-wrap">';
   html += '<div class="dls-result">';
-  html += '<div class="dls-result-top"><span>剩餘生活費</span>'
+  const fxPendSel = bankLayers.some(l => selectedBankLayers.has(l.accId+'_'+l.layerId) && layerBalanceTWD(l.accId, l.layerId) === null);
+  html += '<div class="dls-result-top"><span>剩餘生活費' + (fxPendSel ? '<span style="font-size:10px;color:var(--warn);margin-left:6px">不含外幣（匯率載入中）</span>' : '') + '</span>'
        + (anySel ? '<button type="button" class="dls-mini-btn" onclick="clearAllDashLayers()">↺ 全部清除</button>' : '') + '</div>';
   const pi = salaryPeriodInfo();
   html += '<div class="dls-result-main">';
@@ -6204,7 +6322,7 @@ function renderDashboard() {
     statCard(lbl+'消費', fmt(-spend), spend>0?'danger':'', dailySub, '💸') +
     statCard(lbl+'收入', fmt(income), income>0?'success':'', '', '📥') +
     statCard('信用卡未償還', fmt(-totalDebt), totalDebt>0?'danger':'success', '所有卡片累積', '💳') +
-    statCard('銀行總資產', fmt(totalBank), 'blue', '所有帳戶餘額', '🏦') +
+    statCard('銀行總資產', fmt(totalBank), 'blue', fxPendingAccounts().length ? '不含外幣（匯率載入中）' : '所有帳戶餘額', '🏦') +
     statCard('剩餘生活費', anySelected?fmt(layerRemain):'— 未選分層 —', !anySelected?'':(layerRemain<0?'danger':layerRemain<salarySum*0.2?'warning':'success'), layerSubLabel, '💰') +
     (hasReimburseLayer ? statCard('出差代墊待收', fmt(reimburseOutstanding), reimburseOutstanding>0?'warning':'success', '尚未核銷的代墊費用', '🧾') : '');
 
@@ -6759,7 +6877,7 @@ function renderAccounts() {
         <div style="display:flex;gap:4px">${topDots}</div>
         <div style="flex:1;min-width:0">
           <div class="layer-summary-count">${layerRenderData.length} 個分層</div>
-          <div class="layer-summary-total" style="color:${totalColor}">合計 ${fmt(layerTotalBal)}</div>
+          <div class="layer-summary-total" style="color:${totalColor}">合計 ${fmtAccAmt(a, layerTotalBal)}</div>
         </div>
         <span class="layer-summary-chevron${isGroupExpanded?' expanded':''}" id="chev-${groupKey}">▾</span>
       </div>
@@ -8642,10 +8760,10 @@ function openModal(type,id,preCard,preAcc,extraId) {
     </div>
     <div class="form-group" id="currencyGroup" style="${(a?.accType||'活存')==='外幣'?'':'display:none'}">
       <label class="form-label">外幣幣別（e.g. USD JPY EUR）</label>
-      <input class="form-input" id="aCurrency" value="${escAttr(a?.currency||'')}" placeholder="USD" style="text-transform:uppercase">
+      <input class="form-input" id="aCurrency" value="${escAttr(a?.currency||'')}" placeholder="JPY" style="text-transform:uppercase" oninput="updateInitBalLabel()">
     </div>
     <div class="form-group">
-      <label class="form-label">初始餘額（NT$）</label>
+      <label class="form-label" id="aInitBalLabel">初始餘額（${(a?.accType||'活存')==='外幣' ? escHtml(a?.currency||'外幣') : 'NT$'}）</label>
       <input class="form-input" id="aInitBal" type="number" value="${(()=>{if(!a)return 0;const l=(a.layers||[]).find(l=>l.label==='初始餘額');return l?l.amount:0;})()}">
       <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">
         ${a?'💡 修改後將更新「初始餘額」分層金額':'💡 將自動建立「初始餘額」分層'}
@@ -8855,7 +8973,9 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">目前欠款</div>
       <div style="font-family:var(--ff-display);font-size:24px;font-weight:700;color:var(--tx-red)">−${fmt(Math.abs(bal))}</div>
     </div>
-    <div class="form-group"><label class="form-label">繳款金額（NT$）</label><input class="form-input" id="pyAmt" type="number" value="${Math.abs(bal)}"></div>
+    <div class="form-group"><label class="form-label" id="pyAmtLabel">繳款金額（NT$）</label><input class="form-input" id="pyAmt" type="number" value="${Math.abs(bal)}" oninput="updateFxPreview('py')">
+      <div id="pyFxBox" style="display:none;margin-top:10px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:var(--r)"></div>
+    </div>
     <div class="form-group"><label class="form-label">從哪個帳戶扣款</label>
       <select class="form-select" id="pyFrom" onchange="onPayAccChange(this.value)"><option value="">請選擇帳戶</option>${srcOpts('account')}</select>
     </div>
@@ -8945,7 +9065,9 @@ function openModal(type,id,preCard,preAcc,extraId) {
         <div style="font-size:11px;color:var(--tx-secondary)">💡 勾選要存入的分層並填入各自金額</div>
       </div>
     </div>
-    <div class="form-group"><label class="form-label">金額（NT$）</label><input class="form-input" id="tfAmt" type="number" placeholder="0"></div>
+    <div class="form-group"><label class="form-label" id="tfAmtLabel">金額（NT$）</label><input class="form-input" id="tfAmt" type="number" placeholder="0" oninput="updateFxPreview('tf')">
+      <div id="tfFxBox" style="display:none;margin-top:10px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:var(--r)"></div>
+    </div>
     <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tfDate" type="date" value="${today()}"></div>
     <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tfNotes"></div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-violet" onclick="doTransfer()">🔄 確認轉帳</button>`;
@@ -9436,6 +9558,11 @@ function saveTxn() {
   const fxAmtRaw   = parseFloat(document.getElementById('tFxAmt')?.value) || 0;
   const fxGroup    = document.getElementById('tFxGroup');
   const hasFx      = fxGroup && fxGroup.style.display !== 'none' && fxAmtRaw > 0;
+  // 外幣帳戶多分層以台幣輸入：依本筆「外幣 ÷ 台幣」比例換算成外幣
+  if (layerAmounts && sType==='account' && hasFx && document.getElementById('tMlCur')?.value==='TWD' && Math.abs(amount)>0) {
+    const ratio = fxAmtRaw / Math.abs(amount), mlU = accUnitCur(getAcc(sId));
+    layerAmounts = layerAmounts.map(la => ({...la, amount: roundCur(la.amount * ratio, mlU)}));
+  }
 
   // 轉出（給他人）相關欄位
   const isTransferOut = type === 'transferOut';
@@ -9538,6 +9665,7 @@ function onPayAccChange(srcVal) {
   const accId = srcVal.startsWith('account_') ? srcVal.split('_')[1] : srcVal;
   fillLayerSel('pyLayer','pyLayerGroup', accId);
   renderPayMultiLayerInputs(accId);
+  renderPayFxBox();
   // 重設多分層狀態
   const tog = document.getElementById('pyMultiToggle');
   if (tog) { tog.checked = false; togglePayMultiLayer(false); }
@@ -9586,6 +9714,7 @@ function recalcPayMultiTotal() {
   }, 0);
   const amtEl = document.getElementById('pyAmt');
   if (amtEl && total > 0) amtEl.value = total;
+  updateFxPreview('py');
 }
 // ════════════════════════════════════════════════════════════════
 // LAYER PICKER（自訂分層選擇清單元件，取代原生 <select>，可依分層顏色上色）
@@ -9645,6 +9774,7 @@ function onTfAccChange(side, accId) {
   const baseId    = side==='from' ? 'tfFromLayer'       : 'tfToLayer';
   const grp = document.getElementById(groupId);
   if (!grp) return;
+  renderTfFxBox();
 
   const layers = getAcc(accId)?.layers || [];
   if (!layers.length) { grp.style.display='none'; return; }
@@ -9665,6 +9795,12 @@ function doPayment() {
   if(!amt||!fromVal){toast('請填寫完整資訊','danger');return;}
   const [,fromId]=fromVal.split('_');
   const card=getCard(cardId);
+  // 外幣：輸入幣別換算（台幣帳戶＋台幣輸入時數值不變）
+  const fromAcc=getAcc(fromId);
+  if(!fxFormRatesOk('py',[fromAcc])){toast('請輸入匯率','danger');return;}
+  const pyCur=fxFormCur('py');
+  const amtTWD = pyCur==='TWD' ? Math.abs(amt) : roundCur(Math.abs(amt)*fxFormRate('py',pyCur),'TWD');
+  const fromFx = accUnitCur(fromAcc)!=='TWD' ? {fxCurrency:accUnitCur(fromAcc), fxAmount:-fxFormToAcc('py',Math.abs(amt),fromAcc)} : {};
   const lastCat=DB.categories[DB.categories.length-1]?.id||'';
   const id1=uid(), id2=uid();
 
@@ -9678,7 +9814,7 @@ function doPayment() {
       if (checked.length > 0) {
         layerAmounts = checked.map(chk => {
           const lid = chk.id.slice('pyChk_'.length);
-          return { layerId: lid, amount: -(+(document.getElementById(`pyAmt_${lid}`)?.value)||0) };
+          return { layerId: lid, amount: -(fxFormToAcc('py', +(document.getElementById(`pyAmt_${lid}`)?.value)||0, fromAcc)||0) };
         }).filter(la => la.amount !== 0);
       }
     }
@@ -9687,10 +9823,10 @@ function doPayment() {
   }
 
   // 帳戶扣款
-  DB.transactions.push({id:id1,date,amount:-Math.abs(amt),desc:'信用卡繳款 — '+(card?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isPayment:true,isTransfer:false,layerId,layerAmounts:layerAmounts||undefined,transferPairTxnId:id2});
+  DB.transactions.push({id:id1,date,amount:-amtTWD,...fromFx,desc:'信用卡繳款 — '+(card?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isPayment:true,isTransfer:false,layerId,layerAmounts:layerAmounts||undefined,transferPairTxnId:id2});
   // 信用卡入帳（抵銷負債）
   const payForPeriodEnd = v('pyPeriod') || undefined; // 這筆繳款是繳哪一期（以該期結束日識別）
-  DB.transactions.push({id:id2,date,amount:+Math.abs(amt),desc:'繳款入帳 — '+(card?.name||''),category:lastCat,sourceId:cardId,sourceType:'card',notes,isPayment:true,isTransfer:false,transferPairTxnId:id1,payForPeriodEnd});
+  DB.transactions.push({id:id2,date,amount:+amtTWD,desc:'繳款入帳 — '+(card?.name||''),category:lastCat,sourceId:cardId,sourceType:'card',notes,isPayment:true,isTransfer:false,transferPairTxnId:id1,payForPeriodEnd});
   // 扣除各分期分層剩餘總額
   (card?.layers||[]).filter(l=>l.monthlyAmt!=null&&l.monthlyAmt!=='').forEach(l=>{
     const deductInput = document.getElementById('pyDeduct_'+l.id);
@@ -9750,6 +9886,7 @@ function recalcTfMultiTotal(side) {
   },0);
   const amtEl = document.getElementById('tfAmt');
   if (amtEl && total>0) amtEl.value = total;
+  updateFxPreview('tf');
 }
 
 // 取得轉帳表單某一側（from/to）目前實際選中的分層 ID 清單（相容單選與多分層兩種模式）
@@ -9776,6 +9913,12 @@ function doTransfer() {
     if(fLayers.some(l=>tLayers.includes(l))){toast('不能轉帳到相同分層','danger');return;}
   }
   const from=getAcc(fromId),to=getAcc(toId);
+  // 外幣：輸入幣別換算（兩邊都是台幣帳戶＋台幣輸入時數值不變）
+  if(!fxFormRatesOk('tf',[from,to])){toast('請輸入匯率','danger');return;}
+  const tfCur=fxFormCur('tf');
+  const amtTWD = tfCur==='TWD' ? Math.abs(amt) : roundCur(Math.abs(amt)*fxFormRate('tf',tfCur),'TWD');
+  const fromFx = accUnitCur(from)!=='TWD' ? {fxCurrency:accUnitCur(from), fxAmount:-fxFormToAcc('tf',Math.abs(amt),from)} : {};
+  const toFx   = accUnitCur(to)!=='TWD'   ? {fxCurrency:accUnitCur(to),   fxAmount:+fxFormToAcc('tf',Math.abs(amt),to)}   : {};
   const lastCat=DB.categories[DB.categories.length-1]?.id||'';
   const pairId=uid();
   const outId=uid(), inId=uid();
@@ -9789,7 +9932,7 @@ function doTransfer() {
       const entries = [...list.querySelectorAll('input[type="checkbox"]:checked')].map(chk=>{
         const lid = chk.id.replace(`tffromchk_`,'');
         const a = +(document.getElementById(`tffromamt_${lid}`)?.value)||0;
-        return {layerId:lid, amount:-a};
+        return {layerId:lid, amount:-(fxFormToAcc('tf',a,from)||0)};
       }).filter(e=>e.amount!==0);
       if (entries.length>0) fromLayerAmounts = entries;
     }
@@ -9806,7 +9949,7 @@ function doTransfer() {
       const entries = [...list.querySelectorAll('input[type="checkbox"]:checked')].map(chk=>{
         const lid = chk.id.replace(`tftochk_`,'');
         const a = +(document.getElementById(`tftoamt_${lid}`)?.value)||0;
-        return {layerId:lid, amount:+a};
+        return {layerId:lid, amount:+(fxFormToAcc('tf',a,to)||0)};
       }).filter(e=>e.amount!==0);
       if (entries.length>0) toLayerAmounts = entries;
     }
@@ -9814,8 +9957,8 @@ function doTransfer() {
     toLayerId = v('tfToLayer')||null;
   }
 
-  DB.transactions.push({id:outId,date,amount:-Math.abs(amt),desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true,layerId:fromLayerId,layerAmounts:fromLayerAmounts||undefined,transferPairId:pairId,transferPairTxnId:inId});
-  DB.transactions.push({id:inId,date,amount:+Math.abs(amt),desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true,layerId:toLayerId,layerAmounts:toLayerAmounts||undefined,transferPairId:pairId,transferPairTxnId:outId});
+  DB.transactions.push({id:outId,date,amount:-amtTWD,...fromFx,desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true,layerId:fromLayerId,layerAmounts:fromLayerAmounts||undefined,transferPairId:pairId,transferPairTxnId:inId});
+  DB.transactions.push({id:inId,date,amount:+amtTWD,...toFx,desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true,layerId:toLayerId,layerAmounts:toLayerAmounts||undefined,transferPairId:pairId,transferPairTxnId:outId});
   saveDB();
   closeModal();
   renderAccounts();
@@ -10123,12 +10266,9 @@ function getLinkedLayerBalance(linkedLayers) {
   return linkedLayers.reduce((sum, key) => {
     const [accId, layerId] = key.split('|');
     const acc = getAcc(accId);
-    if (!acc) return sum;
-    const layer = (acc.layers||[]).find(l=>l.id===layerId);
-    if (!layer) return sum;
-    const init = layer.amount||0;
-    const txSum = DB.transactions.filter(t=>t.layerId===layerId&&t.sourceType==='account'&&t.sourceId===accId).reduce((s,t)=>s+t.amount,0);
-    return sum + init + txSum;
+    if (!acc || !(acc.layers||[]).some(l=>l.id===layerId)) return sum;
+    // 與帳戶頁分層餘額同一算法；外幣分層換算台幣
+    return sum + (layerBalanceTWD(accId, layerId)||0);
   }, 0);
 }
 
@@ -10653,7 +10793,7 @@ function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
       if (acc?.accType === '外幣') {
         isFx = true;
         // 預設幣別填入帳戶設定的幣別
-        const cur = acc.currency || 'USD';
+        const cur = acc.currency || 'JPY';
         const sel = document.getElementById('tFxCurrency');
         if (sel) sel.value = cur;
       }
@@ -10964,7 +11104,12 @@ function renderMultiLayerInputs(srcVal, preLayerAmounts) {
     const cardId = srcVal.split('_')[1];
     layers = (getCard(cardId)?.layers||[]).map(l=>({...l, bal: null}));
   }
-  list.innerHTML = layers.map(l => {
+  // 外幣帳戶：分層金額可選擇以外幣或台幣輸入
+  const mlFxCur = accUnitCur(srcVal.startsWith('account_') ? getAcc(srcVal.split('_')[1]) : null);
+  const mlCurSel = mlFxCur !== 'TWD'
+    ? `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--tx-secondary)"><span>分層金額幣別</span><select class="form-select" id="tMlCur" style="width:auto;height:32px;font-size:12px" onchange="recalcMultiLayerTotal()"><option value="${escAttr(mlFxCur)}">外幣 ${escHtml(mlFxCur)}</option><option value="TWD">台幣 TWD</option></select></div>`
+    : '';
+  list.innerHTML = mlCurSel + layers.map(l => {
     const pre = (preLayerAmounts||[]).find(la=>la.layerId===l.id);
     const isChecked = !!pre;
     const preAmt = pre ? Math.abs(pre.amount) : '';
@@ -10996,6 +11141,25 @@ function recalcMultiLayerTotal() {
     return s+(+(document.getElementById('mlamt_'+lid)?.value)||0);
   },0);
   const amtEl = document.getElementById('tAmt');
+  // 外幣帳戶：合計帶入外幣金額欄（台幣輸入時先依匯率換算）
+  const fxGroup = document.getElementById('tFxGroup');
+  if (fxGroup && fxGroup.style.display !== 'none') {
+    if (total <= 0) return;
+    const fxCur = document.getElementById('tFxCurrency')?.value;
+    const mlCur = document.getElementById('tMlCur')?.value || fxCur;
+    const fxEl  = document.getElementById('tFxAmt');
+    if (mlCur === 'TWD') {
+      const rate = getRateTWD(fxCur);
+      if (!rate) { toast('匯率尚未載入，請改用外幣輸入','warn'); return; }
+      if (fxEl) fxEl.value = roundCur(total / rate, fxCur);
+      calcTxnFx();
+      if (amtEl) amtEl.value = total;
+    } else {
+      if (fxEl) fxEl.value = total;
+      calcTxnFx();
+    }
+    return;
+  }
   if (amtEl && total>0) amtEl.value = total;
 }
 function toggleMLDetail(txnId) {
@@ -11015,6 +11179,17 @@ function toggleMLDetail(txnId) {
 function toggleCurrencyField(accType) {
   const el = document.getElementById('currencyGroup');
   if (el) el.style.display = accType === '外幣' ? '' : 'none';
+  // 外幣帳戶預設幣別：日圓
+  const curEl = document.getElementById('aCurrency');
+  if (accType === '外幣' && curEl && !curEl.value.trim()) curEl.value = 'JPY';
+  updateInitBalLabel();
+}
+// 初始餘額欄位標示：外幣帳戶顯示幣別，其餘顯示 NT$
+function updateInitBalLabel() {
+  const lbl = document.getElementById('aInitBalLabel'); if (!lbl) return;
+  const type = document.getElementById('aType')?.value;
+  const cur  = (document.getElementById('aCurrency')?.value||'').trim().toUpperCase();
+  lbl.textContent = '初始餘額（' + (type === '外幣' ? (cur || '外幣') : 'NT$') + '）';
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -12254,6 +12429,8 @@ async function init() {
   setupViewportFix();
   // 6. 儲存容量
   checkStorageCapacity();
+  // 清除已移除之投資持股功能的股價快取
+  localStorage.removeItem('mwallet_stocks');
   // 8. 密碼保護（由 initSplash 結束時觸發，這裡只處理重新整理的情況）
   if (!sessionStorage.getItem('mw_splash')) {
     // 首次開啟由 initSplash 處理，不重複呼叫
