@@ -4703,62 +4703,25 @@ function doCleanup(cutDate) {
 // ════════════════════════════════════════════════════════════════
 // 1. 本期預算剩餘倒數
 // ════════════════════════════════════════════════════════════════
-function renderPeriodCountdown() {
-  const wrap = document.getElementById('gaugeWrap');
-  if (!wrap) return;
-
-  const { from, to } = getSalaryCycle();
-  const now      = new Date();
-  const toReal   = new Date(now.getFullYear(), now.getMonth(), now.getDate() >= 25
-    ? now.getMonth() === 11 ? 24 : 24
-    : 24);
-  // 計算本期結束日
-  const endDate  = now.getDate() >= 25
+// 本期（薪水週期）天數資訊：供頂部「剩餘生活費」結果區顯示每日可用、剩幾天、進度條
+function salaryPeriodInfo() {
+  const { from } = getSalaryCycle();
+  const now = new Date();
+  // 計算本期結束日（沿用原「本期剩餘預算」的算法：每月 24 日結束）
+  const endDate = now.getDate() >= 25
     ? new Date(now.getMonth() === 11 ? now.getFullYear()+1 : now.getFullYear(),
                now.getMonth() === 11 ? 0 : now.getMonth()+1, 24)
     : new Date(now.getFullYear(), now.getMonth(), 24);
-  const daysLeft = Math.max(0, Math.ceil((endDate - now) / 86400000));
-  const daysTotal= Math.round((endDate - new Date(from+'T00:00:00')) / 86400000);
-  const daysGone = daysTotal - daysLeft;
+  const daysLeft  = Math.max(0, Math.ceil((endDate - now) / 86400000));
+  const daysTotal = Math.round((endDate - new Date(from+'T00:00:00')) / 86400000);
+  const pct = daysTotal > 0 ? Math.round((daysTotal - daysLeft) / daysTotal * 100) : 0;
+  return { from, endDate, daysLeft, daysTotal, pct };
+}
 
-  // 期間支出
-  const spend = Math.abs(DB.transactions
-    .filter(t=>t.date>=from&&t.date<=to&&t.amount<0&&!t.isTransfer&&!t.isPayment)
-    .reduce((s,t)=>s+t.amount,0));
-
-  // 方案B：未勾選分層時不顯示
-  if (dashRemainAmt === null) {
-    wrap.innerHTML = '<div class="chart-box" style="padding:14px 18px;text-align:center"><div style="font-size:12px;color:var(--tx-muted);padding:8px 0">請在上方勾選分層以計算本期剩餘預算</div></div>';
-    return;
-  }
-
-  // 勾選分層後：用分層計算結果
-  const remaining    = dashRemainAmt;
-  const dailyAllowed = daysLeft > 0 ? Math.round(remaining / daysLeft) : 0;
-  const color = remaining <= 0 ? 'var(--tx-red)' : daysLeft <= 5 ? 'var(--warn)' : 'var(--tx-green)';
-  const pct   = daysTotal > 0 ? Math.round(daysGone / daysTotal * 100) : 0;
-  const fmtSigned = n => (n < 0 ? '-' : '') + fmt(n);
-  const dailyLabel = dailyAllowed < 0 ? '日均超支' : '日均可花';
-
-  wrap.innerHTML = `<div class="chart-box" style="padding:14px 18px">
-    <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:10px">本期剩餘預算</div>
-    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-      <div style="flex:1;min-width:120px">
-        <div style="font-family:var(--ff-display);font-size:28px;font-weight:700;color:${color};letter-spacing:1px">${fmtSigned(remaining)}</div>
-        <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${dailyLabel} <span style="color:${color};font-weight:600">${fmt(dailyAllowed)}</span></div>
-      </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-family:var(--ff-display);font-size:32px;font-weight:700;color:${daysLeft<=5?'var(--warn)':'var(--tx-blue)'}">${daysLeft}</div>
-        <div style="font-size:10px;color:var(--tx-muted)">天後本期結束</div>
-      </div>
-    </div>
-    <div style="margin-top:10px;height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden">
-      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--m-blue),var(--m-violet));border-radius:3px;transition:width .8s ease"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx-muted);margin-top:3px">
-      <span>${from.slice(5)} 開始</span><span>${pct}% 已過</span><span>${endDate.getMonth()+1}/${endDate.getDate()} 結束</span>
-    </div>
-  </div>`;
+// 原「本期剩餘預算」區塊已併入頂部剩餘生活費結果區，這裡只清空舊容器
+function renderPeriodCountdown() {
+  const wrap = document.getElementById('gaugeWrap');
+  if (wrap) { wrap.innerHTML = ''; wrap.style.marginBottom = '0'; }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -5917,12 +5880,22 @@ function renderCCLayerSelector() {
   html += '<div class="dls-result">';
   html += '<div class="dls-result-top"><span>剩餘生活費</span>'
        + (anySel ? '<button type="button" class="dls-mini-btn" onclick="clearAllDashLayers()">↺ 全部清除</button>' : '') + '</div>';
+  const pi = salaryPeriodInfo();
+  html += '<div class="dls-result-main">';
   if (anySel) {
-    html += '<div class="dls-result-big" style="color:'+(remain<0?'var(--tx-red)':remain<bankTotal*0.2?'var(--tx-warning)':'var(--tx-green)')+'">'+(remain<0?'−':'')+nt(remain)+'</div>';
-    html += '<div class="dls-result-sub"><span>薪水合計 <b style="color:var(--tx-green)">'+nt(bankTotal)+'</b></span><span>扣除合計 <b style="color:var(--tx-red)">'+nt(ccTotal)+'</b></span></div>';
+    const daily = pi.daysLeft > 0 ? Math.round(remain / pi.daysLeft) : 0;
+    html += '<div class="dls-result-left">'
+         + '<div class="dls-result-big" style="color:'+(remain<0?'var(--tx-red)':remain<bankTotal*0.2?'var(--tx-warning)':'var(--tx-green)')+'">'+(remain<0?'−':'')+nt(remain)+'</div>'
+         + '<div class="dls-result-daily">'+(daily<0?'日均超支':'日均可花')+' <b style="color:'+(daily<0?'var(--tx-red)':'var(--tx-primary)')+'">'+(daily<0?'−':'')+nt(daily)+'</b></div>'
+         + '</div>';
   } else {
-    html += '<div class="dls-result-empty">點選下方分層開始計算</div>';
+    html += '<div class="dls-result-left"><div class="dls-result-empty">點選下方分層開始計算</div></div>';
   }
+  html += '<div class="dls-result-days"><b style="color:'+(pi.daysLeft<=5?'var(--tx-warning)':'var(--tx-blue)')+'">'+pi.daysLeft+'</b><span>天後本期結束</span></div>';
+  html += '</div>';
+  if (anySel) html += '<div class="dls-result-sub"><span>薪水合計 <b style="color:var(--tx-green)">'+nt(bankTotal)+'</b></span><span>扣除合計 <b style="color:var(--tx-red)">'+nt(ccTotal)+'</b></span></div>';
+  html += '<div class="dls-progress"><div style="width:'+pi.pct+'%"></div></div>'
+       + '<div class="dls-progress-lbl"><span>'+pi.from.slice(5).replace('-','/')+' 開始</span><span>'+pi.pct+'% 已過</span><span>'+(pi.endDate.getMonth()+1)+'/'+pi.endDate.getDate()+' 結束</span></div>';
   html += '</div>';
 
   // ── 群組（帳戶／信用卡）：全部攤開，標題列固定三段：名稱｜已選與小計｜全選或清除 ──
@@ -5935,7 +5908,8 @@ function renderCCLayerSelector() {
     const keysArg = escAttr(JSON.stringify(keys));
     let g = '<div class="dls-group">';
     g += '<div class="dls-group-head">'
-       + '<span class="dls-group-name"><span class="dls-acc-name" style="'+accNameColorVars(color)+'">'+escHtml(name)+'</span>'+(extraHead||'')+'</span>'
+       + '<span class="dls-group-name"><span class="dls-acc-name" style="'+accNameColorVars(color)+'">'+escHtml(name)+'</span></span>'
+       + '<span class="dls-group-period">'+(extraHead||'')+'</span>' // 期別獨立一欄，各卡上下對齊
        + '<span class="dls-group-sum">'+selItems.length+'/'+items.length+'　'
        + (selItems.length ? (kind==='cc'?'−':'')+nt(sub) : '—')+'</span>'
        + (allSel
