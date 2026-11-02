@@ -5910,7 +5910,7 @@ function renderCCLayerSelector() {
     g += '<div class="dls-group-head">'
        + '<span class="dls-group-name"><span class="dls-acc-name" style="'+accNameColorVars(color)+'">'+escHtml(name)+'</span></span>'
        + '<span class="dls-group-period">'+(extraHead||'')+'</span>' // 期別獨立一欄，各卡上下對齊
-       + '<span class="dls-group-sum">'+selItems.length+'/'+items.length+'　'
+       + '<span class="dls-group-sum">'
        + (selItems.length ? (kind==='cc'?'−':'')+nt(sub) : '—')+'</span>'
        + (allSel
           ? '<button type="button" class="dls-link" onclick="setDashLayerGroup(\''+kind+'\','+keysArg+',false)">清除</button>'
