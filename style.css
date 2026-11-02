@@ -3484,37 +3484,32 @@ body.light-theme .period-row-cur{border-left-color:#0891B2 !important;background
 body.light-theme .period-row-prev{border-left-color:#7E57C2 !important;background:rgba(126,87,194,.10) !important}
 .period-row-old{border-left:4px solid #8888aa !important;background:rgba(136,136,170,.12) !important}
 
-/* ══ 儀表板「剩餘生活費」分層選擇：帳戶摺疊群組 + 膠囊按鈕 ══ */
-.dls-wrap{display:flex;flex-direction:column;gap:6px}
-.dls-result{background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:12px;padding:12px 14px}
+/* ══ 儀表板「剩餘生活費」分層選擇：全部攤開、共用格線、未選灰色 ══ */
+.dls-wrap{display:flex;flex-direction:column}
+.dls-result{background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:12px;padding:12px 14px;margin-bottom:4px}
 .dls-result-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--tx-secondary)}
 .dls-result-big{font-family:var(--ff-display);font-size:26px;font-weight:700;line-height:1.3;margin-top:2px}
 .dls-result-sub{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--tx-secondary);margin-top:2px}
 .dls-result-sub b{font-weight:700}
 .dls-result-empty{font-size:12px;color:var(--tx-muted);margin-top:6px}
-.dls-section-label{font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin:8px 2px 0}
-.dls-group{background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:10px;overflow:hidden}
-.dls-group-head{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;font-size:13px;-webkit-tap-highlight-color:transparent}
-.dls-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.dls-group-name{font-weight:600;color:var(--tx-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.dls-group-count{font-size:11px;color:var(--tx-muted);white-space:nowrap}
-.dls-group-sum{margin-left:auto;font-size:12px;font-weight:700;white-space:nowrap}
-.dls-arrow{color:var(--tx-muted);width:12px;text-align:center;flex-shrink:0}
-.dls-group-body{padding:0 12px 10px}
-.dls-group-tools{display:flex;justify-content:flex-end;gap:6px;margin-bottom:6px}
-.dls-group-tools:empty{display:none}
 .dls-mini-btn{font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--bdr-subtle);background:var(--bg-primary);color:var(--tx-secondary);cursor:pointer}
-.dls-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
-.dls-chip{display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:86px;padding:6px 12px;border-radius:12px;border:1px solid var(--bdr-subtle);background:var(--bg-primary);color:var(--tx-secondary);cursor:pointer;text-align:left;font:inherit;-webkit-tap-highlight-color:transparent}
-.dls-chip b{font-size:12px;font-weight:600;display:flex;align-items:center}
-.dls-chip small{font-size:11px;color:var(--tx-muted)}
-.dls-chip.bank.on{border:1.5px solid var(--tx-blue);background:color-mix(in srgb, var(--tx-blue) 16%, transparent);color:var(--tx-primary)}
-.dls-chip.bank.on small{color:var(--tx-blue)}
-.dls-chip.cc.on{border:1.5px solid var(--tx-red);background:color-mix(in srgb, var(--tx-red) 14%, transparent);color:var(--tx-primary)}
-.dls-chip.cc.on small{color:var(--tx-red)}
-.dls-tag{font-size:10px;font-weight:600;padding:0 5px;border-radius:4px;margin-left:4px;background:color-mix(in srgb, var(--tx-blue) 18%, transparent);color:var(--tx-blue)}
-.dls-ccw{display:inline-flex;flex-direction:column;gap:4px}
-.dls-ccw .dls-chip{width:100%}
-.dls-seg{display:flex;border:1px solid var(--bdr-subtle);border-radius:8px;overflow:hidden;font-size:11px}
-.dls-seg span{flex:1;text-align:center;padding:5px 6px;color:var(--tx-muted);cursor:pointer;white-space:nowrap}
-.dls-seg span.a{background:color-mix(in srgb, var(--tx-red) 16%, transparent);color:var(--tx-primary);font-weight:600}
+.dls-section-label{font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin:12px 2px 2px}
+.dls-group{border-top:1px solid var(--bdr-subtle);padding:8px 0 10px}
+.dls-group-head{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;margin-bottom:6px}
+.dls-group-name{display:flex;align-items:center;gap:8px;min-width:0;font-size:13px;font-weight:600;color:var(--tx-primary);white-space:nowrap}
+.dls-group-sum{font-size:12px;color:var(--tx-secondary);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.dls-link{font-size:11px;color:var(--tx-blue);background:none;border:none;padding:2px 0;cursor:pointer;min-width:30px;text-align:right}
+.dls-chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+@media (min-width:768px){ .dls-chips{grid-template-columns:repeat(4,minmax(0,1fr))} }
+.dls-chip{height:42px;box-sizing:border-box;padding:0 10px;border-radius:8px;border:1px solid var(--bdr-subtle);background:var(--bg-secondary);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;font:inherit;text-align:left;-webkit-tap-highlight-color:transparent;min-width:0}
+.dls-chip-name{display:flex;align-items:center;gap:6px;min-width:0}
+.dls-chip-name i{width:6px;height:6px;border-radius:50%;background:var(--c);opacity:0;flex-shrink:0}
+.dls-chip b{font-size:12px;font-weight:400;color:var(--tx-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dls-chip small{font-size:11px;color:var(--tx-muted);font-variant-numeric:tabular-nums;flex-shrink:0}
+.dls-chip.on{border-color:var(--c);background:color-mix(in srgb, var(--c) 14%, var(--bg-secondary))}
+.dls-chip.on b{color:var(--tx-primary);font-weight:600}
+.dls-chip.on small{color:var(--tx-primary)}
+.dls-chip.on .dls-chip-name i{opacity:1}
+.dls-seg{display:inline-flex;border:1px solid var(--bdr-subtle);border-radius:6px;overflow:hidden;font-size:11px;font-weight:400;flex-shrink:0}
+.dls-seg span{padding:2px 8px;color:var(--tx-muted);cursor:pointer}
+.dls-seg span.a{background:color-mix(in srgb, var(--tx-blue) 18%, transparent);color:var(--tx-primary);font-weight:600}
