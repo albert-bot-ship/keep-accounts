@@ -5902,112 +5902,144 @@ function renderCCLayerSelector() {
   if (bankLayers.length === 0 && ccLayers.length === 0) { el.innerHTML = ''; return; }
 
   // ── 合計 ──
+  const ccAmt = l => {
+    const m = ccLayerPeriodMode.get(l.cardId+'_'+l.layerId) || 'current';
+    return l.monthly != null ? l.monthly : cardLayerDashboardDeduct(l.cardId, l.layerId, m);
+  };
   const bankTotal = bankLayers.filter(l => selectedBankLayers.has(l.accId+'_'+l.layerId)).reduce((s,l) => s+l.actual, 0);
-  const ccTotal   = ccLayers.filter(l => selectedCCLayers.has(l.cardId+'_'+l.layerId)).reduce((s,l) => {
-    const key = l.cardId+'_'+l.layerId;
-    const m = ccLayerPeriodMode.get(key) || 'current';
-    return s + (l.monthly != null ? l.monthly : cardLayerDashboardDeduct(l.cardId, l.layerId, m));
-  }, 0);
+  const ccTotal   = ccLayers.filter(l => selectedCCLayers.has(l.cardId+'_'+l.layerId)).reduce((s,l) => s + ccAmt(l), 0);
   const remain    = bankTotal - ccTotal;
+  const anySel    = selectedBankLayers.size > 0 || selectedCCLayers.size > 0;
+  const nt = n => 'NT$' + Math.abs(Math.round(n)).toLocaleString('zh-TW');
 
-  const mkChip = (key, color, isSelected, label1, label2, amt, onchange) =>
-    '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;' +
-    'background:var(--bg-primary);border:1px solid '+(isSelected?color:'var(--bdr-subtle)')+';' +
-    'border-radius:6px;padding:4px 10px;transition:border .2s">' +
-    '<input type="checkbox"'+(isSelected?' checked':'')+' style="cursor:pointer;accent-color:'+color+'" onchange="'+onchange+'">' +
-    '<span style="color:'+color+';font-weight:600">'+escHtml(label1)+'</span>' +
-    '<span style="color:var(--tx-secondary)"> / </span>' +
-    '<span>'+escHtml(label2)+'</span>' +
-    '<span style="color:var(--tx-muted);margin-left:4px">NT$'+Math.abs(amt).toLocaleString('zh-TW')+'</span>' +
-    '</label>';
-
-  let html = '<div style="background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:10px;padding:10px 14px;">';
-
-  // 銀行薪水來源區
-  if (bankLayers.length > 0) {
-    html += '<div style="font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin-bottom:6px;font-family:var(--ff-display)">🏦 薪水來源 — 選擇銀行帳戶分層</div>';
-    html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">';
-    let lastAccId = null;
-    bankLayers.forEach(l => {
-      const key = l.accId+'_'+l.layerId;
-      const isSelected = selectedBankLayers.has(key);
-      // 每個新帳戶前插入群組標題
-      if (l.accId !== lastAccId) {
-        if (lastAccId !== null) {
-          html += '<div style="height:4px"></div>';
-        }
-        html += '<div style="font-size:11px;font-weight:700;color:var(--tx-primary);padding:2px 4px;letter-spacing:0.5px">— '+escHtml(l.accName)+' —</div>';
-        lastAccId = l.accId;
-      }
-      html += '<div style="display:flex;align-items:center;background:var(--bg-primary);border:1px solid '+(isSelected?l.accColor||'#1c69d4':'var(--bdr-subtle)')+';border-radius:6px;padding:4px 10px;gap:6px">';
-      html += '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;flex:1;min-width:0">';
-      html += '<input type="checkbox"'+(isSelected?' checked':'')+' style="cursor:pointer;accent-color:'+(l.accColor||'#1c69d4')+'" onchange="toggleBankLayer(\''+l.accId+'\',\''+l.layerId+'\',this.checked)">';
-      html += '<span style="color:'+(l.accColor||'#1c69d4')+';font-weight:600;white-space:nowrap">'+escHtml(l.accName)+'</span>';
-      html += '<span style="color:var(--tx-secondary)"> / </span>';
-      html += '<span style="white-space:nowrap">'+escHtml(l.label)+'</span>';
-      html += '<span style="color:var(--tx-muted);margin-left:4px;white-space:nowrap">NT$'+l.actual.toLocaleString('zh-TW')+'</span>';
-      html += '</label>';
-      html += '</div>';
-    });
-    html += '</div>';
+  // ── 結果區（剩餘生活費 + 合計 + 全部清除）──
+  let html = '<div class="dls-wrap">';
+  html += '<div class="dls-result">';
+  html += '<div class="dls-result-top"><span>剩餘生活費</span>'
+       + (anySel ? '<button type="button" class="dls-mini-btn" onclick="clearAllDashLayers()">↺ 全部清除</button>' : '') + '</div>';
+  if (anySel) {
+    html += '<div class="dls-result-big" style="color:'+(remain<0?'var(--tx-red)':remain<bankTotal*0.2?'var(--tx-warning)':'var(--tx-green)')+'">'+(remain<0?'−':'')+nt(remain)+'</div>';
+    html += '<div class="dls-result-sub"><span>薪水合計 <b style="color:var(--tx-green)">'+nt(bankTotal)+'</b></span><span>扣除合計 <b style="color:var(--tx-red)">'+nt(ccTotal)+'</b></span></div>';
+  } else {
+    html += '<div class="dls-result-empty">展開下方帳戶，點選分層開始計算</div>';
   }
-
-  // 信用卡扣除區
-  if (ccLayers.length > 0) {
-    html += '<div style="font-size:11px;color:var(--tx-secondary);letter-spacing:1px;margin-bottom:6px;font-family:var(--ff-display)">💳 扣除項目 — 選擇信用卡分層</div>';
-    html += '<div style="display:flex;flex-direction:column;gap:6px">';
-    ccLayers.forEach(l => {
-      const key = l.cardId+'_'+l.layerId;
-      const isSelected = selectedCCLayers.has(key);
-      const layerMode = ccLayerPeriodMode.get(key) || 'current';
-      const modeAmt = l.monthly != null ? l.monthly : cardLayerDashboardDeduct(l.cardId, l.layerId, layerMode);
-      const dispSuffix = l.monthly != null ? '/月' : '';
-      const mkPBtn = (m, label) => {
-        const active = layerMode === m;
-        return `<button onclick="setCCLayerPeriodMode('${l.cardId}','${l.layerId}','${m}')" style="font-size:10px;padding:1px 6px;border-radius:3px;border:1px solid ${active?l.cardColor:'var(--bdr-subtle)'};background:${active?l.cardColor+'22':'transparent'};color:${active?l.cardColor:'var(--tx-muted)'};cursor:pointer;white-space:nowrap">${label}</button>`;
-      };
-      html += '<div style="display:flex;align-items:center;background:var(--bg-primary);border:1px solid '+(isSelected?l.cardColor:'var(--bdr-subtle)')+';border-radius:6px;padding:4px 10px;gap:6px">';
-      html += '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;flex:1;min-width:0">';
-      html += '<input type="checkbox"'+(isSelected?' checked':'')+' style="cursor:pointer;accent-color:'+l.cardColor+'" onchange="toggleCCLayer(\''+l.cardId+'\',\''+l.layerId+'\',this.checked)">';
-      html += '<span style="color:'+l.cardColor+';font-weight:600;white-space:nowrap">'+escHtml(l.cardName)+'</span>';
-      html += '<span style="color:var(--tx-secondary)"> / </span>';
-      html += '<span style="white-space:nowrap">'+escHtml(l.label)+'</span>';
-      html += '<span style="color:var(--tx-muted);margin-left:4px;white-space:nowrap">NT$'+Math.abs(modeAmt).toLocaleString('zh-TW')+dispSuffix+'</span>';
-      if (l.monthly!=null) html += '<span style="font-size:10px;background:#1c69d422;color:#1c69d4;border-radius:3px;padding:1px 4px;white-space:nowrap">分期</span>';
-      html += '</label>';
-      if (l.monthly == null) {
-        html += '<div style="display:flex;gap:3px;flex-shrink:0">';
-        html += mkPBtn('prev','上一期');
-        html += mkPBtn('current','本期');
-        html += mkPBtn('next','下一期');
-        html += '</div>';
-      }
-      html += '</div>';
-    });
-    html += '</div>';
-  }
-
-  // 合計列
-  html += '<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--bdr-subtle);display:flex;gap:16px;flex-wrap:wrap;font-size:12px;align-items:center">';
-  if (selectedBankLayers.size > 0)
-    html += '<span style="color:var(--tx-secondary)">薪水合計：<strong style="color:var(--tx-green)">NT$'+bankTotal.toLocaleString('zh-TW')+'</strong></span>';
-  if (selectedCCLayers.size > 0)
-    html += '<span style="color:var(--tx-secondary)">扣除合計：<strong style="color:var(--tx-red)">NT$'+ccTotal.toLocaleString('zh-TW')+'</strong></span>';
-  if (selectedBankLayers.size > 0 || selectedCCLayers.size > 0)
-    html += '<span style="margin-left:auto;color:var(--tx-secondary)">剩餘生活費：<strong style="color:'+(remain<0?'var(--tx-red)':remain<bankTotal*0.2?'var(--tx-warning)':'var(--tx-green)')+'">NT$'+remain.toLocaleString('zh-TW')+'</strong></span>';
-  else
-    html += '<span style="color:var(--tx-muted);font-size:11px">請在上方勾選分層</span>';
   html += '</div>';
+
+  // ── 群組（帳戶／信用卡）：一列摘要，點開顯示分層膠囊 ──
+  const groupHtml = (gKey, kind, name, color, items) => {
+    const keys = items.map(it => it.key);
+    const selItems = items.filter(it => it.sel);
+    const sub = selItems.reduce((s,it) => s + it.amt, 0);
+    const open = dashLayerOpenGroups.has(gKey);
+    const allSel = selItems.length === items.length;
+    let g = '<div class="dls-group'+(open?' open':'')+'">';
+    g += '<div class="dls-group-head" onclick="toggleDashLayerGroup(\''+gKey+'\')">'
+       + '<span class="dls-dot" style="background:'+color+'"></span>'
+       + '<span class="dls-group-name">'+escHtml(name)+'</span>'
+       + '<span class="dls-group-count">已選 '+selItems.length+'/'+items.length+'</span>'
+       + '<span class="dls-group-sum" style="color:'+(selItems.length?(kind==='bank'?'var(--tx-green)':'var(--tx-red)'):'var(--tx-muted)')+'">'
+       + (selItems.length ? (kind==='cc'?'−':'')+nt(sub) : '—') + '</span>'
+       + '<span class="dls-arrow">'+(open?'▾':'›')+'</span></div>';
+    if (open) {
+      g += '<div class="dls-group-body">';
+      g += '<div class="dls-group-tools">'
+         + (allSel ? '' : '<button type="button" class="dls-mini-btn" onclick="setDashLayerGroup(\''+kind+'\','+escAttr(JSON.stringify(keys))+',true)">全選</button>')
+         + (selItems.length ? '<button type="button" class="dls-mini-btn" onclick="setDashLayerGroup(\''+kind+'\','+escAttr(JSON.stringify(keys))+',false)">清除</button>' : '')
+         + '</div>';
+      g += '<div class="dls-chips">' + items.map(it => it.html).join('') + '</div>';
+      g += '</div>';
+    }
+    return g + '</div>';
+  };
+
+  // 銀行：依帳戶分組
+  if (bankLayers.length > 0) {
+    html += '<div class="dls-section-label">🏦 薪水來源</div>';
+    const accIds = [...new Set(bankLayers.map(l => l.accId))];
+    accIds.forEach(accId => {
+      const ls = bankLayers.filter(l => l.accId === accId);
+      const acc = getAcc(accId);
+      const items = ls.map(l => {
+        const key = l.accId+'_'+l.layerId, sel = selectedBankLayers.has(key);
+        return { key, sel, amt:l.actual,
+          html: '<button type="button" class="dls-chip bank'+(sel?' on':'')+'" onclick="toggleBankLayer(\''+l.accId+'\',\''+l.layerId+'\','+(!sel)+')">'
+              + '<b>'+escHtml(l.label)+'</b><small>'+(l.actual<0?'−':'')+nt(l.actual)+'</small></button>' };
+      });
+      html += groupHtml('bank_'+accId, 'bank', acc?.name || ls[0].accName, acc?.color || ls[0].accColor || '#1c69d4', items);
+    });
+  }
+
+  // 信用卡：依卡片分組，非分期分層下方有期別分段按鈕
+  if (ccLayers.length > 0) {
+    html += '<div class="dls-section-label">💳 扣除項目</div>';
+    const cardIds = [...new Set(ccLayers.map(l => l.cardId))];
+    cardIds.forEach(cardId => {
+      const ls = ccLayers.filter(l => l.cardId === cardId);
+      const card = getCard(cardId);
+      const items = ls.map(l => {
+        const key = l.cardId+'_'+l.layerId, sel = selectedCCLayers.has(key);
+        const mode = ccLayerPeriodMode.get(key) || 'current';
+        const amt = ccAmt(l);
+        let chip = '<button type="button" class="dls-chip cc'+(sel?' on':'')+'" onclick="toggleCCLayer(\''+l.cardId+'\',\''+l.layerId+'\','+(!sel)+')">'
+                 + '<b>'+escHtml(l.label)+(l.monthly!=null?'<span class="dls-tag">分期</span>':'')+'</b>'
+                 + '<small>'+nt(amt)+(l.monthly!=null?'/月':'')+'</small></button>';
+        if (l.monthly == null) {
+          const seg = (m, t) => '<span class="'+(mode===m?'a':'')+'" onclick="setCCLayerPeriodMode(\''+l.cardId+'\',\''+l.layerId+'\',\''+m+'\')">'+t+'</span>';
+          chip = '<div class="dls-ccw">' + chip + '<div class="dls-seg">' + seg('prev','上期') + seg('current','本期') + seg('next','下期') + '</div></div>';
+        }
+        return { key, sel, amt, html: chip };
+      });
+      html += groupHtml('cc_'+cardId, 'cc', card?.name || ls[0].cardName, card?.color || ls[0].cardColor, items);
+    });
+  }
 
   html += '</div>';
   el.innerHTML = html;
+}
+
+// ── 剩餘生活費勾選：記住勾選與期別（只存在這支裝置，不寫入記帳資料）──
+const DASH_LAYER_SEL_KEY = 'mwallet_dash_layer_sel';
+let dashLayerOpenGroups = new Set(); // 目前展開的帳戶／卡片群組（不記憶，重新打開預設全部收合）
+function saveDashLayerSel() {
+  try {
+    localStorage.setItem(DASH_LAYER_SEL_KEY, JSON.stringify({
+      bank: [...selectedBankLayers], cc: [...selectedCCLayers], mode: Object.fromEntries(ccLayerPeriodMode)
+    }));
+  } catch(e) {}
+}
+function loadDashLayerSel() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DASH_LAYER_SEL_KEY) || 'null');
+    if (!d) return;
+    (d.bank||[]).forEach(k => selectedBankLayers.add(k));
+    (d.cc||[]).forEach(k => selectedCCLayers.add(k));
+    Object.entries(d.mode||{}).forEach(([k,v]) => ccLayerPeriodMode.set(k, v));
+  } catch(e) {}
+}
+function toggleDashLayerGroup(gKey) {
+  if (dashLayerOpenGroups.has(gKey)) dashLayerOpenGroups.delete(gKey); else dashLayerOpenGroups.add(gKey);
+  renderCCLayerSelector();
+}
+// 群組「全選／清除」
+function setDashLayerGroup(kind, keys, on) {
+  const set = kind === 'bank' ? selectedBankLayers : selectedCCLayers;
+  keys.forEach(k => on ? set.add(k) : set.delete(k));
+  saveDashLayerSel();
+  renderDashboard();
+}
+// 「↺ 全部清除」：取消所有勾選，期別恢復本期
+function clearAllDashLayers() {
+  if (!confirm('確定要清除所有勾選嗎？')) return;
+  selectedBankLayers.clear(); selectedCCLayers.clear(); ccLayerPeriodMode.clear();
+  saveDashLayerSel();
+  renderDashboard();
 }
 
 function toggleBankLayer(accId, layerId, checked) {
   const key = accId + '_' + layerId;
   if (checked) selectedBankLayers.add(key);
   else selectedBankLayers.delete(key);
-  renderCCLayerSelector();
+  saveDashLayerSel();
   renderDashboard();
 }
 
@@ -6015,12 +6047,12 @@ function toggleCCLayer(cardId, layerId, checked) {
   const key = cardId + '_' + layerId;
   if (checked) selectedCCLayers.add(key);
   else selectedCCLayers.delete(key);
-  renderCCLayerSelector();
+  saveDashLayerSel();
   renderDashboard();
 }
 function setCCLayerPeriodMode(cardId, layerId, mode) {
   ccLayerPeriodMode.set(cardId+'_'+layerId, mode);
-  renderCCLayerSelector();
+  saveDashLayerSel();
   renderDashboard();
 }
 
@@ -12636,6 +12668,7 @@ async function init() {
   ensureTags();
   generateFixed();
   generateSubscriptionTxns();
+  loadDashLayerSel(); // 剩餘生活費：還原上次的分層勾選與期別
   refreshInstallBoundLayers(); // 分期到了開始月份時，自動更新綁定分層的每月分期金額
   renderDashboard();
   initTplSuggestSettings(); // DB 載入完成後用正確值刷新一次（避免載入前用預設值）
