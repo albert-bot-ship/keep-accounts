@@ -1527,7 +1527,7 @@ function importCatByKeyword(text) {
 // 與過去記錄同名的商店：沿用最近一筆的類別
 function importCatByHistory(desc) {
   const key = (desc||'').trim().toLowerCase(); if (!key) return null;
-  const hit = DB.transactions.filter(t => !t.isPayment && !t.isTransfer && t.category && (t.desc||'').trim().toLowerCase() === key)
+  const hit = DB.transactions.filter(t => !isStatExcluded(t) && t.category && (t.desc||'').trim().toLowerCase() === key)
     .sort((a,b) => b.date.localeCompare(a.date))[0];
   return hit ? hit.category : null;
 }
@@ -2212,6 +2212,33 @@ function cardLayerDynamicBalance(cardId, layerId) {
   const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
   return layer.amount||0;
 }
+// 備註欄：預設一行，換行（Enter）或文字過長時自動長高
+function autoGrowNotes(el) {
+  if (!el || !el.offsetParent) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+// 是否排除於收支統計：帳戶互轉、信用卡繳款、未勾選「計入收支統計」的轉出／轉入
+function isStatExcluded(t) {
+  return !!(t.isTransfer || t.isPayment || ((t.isTransferOut || t.isTransferIn) && !t.countInStats));
+}
+// 轉出／轉入：只限銀行帳戶；不需類別；顯示「計入收支統計」（p：'t' 記帳、'qa' 快速記帳）
+function syncTransferTypeUI(p) {
+  const typeEl = document.getElementById(p + 'Type'), srcEl = document.getElementById(p + 'Src');
+  if (!typeEl) return;
+  const isAcc = (srcEl?.value || '').startsWith('account_');
+  [...typeEl.options].forEach(o => {
+    if (o.value === 'transferOut' || o.value === 'transferIn') { o.hidden = !isAcc; o.disabled = !isAcc; }
+  });
+  if (!isAcc && (typeEl.value === 'transferOut' || typeEl.value === 'transferIn')) {
+    typeEl.value = 'expense';
+    if (p === 't') reloadTxnCats('expense'); else reloadQaCats('expense');
+    return;
+  }
+  const isTf = typeEl.value === 'transferOut' || typeEl.value === 'transferIn';
+  const catGrp = document.getElementById(p + 'CatGroup'); if (catGrp) catGrp.style.display = isTf ? 'none' : '';
+  const csGrp  = document.getElementById(p + 'CountStatsGroup'); if (csGrp) csGrp.style.display = isTf ? '' : 'none';
+}
 // 交易在帳戶記帳單位的金額：外幣帳戶取外幣金額，正負號一律跟隨台幣金額（相容舊資料）
 function txnAccUnits(t, isFx) {
   if (!isFx || t.fxAmount == null) return t.amount;
@@ -2495,7 +2522,7 @@ function catMonthSpend(id) {
   const cat = getCat(id);
   const { from, to } = catPeriodRange(cat);
   return DB.transactions
-    .filter(t=>t.category===id && t.amount<0 && t.date>=from && t.date<=to)
+    .filter(t=>t.category===id && t.amount<0 && !isStatExcluded(t) && t.date>=from && t.date<=to)
     .reduce((s,t)=>s+Math.abs(t.amount),0);
 }
 function sourceName(t) {
@@ -3041,8 +3068,8 @@ function getAnomalousTxns() {
   const now = new Date();
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
   const lastYM = lastMonthDate.getFullYear()+'-'+String(lastMonthDate.getMonth()+1).padStart(2,'0');
-  const thisTxns = DB.transactions.filter(t=>t.date.startsWith(ym)&&t.amount<0&&!t.isTransfer&&t.layerId);
-  const lastTxns = DB.transactions.filter(t=>t.date.startsWith(lastYM)&&t.amount<0&&!t.isTransfer&&t.layerId);
+  const thisTxns = DB.transactions.filter(t=>t.date.startsWith(ym)&&t.amount<0&&!isStatExcluded(t)&&t.layerId);
+  const lastTxns = DB.transactions.filter(t=>t.date.startsWith(lastYM)&&t.amount<0&&!isStatExcluded(t)&&t.layerId);
   const lastAvgByLayer = {};
   lastTxns.forEach(t=>{
     if (!lastAvgByLayer[t.layerId]) lastAvgByLayer[t.layerId] = {sum:0,count:0};
@@ -3064,7 +3091,7 @@ function getAnomalyDetails() {
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
   const lastYM = lastMonthDate.getFullYear()+'-'+String(lastMonthDate.getMonth()+1).padStart(2,'0');
   const stat = {};
-  DB.transactions.filter(t=>t.date.startsWith(lastYM)&&t.amount<0&&!t.isTransfer&&t.layerId).forEach(t=>{
+  DB.transactions.filter(t=>t.date.startsWith(lastYM)&&t.amount<0&&!isStatExcluded(t)&&t.layerId).forEach(t=>{
     if (!stat[t.layerId]) stat[t.layerId] = {sum:0,count:0};
     stat[t.layerId].sum += Math.abs(t.amount);
     stat[t.layerId].count += 1;
@@ -3089,7 +3116,7 @@ function toggleHealthAnomaly() {
 function calcHealthScore() {
   const now = new Date();
   const ym = nowYM();
-  const txns = DB.transactions.filter(t=>t.date.startsWith(ym)&&!t.isTransfer);
+  const txns = DB.transactions.filter(t=>t.date.startsWith(ym)&&!isStatExcluded(t));
   const income = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
   const expense = Math.abs(txns.filter(t=>t.amount<0&&!t.isSavingsAllocation).reduce((s,t)=>s+t.amount,0));
   const savingsAllocation = Math.abs(txns.filter(t=>t.amount<0&&t.isSavingsAllocation).reduce((s,t)=>s+t.amount,0));
@@ -3237,7 +3264,7 @@ function splitToTxn() {
 function exportPDF() {
   const from = document.getElementById('filterFrom')?.value;
   const to   = document.getElementById('filterTo')?.value;
-  let txns   = [...DB.transactions].filter(t=>!t.isTransfer).sort((a,b)=>a.date.localeCompare(b.date));
+  let txns   = [...DB.transactions].filter(t=>!isStatExcluded(t)).sort((a,b)=>a.date.localeCompare(b.date));
   if (from) txns = txns.filter(t=>t.date>=from);
   if (to)   txns = txns.filter(t=>t.date<=to);
 
@@ -3403,7 +3430,7 @@ function renderGauge() {
 function renderHeatmap(year) {
   const wrap = document.getElementById('heatmapContent');
   if (!wrap) return;
-  const txns = DB.transactions.filter(t=>t.date.startsWith(year)&&t.amount<0&&!t.isTransfer&&!t.isPayment);
+  const txns = DB.transactions.filter(t=>t.date.startsWith(year)&&t.amount<0&&!isStatExcluded(t));
   const dayMap = {};
   txns.forEach(t=>{ dayMap[t.date]=(dayMap[t.date]||0)+Math.abs(t.amount); });
   const maxDay = Math.max(...Object.values(dayMap), 1);
@@ -4361,7 +4388,7 @@ function toggleNotify(checked) {
 // ════════════════════════════════════════════════════════════════
 async function shareSummary() {
   const ym = nowYM();
-  const txns = DB.transactions.filter(t=>t.date.startsWith(ym)&&!t.isTransfer);
+  const txns = DB.transactions.filter(t=>t.date.startsWith(ym)&&!isStatExcluded(t));
   const income  = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
   const expense = Math.abs(txns.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
   const net     = income - expense;
@@ -4662,10 +4689,10 @@ function sendMonthlyReport() {
   const lastM = new Date(now.getFullYear(), now.getMonth()-1, 1);
   const ymLast = `${lastM.getFullYear()}-${String(lastM.getMonth()+1).padStart(2,'0')}`;
   const ymNow  = `${now.getFullYear()}-${String(now.getMonth()).padStart(2,'0')}`;
-  const txns   = DB.transactions.filter(t=>t.date.startsWith(ymLast)&&!t.isTransfer);
+  const txns   = DB.transactions.filter(t=>t.date.startsWith(ymLast)&&!isStatExcluded(t));
   const income  = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
   const expense = Math.abs(txns.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
-  const prevTxns   = DB.transactions.filter(t=>t.date.startsWith(ymNow)&&!t.isTransfer);
+  const prevTxns   = DB.transactions.filter(t=>t.date.startsWith(ymNow)&&!isStatExcluded(t));
   const prevExpense = Math.abs(prevTxns.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
   const diff    = prevExpense > 0 ? Math.round((expense-prevExpense)/prevExpense*100) : 0;
   // 找最大支出類別
@@ -5016,7 +5043,7 @@ function renderSankey() {
   const wrap = document.getElementById('sankeyWrap');
   if (!wrap) return;
   const curYM = nowYM();
-  const txns  = DB.transactions.filter(t=>ym(t.date)===curYM&&!t.isTransfer&&!t.isPayment);
+  const txns  = DB.transactions.filter(t=>ym(t.date)===curYM&&!isStatExcluded(t));
   const income  = txns.filter(t=>t.amount>0);
   const expense = txns.filter(t=>t.amount<0);
   if (!income.length && !expense.length) {
@@ -5358,7 +5385,7 @@ function renderMonthCompare() {
   const mA = selA.value, mB = selB.value;
   if (!mA||!mB) return;
 
-  const getTxns = m => DB.transactions.filter(t=>t.date.startsWith(m)&&!t.isTransfer&&!t.isPayment);
+  const getTxns = m => DB.transactions.filter(t=>t.date.startsWith(m)&&!isStatExcluded(t));
   const tA = getTxns(mA), tB = getTxns(mB);
   const expA = Math.abs(tA.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
   const expB = Math.abs(tB.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
@@ -5608,7 +5635,7 @@ function renderImpulseReport() {
   if (!wrap) return;
   const now  = new Date();
   const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const txns  = DB.transactions.filter(t=>t.date.startsWith(curYM)&&t.amount<0&&!t.isTransfer&&!t.isPayment);
+  const txns  = DB.transactions.filter(t=>t.date.startsWith(curYM)&&t.amount<0&&!isStatExcluded(t));
   const total = Math.abs(txns.reduce((s,t)=>s+t.amount,0));
   const impulse  = txns.filter(t=>t.mark==='impulse');
   const impTotal = Math.abs(impulse.reduce((s,t)=>s+t.amount,0));
@@ -6307,8 +6334,8 @@ function setCCLayerPeriodMode(cardId, layerId, mode) {
 function renderDashboard() {
   renderCCLayerSelector();
   const rtx = rangedTxns();
-  const spend  = Math.abs(rtx.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
-  const income = rtx.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const spend  = Math.abs(rtx.filter(t=>t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
+  const income = rtx.filter(t=>t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0);
   const totalDebt = DB.creditCards.filter(c=>c.includeInTotal!==false).reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
   const totalBank = DB.bankAccounts.filter(a=>a.includeInTotal!==false).reduce((s,a)=>{
     return s + (accountBalanceTWD(a)||0);
@@ -7346,7 +7373,7 @@ function txnTable(txns, withActions, periodInfo) {
 
   // ── 共用資料處理 ──────────────────────────────────
   const processed = txns.map(t => {
-    const cat    = getCat(t.category);
+    const cat    = (t.isTransferOut||t.isTransferIn) ? {name:t.isTransferIn?'轉入':'轉出', color:'#1c69d4', budget:0} : getCat(t.category);
     const spent  = cat.budget>0?catMonthSpend(t.category):0;
     const isOver = cat.budget>0&&spent>cat.budget&&t.amount<0;
     const amtCls = t.amount>0?'a-pos':isOver?'a-over':('a-neg '+amtClass(t.amount));
@@ -7358,7 +7385,9 @@ function txnTable(txns, withActions, periodInfo) {
                  + (t.isRedemption?'<span class="badge" style="margin-left:4px;background:#f39c1222;color:#f39c12;border:1px solid #f39c1244">折抵</span>':'')
                  + (reimbLayer?(t.reimbursed?'<span class="badge badge-green" style="margin-left:4px">✅ 已核銷</span>':'<span class="badge" style="margin-left:4px;background:#f39c1222;color:#f39c12;border:1px solid #f39c1244">🧾 待核銷</span>'):'')
                  + (t.isSavingsAllocation?'<span class="badge" style="margin-left:4px;background:#1c69d422;color:#1c69d4;border:1px solid #1c69d444">📈 資產配置</span>':'')
-                 + (t.isTransferOut?'<span class="badge badge-blue" style="margin-left:4px">轉出</span>':'');
+                 + (t.isTransferOut?'<span class="badge badge-blue" style="margin-left:4px">轉出</span>':'')
+                 + (t.isTransferIn?'<span class="badge badge-blue" style="margin-left:4px">轉入</span>':'')
+                 + ((t.isTransferOut||t.isTransferIn)&&!t.countInStats?'<span class="badge" style="margin-left:4px;background:var(--bg-secondary);color:var(--tx-muted);border:1px solid var(--bdr-subtle)">不計統計</span>':'');
     const userTagBadges = (t.tags||[]).map(tid=>{
       const tg=(DB.userTags||[]).find(x=>x.id===tid);
       return tg?`<span class="user-tag-badge" style="background:${tg.color}22;color:${tg.color};border:1px solid ${tg.color}66">#${escHtml(tg.name)}</span>`:'';
@@ -7402,6 +7431,8 @@ function txnTable(txns, withActions, periodInfo) {
     if (t.isPayment) out.push(tagHtml('繳款'));
     if (t.isTransfer) out.push(tagHtml('轉帳'));
     if (t.isTransferOut) out.push(tagHtml('轉出'));
+    if (t.isTransferIn) out.push(tagHtml('轉入'));
+    if ((t.isTransferOut||t.isTransferIn) && !t.countInStats) out.push(tagHtml('不計統計'));
     if (t.isRedemption) out.push(tagHtml('折抵'));
     if (t.isSavingsAllocation) out.push(tagHtml('📈 資產配置'));
     const reimb = (t.sourceType==='card'&&t.layerId) ? (getCard(t.sourceId)?.layers||[]).find(l=>l.id===t.layerId&&l.reimbursable) : null;
@@ -7805,7 +7836,7 @@ function copyLastTxn() {
     const ct=document.getElementById('tCat'); if(ct) ct.value=last.category;
     const sr=document.getElementById('tSrc'); if(sr) sr.value=last.sourceType+'_'+last.sourceId;
     const tp=document.getElementById('tType'); if(tp) tp.value=last.amount<0?'expense':'income';
-    const nt=document.getElementById('tNotes'); if(nt) nt.value=last.notes||'';
+    const nt=document.getElementById('tNotes'); if(nt) { nt.value=last.notes||''; nt.rows=Math.max(1,(last.notes||'').split('\n').length); autoGrowNotes(nt); }
     toast('已複製上筆消費資訊','info');
   },80);
 }
@@ -7987,7 +8018,7 @@ function renderAnalytics() {
     });
   }
   const year=yearSel.value||String(new Date().getFullYear());
-  const ytx=DB.transactions.filter(t=>t.date.startsWith(year));
+  const ytx=DB.transactions.filter(t=>t.date.startsWith(year)&&!isStatExcluded(t));
   const ysp=Math.abs(ytx.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
   const yin=ytx.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
   const maxCat=DB.categories.reduce((best,c)=>{
@@ -7997,14 +8028,14 @@ function renderAnalytics() {
 
   // 本期 vs 上期對比
   const { from: curFrom, to: curTo } = getSalaryCycle();
-  const curSpend = Math.abs(DB.transactions.filter(t=>t.date>=curFrom&&t.date<=curTo&&t.amount<0).reduce((s,t)=>s+t.amount,0));
-  const curInc   = DB.transactions.filter(t=>t.date>=curFrom&&t.date<=curTo&&t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const curSpend = Math.abs(DB.transactions.filter(t=>t.date>=curFrom&&t.date<=curTo&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
+  const curInc   = DB.transactions.filter(t=>t.date>=curFrom&&t.date<=curTo&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0);
   // 上期：同樣30天往前推一個月
   const prevFrom = new Date(curFrom); prevFrom.setMonth(prevFrom.getMonth()-1);
   const prevTo   = new Date(curTo);   prevTo.setMonth(prevTo.getMonth()-1);
   const pf = (prevFrom.getFullYear()+'-'+String(prevFrom.getMonth()+1).padStart(2,'0')+'-'+String(prevFrom.getDate()).padStart(2,'0')), pt = (prevTo.getFullYear()+'-'+String(prevTo.getMonth()+1).padStart(2,'0')+'-'+String(prevTo.getDate()).padStart(2,'0'));
-  const prevSpend = Math.abs(DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount<0).reduce((s,t)=>s+t.amount,0));
-  const prevInc   = DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const prevSpend = Math.abs(DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
+  const prevInc   = DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0);
   const spDiff = prevSpend>0 ? Math.round((curSpend-prevSpend)/prevSpend*100) : null;
   const inDiff = prevInc>0  ? Math.round((curInc-prevInc)/prevInc*100) : null;
   const diffBadge = (diff,reverse) => {
@@ -8050,8 +8081,8 @@ function renderAnalytics() {
 
   const months=['01','02','03','04','05','06','07','08','09','10','11','12'];
   const mLabels=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-  const mSp=months.map(m=>Math.abs(DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0).reduce((s,t)=>s+t.amount,0)));
-  const mIn=months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount>0).reduce((s,t)=>s+t.amount,0));
+  const mSp=months.map(m=>Math.abs(DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0)));
+  const mIn=months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
 
   if (charts.trend) charts.trend.destroy();
   charts.trend=new Chart(document.getElementById('trendChart').getContext('2d'),{
@@ -8069,7 +8100,7 @@ function renderAnalytics() {
     options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{labels:{color:'#8080A8',font:{size:10},boxWidth:12,padding:8},position:'right'}}}
   });
 
-  const catYr=DB.categories.map(c=>Math.abs(DB.transactions.filter(t=>t.category===c.id&&t.date.startsWith(year)&&t.amount<0).reduce((s,t)=>s+t.amount,0)));
+  const catYr=DB.categories.map(c=>Math.abs(DB.transactions.filter(t=>t.category===c.id&&t.date.startsWith(year)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0)));
   if (charts.catBar) charts.catBar.destroy();
   charts.catBar=new Chart(document.getElementById('catBarChart').getContext('2d'),{
     type:'bar',data:{labels:DB.categories.map(c=>c.name),datasets:[{label:'年度支出',data:catYr,backgroundColor:DB.categories.map(c=>c.color+'cc'),borderRadius:5}]},
@@ -8077,7 +8108,7 @@ function renderAnalytics() {
   });
 
   // ── 消費週期分析熱力圖 ──────────────────────────────────────
-  const ytxnSpend = DB.transactions.filter(t=>t.date.startsWith(year)&&t.amount<0&&!t.isPayment&&!t.isTransfer);
+  const ytxnSpend = DB.transactions.filter(t=>t.date.startsWith(year)&&t.amount<0&&!isStatExcluded(t));
   // 星期統計
   const wdNames = ['日','一','二','三','四','五','六'];
   const wdTotals = Array(7).fill(0), wdCounts = Array(7).fill(0);
@@ -8182,8 +8213,8 @@ function renderAnalytics() {
   // ── 月度收支對比圖 ──────────────────────────────────────────
   if (charts.incomeExpense) { charts.incomeExpense.destroy(); delete charts.incomeExpense; }
   const ieLabels = mLabels;
-  const incomeData  = months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount>0&&!t.isTransfer&&!t.isPayment).reduce((s,t)=>s+t.amount,0));
-  const expenseData = months.map(m=>Math.abs(DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!t.isTransfer&&!t.isPayment).reduce((s,t)=>s+t.amount,0)));
+  const incomeData  = months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
+  const expenseData = months.map(m=>Math.abs(DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0)));
   const ieCtx = document.getElementById('incomeExpenseChart');
   if (ieCtx) charts.incomeExpense = new Chart(ieCtx.getContext('2d'),{
     type:'bar',
@@ -8901,6 +8932,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
           <option value="income"${isInc?' selected':''}>收入</option>
           <option value="redemption"${txn?.isRedemption?' selected':''}>點數/回饋折抵</option>
           <option value="transferOut"${txn?.isTransferOut?' selected':''}>轉出（給他人）</option>
+          <option value="transferIn"${txn?.isTransferIn?' selected':''}>轉入（他人給我）</option>
         </select>
       </div>
     </div>
@@ -8911,7 +8943,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
           <button type="button" class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:16px;padding:6px 10px" onclick="openBigAmt('tAmt','輸入金額')" title="大字輸入">⌨</button>
         </div>
       </div>
-      <div class="form-group"><label class="form-label">類別</label>
+      <div class="form-group" id="tCatGroup"><label class="form-label">類別</label>
         <select class="form-select" id="tCat" onchange="showLastCatHint(this.value);checkSalaryAlloc()">${catOpts(txn?.category||DB.categories.find(c=>(c.forType||'expense')==='expense')?.id||'', txn?(txn.amount>0?'income':'expense'):undefined)}</select>
         <div id="lastCatHint" style="font-size:11px;color:var(--tx-muted);margin-top:4px;display:none"></div>
       </div>
@@ -8966,6 +8998,13 @@ function openModal(type,id,preCard,preAcc,extraId) {
         <div style="font-size:11px;color:var(--tx-secondary)">💡 勾選分層並填入各自金額，總計自動帶入上方金額欄</div>
       </div>
     </div>
+    <div class="form-group" id="tCountStatsGroup" style="display:none">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx-secondary);cursor:pointer">
+        <input type="checkbox" id="tCountStats"${txn?.countInStats?' checked':''}>
+        計入收支統計
+      </label>
+      <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">💡 預設不計入（例如借還款、代墊款）；若是孝親費等真正的支出或收入，請勾選。不論是否勾選，帳戶餘額都會正常增減</div>
+    </div>
     <div class="form-group">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx-secondary);cursor:pointer">
         <input type="checkbox" id="tIsSavings"${txn?.isSavingsAllocation?' checked':''}>
@@ -8984,7 +9023,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 10px;width:100%" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.textContent=this.textContent.includes('▼')?'▲ 收合備註與手續費':'▼ 備註 / 手續費（選填）'">▼ 備註 / 手續費（選填）</button>
       <div style="display:none;margin-top:6px">
         ${txn&&txn.isPayment&&txn.sourceType==='card'&&getCard(txn.sourceId)?`<div class="form-group"><label class="form-label">繳哪一期</label><select class="form-select" id="tPayPeriod">${cardPayPeriodOptionsHtml(txn.sourceId, txn.payForPeriodEnd||'', true)}</select></div>`:''}
-        <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tNotes" value="${escAttr(txn?.notes||'')}"></div>
+        <div class="form-group"><label class="form-label">備註（選填）</label><textarea class="form-input notes-autogrow" id="tNotes" rows="${Math.max(1,(txn?.notes||'').split('\n').length)}" oninput="autoGrowNotes(this)" onfocus="autoGrowNotes(this)">${escHtml(txn?.notes||'')}</textarea></div>
         <div class="form-group" id="tFeeGroup" style="display:none">
           <label class="form-label">手續費（NT$，選填）</label>
           <input class="form-input" id="tFee" type="number" min="0" step="any" value="${txn?.fee||''}" placeholder="0">
@@ -9591,7 +9630,9 @@ function saveTxn() {
   if(!date||!amt||!srcVal){toast('請填寫完整資訊','danger');return;}
   const srcParts=srcVal.split('_'),sType=srcParts[0],sId=srcParts.slice(1).join('_');
   const isRed = type==='redemption';
-  const amount = type==='income'||isRed ? Math.abs(amt) : -Math.abs(amt);
+  const isTfType = type==='transferOut' || type==='transferIn';
+  if (isTfType && sType!=='account') { toast('轉出／轉入只能用於銀行帳戶','danger'); return; }
+  const amount = type==='income'||isRed||type==='transferIn' ? Math.abs(amt) : -Math.abs(amt);
 
   // 多分層 vs 單分層
   const isMulti = document.getElementById('tMultiLayerToggle')?.checked;
@@ -9613,7 +9654,7 @@ function saveTxn() {
         const entries = [...list.querySelectorAll('input[type="checkbox"]:checked')].map(chk=>{
           const lid = chk.id.replace('mlchk_','');
           const a = +(document.getElementById('mlamt_'+lid)?.value)||0;
-          return {layerId: lid, amount: (isRed||type==='income') ? a : -a};
+          return {layerId: lid, amount: (isRed||type==='income'||type==='transferIn') ? a : -a};
         }).filter(e=>e.amount!==0);
         if (entries.length>0) layerAmounts = entries;
       }
@@ -9636,9 +9677,11 @@ function saveTxn() {
 
   // 轉出（給他人）相關欄位
   const isTransferOut = type === 'transferOut';
+  const isTransferIn  = type === 'transferIn';
+  const countInStats  = isTfType ? !!document.getElementById('tCountStats')?.checked : undefined;
 
-  const txnObj = {date,amount,desc,category:catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0,isSavingsAllocation:!!document.getElementById('tIsSavings')?.checked,
-    isTransferOut,
+  const txnObj = {date,amount,desc,category:isTfType?'':catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0,isSavingsAllocation:!!document.getElementById('tIsSavings')?.checked,
+    isTransferOut, isTransferIn, countInStats,
     ...(hasFx ? {fxCurrency, fxAmount: amount<0 ? -fxAmtRaw : fxAmtRaw} : {})};
   if(modalType==='editTxn'){
     const thisTxn = DB.transactions.find(t=>t.id===editTarget);
@@ -9704,7 +9747,7 @@ function saveTxn() {
     if (hasSalaryAlloc) {
       saveSalaryAllocs(date, sId, newId);
     }
-    if (cat.budget>0 && amount<0) {
+    if (!isTfType && cat.budget>0 && amount<0) {
       const spent = catMonthSpend(catId);
       const pct = Math.round(spent / cat.budget * 100);
       const warnPct = parseInt(localStorage.getItem('mwallet_budget_warn_pct')||'80');
@@ -10840,17 +10883,19 @@ function reloadTxnCats(typeVal) {
   // 切換 label 和 placeholder
   const descLabel = document.getElementById('tDescLabel');
   const descInput = document.getElementById('tDesc');
-  if (descLabel) descLabel.textContent = typeVal === 'income' ? '收入說明（選填）' : typeVal === 'transferOut' ? '轉出說明（選填）' : '消費內容（選填）';
-  if (descInput) descInput.placeholder = typeVal === 'income' ? '選填，e.g. 薪資匯入' : typeVal === 'transferOut' ? '選填，e.g. 借給小明' : '選填，e.g. 全聯購物';
+  if (descLabel) descLabel.textContent = typeVal === 'income' ? '收入說明（選填）' : typeVal === 'transferOut' ? '轉出說明（選填）' : typeVal === 'transferIn' ? '轉入說明（選填）' : '消費內容（選填）';
+  if (descInput) descInput.placeholder = typeVal === 'income' ? '選填，e.g. 薪資匯入' : typeVal === 'transferOut' ? '選填，e.g. 借給小明' : typeVal === 'transferIn' ? '選填，e.g. 朋友還錢' : '選填，e.g. 全聯購物';
+  syncTransferTypeUI('t');
   // 檢查薪水分配
   setTimeout(checkSalaryAlloc, 50);
 }
 function reloadQaCats(typeVal) {
   const sel = document.getElementById('qaCat'); if (!sel) return;
-  const forType = typeVal === 'expense' ? 'expense' : 'income';
+  const forType = (typeVal === 'expense' || typeVal === 'transferOut') ? 'expense' : 'income';
   const cur = sel.value;
   sel.innerHTML = catOpts(cur, forType);
   if (!sel.value) sel.selectedIndex = 0;
+  syncTransferTypeUI('qa');
 }
 function toggleCustomDays(period) {
   const el = document.getElementById('customDaysGroup');
@@ -10859,6 +10904,7 @@ function toggleCustomDays(period) {
 
 // 帳戶來源切換時，動態顯示分層選單
 function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
+  syncTransferTypeUI('t');
   const group = document.getElementById('tLayerGroup');
   const feeGroup = document.getElementById('tFeeGroup');
   const fxGroup  = document.getElementById('tFxGroup');
@@ -11061,7 +11107,7 @@ function getSuggestedTemplates() {
   const dismissed = new Set(JSON.parse(localStorage.getItem('mwallet_dismissed_tpl_suggestions')||'[]'));
   const existingKeys = new Set(DB.txnTemplates.map(t=>(t.name||'').trim()));
   const candidates = DB.transactions.filter(t=>
-    t.date >= cutoffStr && t.amount < 0 && !t.isTransfer && !t.isRedemption && !t.isPayment && t.desc && t.desc.trim()
+    t.date >= cutoffStr && t.amount < 0 && !isStatExcluded(t) && !t.isRedemption && t.desc && t.desc.trim()
   );
   // 依「描述」分組
   const groups = {};
@@ -11352,6 +11398,8 @@ function openQuickAdd() {
           <option value="expense">支出</option>
           <option value="income">收入</option>
           <option value="redemption">點數/回饋折抵</option>
+          <option value="transferOut" hidden disabled>轉出（給他人）</option>
+          <option value="transferIn" hidden disabled>轉入（他人給我）</option>
         </select>
       </div>
     </div>
@@ -11360,13 +11408,19 @@ function openQuickAdd() {
         <input class="form-input" id="qaAmt" type="number" placeholder="0" autofocus oninput="updateFxPreview('qa')"
           style="font-size:22px;font-weight:700;font-family:var(--ff-display)">
       </div>
-      <div class="form-group"><label class="form-label">類別</label>
+      <div class="form-group" id="qaCatGroup"><label class="form-label">類別</label>
         <select class="form-select" id="qaCat">${catOpts(DB.categories[0]?.id||'')}</select>
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">消費內容</label>
       <input class="form-input" id="qaDesc" placeholder="e.g. 午餐、計程車">
+    </div>
+    <div class="form-group" id="qaCountStatsGroup" style="display:none">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx-secondary);cursor:pointer">
+        <input type="checkbox" id="qaCountStats"> 計入收支統計
+      </label>
+      <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">💡 預設不計入；孝親費等真正的支出或收入請勾選。帳戶餘額都會正常增減</div>
     </div>
     <div class="form-group"><label class="form-label">帳戶/卡片</label>
       <select class="form-select" id="qaSrc" onchange="onQaSrcChange(this.value)">
@@ -11399,7 +11453,7 @@ function openQuickAdd() {
       <input type="hidden" id="qaTagsVal" value="[]">
     </div>
     <div class="form-group"><label class="form-label">備註（選填）</label>
-      <input class="form-input" id="qaNotes" placeholder="">
+      <textarea class="form-input notes-autogrow" id="qaNotes" rows="1" oninput="autoGrowNotes(this)" onfocus="autoGrowNotes(this)"></textarea>
     </div>
   `;
   document.getElementById('modalFooter').innerHTML =
@@ -11414,6 +11468,7 @@ function onQaSrcChange(srcVal) {
   const group    = document.getElementById('qaLayerGroup');
   const feeGroup = document.getElementById('qaFeeGroup');
   if (!group) return;
+  syncTransferTypeUI('qa');
   // 外幣帳戶：顯示台幣／外幣輸入選擇（預設帳戶幣別）
   const qaAcc = srcVal && srcVal.startsWith('account_') ? getAcc(srcVal.split('_')[1]) : null;
   const qaU = accUnitCur(qaAcc);
@@ -11466,7 +11521,9 @@ function saveQuickAdd() {
 
   if (!amt || !srcVal) { toast('請填入金額並選擇帳戶','danger'); return; }
   const [sType, sId] = srcVal.split('_');
-  const sign = (type === 'income' || isRedemption) ? 1 : -1;
+  const isTfType = type === 'transferOut' || type === 'transferIn';
+  if (isTfType && sType !== 'account') { toast('轉出／轉入只能用於銀行帳戶','danger'); return; }
+  const sign = (type === 'income' || isRedemption || type === 'transferIn') ? 1 : -1;
   // 外幣帳戶：依輸入幣別換算台幣金額與外幣金額
   const qaAcc = sType === 'account' ? getAcc(sId) : null;
   let amount = sign * Math.abs(amt), qaFx = {};
@@ -11478,13 +11535,15 @@ function saveQuickAdd() {
   }
 
   DB.transactions.push({
-    id:uid(), date, amount, ...qaFx, desc, category:catId,
+    id:uid(), date, amount, ...qaFx, desc, category:isTfType?'':catId,
     sourceId:sId, sourceType:sType, notes, isFixed:false,
-    tags, layerId, fee: fee||undefined, isRedemption: isRedemption||undefined
+    tags, layerId, fee: fee||undefined, isRedemption: isRedemption||undefined,
+    ...(isTfType ? { isTransferOut: type==='transferOut', isTransferIn: type==='transferIn',
+                     countInStats: !!document.getElementById('qaCountStats')?.checked } : {})
   });
 
   const cat = getCat(catId);
-  if (cat?.budget>0 && amount<0 && catMonthSpend(catId)>cat.budget)
+  if (!isTfType && cat?.budget>0 && amount<0 && catMonthSpend(catId)>cat.budget)
     toast('⚠ 類別「'+cat.name+'」已超過本月額度！','danger');
 
   const layerName = layerId
