@@ -2212,6 +2212,20 @@ function cardLayerDynamicBalance(cardId, layerId) {
   const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
   return layer.amount||0;
 }
+// 消費明細的類別圖示：類別色的圓角方塊，內放類別第一個字（轉帳、繳款等用符號）
+function txnIconHtml(t, cat, size) {
+  let g;
+  if (t.isTransfer) g = '⇄';
+  else if (t.isTransferOut) g = '↗';
+  else if (t.isTransferIn) g = '↙';
+  else if (t.isPayment) g = '繳';
+  else if (t.isRedemption) g = '點';
+  else g = Array.from((cat.name || '—').trim())[0] || '—';
+  const c = /^#[0-9a-f]{6}$/i.test(cat.color || '') ? cat.color : '#7f8c8d';
+  return `<span class="txn-ico${size === 'sm' ? ' sm' : ''}" style="--ic:${c}" aria-hidden="true">${escHtml(g)}</span>`;
+}
+// 帳戶顏色（僅接受 #RRGGBB，其餘用預設藍）
+function safeHex(c, def) { return /^#[0-9a-f]{6}$/i.test(c || '') ? c : (def || '#1c69d4'); }
 // 備註欄：預設一行，換行（Enter）或文字過長時自動長高
 function autoGrowNotes(el) {
   if (!el || !el.offsetParent) return;
@@ -4551,7 +4565,7 @@ function renderExchange() {
     <div class="chart-box" style="margin-bottom:16px">
       <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:12px">快速換算</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-        <input id="fxAmount" type="number" inputmode="decimal" class="form-input" style="width:120px" placeholder="金額" value="1" oninput="calcExchange()">
+        <input id="fxAmount" type="number" inputmode="decimal" class="form-input" style="width:120px" placeholder="金額" value="1000" oninput="calcExchange()">
         <select id="fxFrom" class="form-select" style="width:120px" onchange="calcExchange()">
           ${currencies.map(c=>`<option value="${c.code}"${c.code==='JPY'?' selected':''}>${c.flag} ${c.code}</option>`).join('')}
           <option value="TWD">🇹🇼 TWD</option>
@@ -6019,81 +6033,49 @@ function renderTransfers() {
     : '';
 
   const weekdays = ['日','一','二','三','四','五','六'];
+  // 轉帳卡片：左「轉出帳戶」→ 中「金額」→ 右「轉入帳戶」，下方一行放分層、外幣金額、備註與刪除
+  const accBox = (acc, fallbackName, layer, txn, isTo) => {
+    const c = safeHex(acc?.color);
+    const fx = (txn && txn.fxAmount != null && txn.fxCurrency) ? `<div class="tf-acc-sub">${escHtml(txn.fxCurrency)} ${Math.abs(txn.fxAmount).toLocaleString()}</div>` : '';
+    return `<div class="tf-acc${isTo?' to':''}" style="--ac:${c}">
+        <div class="tf-acc-label">${isTo?'轉入':'轉出'}</div>
+        <div class="tf-acc-name">${escHtml(acc?.name || fallbackName)}</div>
+        ${layer ? `<div class="tf-acc-sub">${escHtml(layer)}</div>` : ''}
+        ${fx}
+      </div>`;
+  };
   let prevTfDate = null;
-  const rows = paged.map(p=>{
-    const fromName = getAcc(p.fromId)?.name || '未知帳戶';
-    const toName   = p.toId ? (getAcc(p.toId)?.name || '未知帳戶') : '⚠️ 未配對';
+  const items = paged.map(p=>{
     const fromAccObj = getAcc(p.fromId);
     const toAccObj   = p.toId ? getAcc(p.toId) : null;
-    const fromNameHtml = fromAccObj?.color ? `<span style="color:${fromAccObj.color};font-weight:600">${escHtml(fromName)}</span>` : escHtml(fromName);
-    const toNameHtml   = toAccObj?.color   ? `<span style="color:${toAccObj.color};font-weight:600">${escHtml(toName)}</span>`     : escHtml(toName);
     const fromLayer = txnLayerLabel(p.fromId, p.outTxn);
     const toLayer   = p.toId ? txnLayerLabel(p.toId, p.inTxn) : null;
-    let routeHtml;
-    if (p.fromId && p.toId && p.fromId===p.toId) {
-      // 同帳戶跨分層轉帳：帳戶只顯示一次，標出分層 A → 分層 B
-      routeHtml = `${fromNameHtml}：${escHtml(fromLayer||'未指定分層')} → ${escHtml(toLayer||'未指定分層')}`;
-    } else {
-      routeHtml = `${fromNameHtml}${fromLayer?' <span style="font-size:11px;color:var(--tx-muted)">('+escHtml(fromLayer)+')</span>':''} → ${toNameHtml}${toLayer?' <span style="font-size:11px;color:var(--tx-muted)">('+escHtml(toLayer)+')</span>':''}`;
-    }
-    let groupRow = '';
+    let groupHdr = '';
     if (p.date !== prevTfDate) {
       const d = new Date(p.date+'T00:00:00');
-      groupRow = `<tr class="txn-date-group-row"><td colspan="5" style="padding:10px 12px 4px"><span class="date-pill">${p.date.slice(5).replace('-','/')} 週${weekdays[d.getDay()]}</span></td></tr>`;
+      groupHdr = `<div class="txn-date-group-row" style="padding:10px 14px 4px"><span class="date-pill">${p.date.slice(5).replace('-','/')} 週${weekdays[d.getDay()]}</span></div>`;
       prevTfDate = p.date;
     }
-    return `${groupRow}<tr class="txn-row">
-      <td style="white-space:nowrap">${p.date}</td>
-      <td style="white-space:nowrap">${routeHtml}</td>
-      <td style="font-family:var(--ff-display);font-weight:700;color:var(--tx-blue)">${fmt(p.amount)}</td>
-      <td style="color:var(--tx-secondary);font-size:12px">${escHtml(p.notes||'—')}</td>
-      <td style="white-space:nowrap"><button class="btn btn-danger btn-icon btn-sm" onclick="deleteTxn('${p.outTxn.id}')">🗑</button></td>
-    </tr>`;
-  }).join('');
-
-  const table = `<div class="txn-table-desktop"><table>
-    <thead><tr><th>日期</th><th>從 → 到</th><th>金額</th><th>備註</th><th>操作</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table></div>`;
-
-  // ── 手機版卡片（≤768px 時 txn-table-desktop 會被隱藏，需另外產生）──
-  let prevTfDateM = null;
-  const cards = paged.map(p=>{
-    const fromName = getAcc(p.fromId)?.name || '未知帳戶';
-    const toName   = p.toId ? (getAcc(p.toId)?.name || '未知帳戶') : '⚠️ 未配對';
-    const fromAccObj = getAcc(p.fromId);
-    const toAccObj   = p.toId ? getAcc(p.toId) : null;
-    const fromNameHtml = fromAccObj?.color ? `<span style="color:${fromAccObj.color};font-weight:600">${escHtml(fromName)}</span>` : escHtml(fromName);
-    const toNameHtml   = toAccObj?.color   ? `<span style="color:${toAccObj.color};font-weight:600">${escHtml(toName)}</span>`     : escHtml(toName);
-    const fromLayer = txnLayerLabel(p.fromId, p.outTxn);
-    const toLayer   = p.toId ? txnLayerLabel(p.toId, p.inTxn) : null;
-    let routeHtml;
-    if (p.fromId && p.toId && p.fromId===p.toId) {
-      routeHtml = `${fromNameHtml}：${escHtml(fromLayer||'未指定分層')} → ${escHtml(toLayer||'未指定分層')}`;
-    } else {
-      routeHtml = `${fromNameHtml}${fromLayer?' <span style="font-size:11px;color:var(--tx-muted);font-weight:400">('+escHtml(fromLayer)+')</span>':''} → ${toNameHtml}${toLayer?' <span style="font-size:11px;color:var(--tx-muted);font-weight:400">('+escHtml(toLayer)+')</span>':''}`;
-    }
-    let groupHdr = '';
-    if (p.date !== prevTfDateM) {
-      const d = new Date(p.date+'T00:00:00');
-      groupHdr = `<div class="txn-date-group-row" style="padding:10px 14px 4px"><span class="date-pill">${p.date.slice(5).replace('-','/')} 週${weekdays[d.getDay()]}</span></div>`;
-      prevTfDateM = p.date;
-    }
-    return `${groupHdr}<div class="txn-card-mobile">
-      <div class="txn-card-top">
-        <div class="txn-card-desc">${routeHtml}</div>
-        <div class="txn-card-amount" style="color:var(--tx-blue)">${fmt(p.amount)}</div>
-        <button class="btn btn-danger btn-icon btn-sm" style="flex-shrink:0" onclick="event.stopPropagation();deleteTxn('${p.outTxn.id}')">🗑</button>
+    const sameAcc = p.fromId && p.toId && p.fromId === p.toId;
+    return `${groupHdr}<div class="tf-card">
+      <div class="tf-route">
+        ${accBox(fromAccObj, '未知帳戶', sameAcc ? (fromLayer||'未指定分層') : fromLayer, p.outTxn, false)}
+        <div class="tf-mid">
+          <div class="tf-amt">${fmt(p.amount)}</div>
+          <div class="tf-arrow" aria-hidden="true"><span></span></div>
+        </div>
+        ${p.toId ? accBox(toAccObj, '未知帳戶', sameAcc ? (toLayer||'未指定分層') : toLayer, p.inTxn, true)
+                 : `<div class="tf-acc to tf-unpaired"><div class="tf-acc-label">轉入</div><div class="tf-acc-name">⚠️ 未配對</div></div>`}
       </div>
-      <div class="txn-card-bottom">
-        <span class="txn-card-date">${p.date}</span>
+      <div class="tf-foot">
+        <div class="tf-notes">${p.notes ? escHtml(p.notes) : ''}</div>
+        <button type="button" class="tf-del" onclick="event.stopPropagation();deleteTxn('${p.outTxn.id}')" aria-label="刪除轉帳">🗑</button>
       </div>
-      ${p.notes?`<div class="txn-card-notes">${escHtml(p.notes)}</div>`:''}
     </div>`;
   }).join('');
-  const cardsHtml = `<div class="txn-cards-mobile">${cards}</div>`;
+  const listHtml = `<div class="tf-list">${items}</div>`;
 
-  wrap.innerHTML = warnBanner + table + cardsHtml + renderTransferPager(pairs.length);
+  wrap.innerHTML = warnBanner + listHtml + renderTransferPager(pairs.length);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -7373,7 +7355,10 @@ function txnTable(txns, withActions, periodInfo) {
 
   // ── 共用資料處理 ──────────────────────────────────
   const processed = txns.map(t => {
-    const cat    = (t.isTransferOut||t.isTransferIn) ? {name:t.isTransferIn?'轉入':'轉出', color:'#1c69d4', budget:0} : getCat(t.category);
+    const cat    = t.isTransfer ? {name:'轉帳', color:'#6f2ca7', budget:0}
+                 : t.isPayment ? {name:'繳款', color:'#27ae60', budget:0}
+                 : (t.isTransferOut||t.isTransferIn) ? {name:t.isTransferIn?'轉入':'轉出', color:'#1c69d4', budget:0}
+                 : getCat(t.category);
     const spent  = cat.budget>0?catMonthSpend(t.category):0;
     const isOver = cat.budget>0&&spent>cat.budget&&t.amount<0;
     const amtCls = t.amount>0?'a-pos':isOver?'a-over':('a-neg '+amtClass(t.amount));
@@ -7491,7 +7476,7 @@ function txnTable(txns, withActions, periodInfo) {
     return `${periodRow}${groupRow}<tr class="txn-row" ${rowClick}>
       ${chk}
       ${showDateCol?`<td class="txn-col-date">${t.date.slice(5).replace('-','/')}</td>`:''}
-      <td class="txn-col-desc"><span class="txn-desc-name">${escHtml(t.desc)}</span>${neutralTags(t)}</td>
+      <td class="txn-col-desc"><div class="txn-desc-wrap">${txnIconHtml(t, cat, 'sm')}<div class="txn-desc-text"><span class="txn-desc-name">${escHtml(t.desc)}</span>${neutralTags(t)}</div></div></td>
       <td><span class="txn-cat"><i style="background:${cat.color}"></i>${escHtml(cat.name)}</span></td>
       <td class="txn-col-src">${sourceName(t)}</td>
       <td class="txn-col-amt ${amtCls}">${sign}${fmt(Math.abs(t.amount))}${b?`<div class="txn-bal">${b}</div>`:''}</td>
@@ -7557,23 +7542,26 @@ function txnTable(txns, withActions, periodInfo) {
       : '';
     const rowClick = batchMode?`onclick="toggleRowSelect(this)" style="cursor:pointer"`:'';
     const b = balLine(t);
-    return `${periodHdr}${groupHdr}<div class="txn-card-mobile" ${rowClick}>
-      <div class="txn-card-top">
-        ${chkBox}
-        <div class="txn-card-desc">${escHtml(t.desc||'（未填）')}</div>
-        <div class="txn-card-amount ${amtCls}">${sign}${fmt(Math.abs(t.amount))}</div>
-        ${moreBtn}
+    return `${periodHdr}${groupHdr}<div class="txn-card-mobile txn-v2" ${rowClick}>
+      ${chkBox}
+      ${txnIconHtml(t, cat)}
+      <div class="txn-v2-main">
+        <div class="txn-card-top">
+          <div class="txn-card-desc">${escHtml(t.desc||'（未填）')}</div>
+          <div class="txn-card-amount ${amtCls}">${sign}${fmt(Math.abs(t.amount))}</div>
+          ${moreBtn}
+        </div>
+        <div class="txn-card-meta">
+          <span class="txn-cat">${escHtml(cat.name)}</span>
+          <span class="txn-card-sep">·</span>
+          <span class="txn-card-source">${sourceName(t)}</span>
+          ${withActions?'':`<span class="txn-card-sep">·</span><span class="txn-card-date">${t.date.slice(5).replace('-','/')}</span>`}
+          ${b?`<span class="txn-card-bal">${b}</span>`:''}
+        </div>
+        ${neutralTags(t)}
+        ${t.notes?`<div class="txn-card-notes">${escHtml(t.notes)}</div>`:''}
+        ${mlDetail}
       </div>
-      <div class="txn-card-meta">
-        <span class="txn-cat"><i style="background:${cat.color}"></i>${escHtml(cat.name)}</span>
-        <span class="txn-card-sep">·</span>
-        <span class="txn-card-source">${sourceName(t)}</span>
-        ${withActions?'':`<span class="txn-card-sep">·</span><span class="txn-card-date">${t.date.slice(5).replace('-','/')}</span>`}
-        ${b?`<span class="txn-card-bal">${b}</span>`:''}
-      </div>
-      ${neutralTags(t)}
-      ${t.notes?`<div class="txn-card-notes">${escHtml(t.notes)}</div>`:''}
-      ${mlDetail}
     </div>`;
   }).join('');
   const mobileTotal = `<div style="padding:10px 14px;border-top:1px solid var(--bdr-subtle);display:flex;justify-content:space-between;font-size:12px;color:var(--tx-muted)">
@@ -7900,7 +7888,7 @@ function doExportExcel() {
     const row={};
     if(on('日期'))  row['日期']=t.date;
     if(on('內容'))  row['消費內容']=t.desc;
-    if(on('類別'))  row['類別']=getCat(t.category).name;
+    if(on('類別'))  row['類別']=t.isTransfer?'轉帳':t.isPayment?'繳款':t.isTransferOut?'轉出':t.isTransferIn?'轉入':getCat(t.category).name;
     if(on('帳戶'))  row['帳戶/卡片']=sourceName(t);
     if(on('金額'))  row['金額']=t.amount;
     if(on('備註'))  row['備註']=t.notes||'';
@@ -9116,7 +9104,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">用來比對該期「應繳 / 已繳」，可在信用卡消費紀錄的期別標題查看</div>
     </div>
     ${monthlyLayersHtml}
-    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="pyNotes"></div>`;
+    <div class="form-group"><label class="form-label">備註（選填）</label><textarea class="form-input notes-autogrow" id="pyNotes" rows="1" oninput="autoGrowNotes(this)" onfocus="autoGrowNotes(this)"></textarea></div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-success" onclick="doPayment()">✅ 確認繳款</button>`;
   }
 
@@ -9178,7 +9166,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <div id="tfFxBox" style="display:none;margin-top:10px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:var(--r)"></div>
     </div>
     <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tfDate" type="date" value="${today()}"></div>
-    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="tfNotes"></div>`;
+    <div class="form-group"><label class="form-label">備註（選填）</label><textarea class="form-input notes-autogrow" id="tfNotes" rows="1" oninput="autoGrowNotes(this)" onfocus="autoGrowNotes(this)"></textarea></div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-violet" onclick="doTransfer()">🔄 確認轉帳</button>`;
     setTimeout(()=>{
       onTfAccChange('from', id||DB.bankAccounts[0]?.id||'');
