@@ -4959,14 +4959,15 @@
       "category": "mw2zthqzvspfu",
       "sourceId": "mov4rvq0uv0ah",
       "sourceType": "account",
-      "notes": "房租 4000，牙齒 5000，頭髮 3300，家樂福 1000+530，領貨 165，爭鮮 1000。 匯給老公金額 14995",
+      "notes": "房租 4000\n牙齒 5000\n頭髮 3300\n家樂福 1000+530\n領貨 165\n爭鮮 1000\n故，匯款金額 14995",
       "isRedemption": false,
       "layerId": "mowt8rfv4npge",
       "tags": [],
       "fee": 0,
       "isSavingsAllocation": false,
       "isTransferOut": false,
-      "isFixed": false
+      "isFixed": false,
+      "isTransferIn": false
     },
     {
       "id": "mw2zum29fel7z",
