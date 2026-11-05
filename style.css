@@ -478,6 +478,8 @@ tbody tr:hover{background:rgba(255,255,255,.03)}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 textarea.form-input{resize:vertical;min-height:66px}
+/* 備註欄：預設一行，按 Enter 換行後自動長高 */
+textarea.form-input.notes-autogrow{resize:none;min-height:0;overflow:hidden;line-height:1.45;display:block}
 
 /* ── COLOR PICKER ────────────────────────── */
 .color-picker-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px}
@@ -2368,7 +2370,7 @@ body.light-theme .ctx-item { border-color:rgba(0,0,0,.05); color:#111; }
 .txn-card-date   { font-size: 11px; color: var(--tx-muted); }
 .txn-card-source { font-size: 11px; color: var(--tx-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
 .txn-card-tags   { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
-.txn-card-notes  { font-size: 11px; color: var(--tx-muted); margin-top: 3px; font-style: italic; }
+.txn-card-notes  { font-size: 11px; color: var(--tx-muted); margin-top: 3px; font-style: italic; white-space: pre-line; }
 
 .txn-card-mobile .txn-swipe-actions {
   position: absolute; right: 0; top: 0; bottom: 0;
