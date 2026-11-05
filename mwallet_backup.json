@@ -4995,6 +4995,100 @@
       "layerId": "mowt7wruf1yp4",
       "transferPairId": "mw2zum29ar05u",
       "transferPairTxnId": "mw2zum29fel7z"
+    },
+    {
+      "id": "mw30lx6io5ax2",
+      "date": "2026-11-05",
+      "amount": -5265,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mw2zthqzvspfu",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt8rfv4npge",
+      "transferPairId": "mw30lx6i2jbip",
+      "transferPairTxnId": "mw30lx6isisji"
+    },
+    {
+      "id": "mw30lx6isisji",
+      "date": "2026-11-05",
+      "amount": 5265,
+      "desc": "轉入 ← 國泰主帳戶",
+      "category": "mw2zthqzvspfu",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "mw30lx6i2jbip",
+      "transferPairTxnId": "mw30lx6io5ax2"
+    },
+    {
+      "id": "mw30margvlu7b",
+      "date": "2026-11-05",
+      "amount": -9730,
+      "desc": "轉帳 → 國泰主帳戶",
+      "category": "mw2zthqzvspfu",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt8rfv4npge",
+      "transferPairId": "mw30margswd91",
+      "transferPairTxnId": "mw30margj8070"
+    },
+    {
+      "id": "mw30margj8070",
+      "date": "2026-11-05",
+      "amount": 9730,
+      "desc": "轉入 ← 國泰主帳戶",
+      "category": "mw2zthqzvspfu",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt7wruf1yp4",
+      "transferPairId": "mw30margswd91",
+      "transferPairTxnId": "mw30margvlu7b"
+    },
+    {
+      "id": "mw30oj1dpfra3",
+      "date": "2026-11-05",
+      "amount": -12300,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mw2zthqzvspfu",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "mw30oj1d7r4y4",
+      "transferPairTxnId": "mw30oj1dxk0ye"
+    },
+    {
+      "id": "mw30oj1dxk0ye",
+      "date": "2026-11-05",
+      "amount": 12300,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mw2zthqzvspfu",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null,
+      "layerAmounts": [
+        {
+          "layerId": "mp76aznhv0bb6",
+          "amount": 4000
+        },
+        {
+          "layerId": "mpco5r3d7oglg",
+          "amount": 8300
+        }
+      ],
+      "transferPairId": "mw30oj1d7r4y4",
+      "transferPairTxnId": "mw30oj1dpfra3"
     }
   ],
   "fixedExpenses": [],
