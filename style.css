@@ -3615,3 +3615,56 @@ body.light-theme .period-row-prev{border-left-color:#7E57C2 !important;backgroun
 .txn-card-mobile .txn-tags{margin-top:5px}
 .txn-card-mobile .txn-card-notes{font-style:normal;margin-top:4px}
 .txn-card-marks{display:flex;gap:6px;margin-top:8px}
+
+
+/* ══════════════════════════════════════════════════════════════
+   消費明細／轉帳明細：圖示卡片設計（方向 A）
+   ══════════════════════════════════════════════════════════════ */
+/* 類別圖示：類別色圓角方塊＋類別首字 */
+.txn-ico{--ic:#7f8c8d;width:40px;height:40px;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;line-height:1;color:var(--ic);background:color-mix(in srgb,var(--ic) 16%,transparent);border:1px solid color-mix(in srgb,var(--ic) 40%,transparent)}
+.txn-ico.sm{width:32px;height:32px;border-radius:50%;font-size:14px}
+/* 手機版卡片：圖示在左、內容在右 */
+.txn-card-mobile.txn-v2{display:flex;align-items:flex-start;gap:12px;padding:12px 14px}
+.txn-card-mobile.txn-v2 > .txn-chk{margin-top:12px}
+.txn-v2-main{flex:1;min-width:0}
+.txn-card-mobile.txn-v2 .txn-card-top{margin-bottom:3px;align-items:center}
+.txn-card-mobile.txn-v2 .txn-card-desc{font-size:15px}
+.txn-card-mobile.txn-v2 .txn-card-amount{font-size:18px;letter-spacing:.2px}
+.txn-card-mobile.txn-v2 .txn-cat{color:var(--tx-secondary)}
+/* 桌面版表格：內容欄加圖示 */
+.txn-desc-wrap{display:flex;align-items:center;gap:10px;min-width:0}
+.txn-desc-text{flex:1;min-width:0}
+
+/* 轉帳明細：左轉出 → 金額 → 右轉入 */
+.tf-list{display:flex;flex-direction:column}
+.tf-card{padding:10px 14px 12px;border-bottom:1px solid var(--bdr-subtle)}
+.tf-card:last-child{border-bottom:none}
+.tf-route{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:stretch;gap:8px}
+.tf-acc{--ac:#1c69d4;min-width:0;padding:8px 10px;border-radius:12px;background:color-mix(in srgb,var(--ac) 12%,transparent);border:1px solid color-mix(in srgb,var(--ac) 32%,transparent);border-left:3px solid var(--ac)}
+.tf-acc.to{border-left:1px solid color-mix(in srgb,var(--ac) 32%,transparent);border-right:3px solid var(--ac);text-align:right}
+.tf-acc-label{font-size:10px;color:var(--tx-muted);letter-spacing:.5px;margin-bottom:2px}
+.tf-acc-name{font-size:14px;font-weight:700;color:var(--ac);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tf-acc-sub{font-size:11px;color:var(--tx-secondary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tf-unpaired{--ac:#e31836}
+.tf-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 2px}
+.tf-amt{font-family:'Rajdhani',var(--ff-display),sans-serif;font-size:17px;font-weight:700;color:var(--tx-blue);white-space:nowrap;font-variant-numeric:tabular-nums}
+.tf-arrow{position:relative;width:100%;min-width:44px;height:10px}
+.tf-arrow span{position:absolute;left:0;right:6px;top:50%;height:2px;margin-top:-1px;background:linear-gradient(90deg,var(--m-blue,#1c69d4),#6f2ca7,var(--m-red,#e31836));border-radius:2px}
+.tf-arrow::after{content:'';position:absolute;right:0;top:50%;margin-top:-5px;border-left:7px solid var(--m-red,#e31836);border-top:5px solid transparent;border-bottom:5px solid transparent}
+.tf-foot{display:flex;align-items:flex-start;gap:8px;margin-top:8px}
+.tf-notes:empty{min-height:0}
+.tf-notes{flex:1;min-width:0;font-size:12px;color:var(--tx-secondary);white-space:pre-line;word-break:break-word}
+.tf-notes-empty{color:var(--tx-muted)}
+.tf-del{flex-shrink:0;width:30px;height:30px;border-radius:9px;border:1px solid var(--bdr-subtle);background:transparent;color:var(--tx-muted);font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.tf-del:active{transform:scale(.94);background:rgba(227,24,54,.12)}
+@media (min-width:769px){
+  .tf-card{padding:12px 18px 14px}
+  .tf-route{grid-template-columns:minmax(0,1fr) minmax(140px,220px) minmax(0,1fr)}
+  .tf-acc-name{font-size:15px}
+  .tf-amt{font-size:19px}
+}
+/* 深色模式提高圖示與帳戶名稱的對比；淺色模式略加深 */
+.txn-ico{color:color-mix(in srgb,var(--ic) 60%,#fff)}
+.tf-acc-name{color:color-mix(in srgb,var(--ac) 58%,#fff)}
+body.light-theme .txn-ico{color:color-mix(in srgb,var(--ic) 90%,#000)}
+body.light-theme .tf-acc-name{color:color-mix(in srgb,var(--ac) 88%,#000)}
