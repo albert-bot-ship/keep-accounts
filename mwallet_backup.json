@@ -5090,6 +5090,63 @@
       ],
       "transferPairId": "mw30oj1d7r4y4",
       "transferPairTxnId": "mw30oj1dpfra3"
+    },
+    {
+      "id": "mw3ad9p8o6tug",
+      "date": "2026-11-05",
+      "amount": -540,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mw2zthqzvspfu",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "msoaaqi4bf9j2",
+      "transferPairId": "mw3ad9p8cmrvr",
+      "transferPairTxnId": "mw3ad9p8cs1ih"
+    },
+    {
+      "id": "mw3ad9p8cs1ih",
+      "date": "2026-11-05",
+      "amount": 540,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mw2zthqzvspfu",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": null,
+      "layerAmounts": [
+        {
+          "layerId": "mowt3b5ret5t3",
+          "amount": 32
+        },
+        {
+          "layerId": "mt84rxv5bsopq",
+          "amount": 508
+        }
+      ],
+      "transferPairId": "mw3ad9p8cmrvr",
+      "transferPairTxnId": "mw3ad9p8o6tug"
+    },
+    {
+      "id": "mw3aedr4xm5mg",
+      "date": "2026-11-05",
+      "amount": 1000,
+      "desc": "老婆轉",
+      "category": "",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mq098n0nat4md",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": true,
+      "countInStats": true,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
