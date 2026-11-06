@@ -5201,6 +5201,25 @@
       "isTransferOut": false,
       "isTransferIn": false,
       "isFixed": false
+    },
+    {
+      "id": "mw4rfnnnvroww",
+      "date": "2026-11-06",
+      "amount": 2000,
+      "desc": "爸爸轉全家咖啡錢",
+      "category": "",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt8rfv4npge",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": true,
+      "countInStats": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
