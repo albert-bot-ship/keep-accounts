@@ -5183,6 +5183,24 @@
       "isTransferOut": false,
       "isTransferIn": false,
       "isFixed": false
+    },
+    {
+      "id": "mw4k0jfe73y2j",
+      "date": "2026-11-06",
+      "amount": -2000,
+      "desc": "",
+      "category": "mp9mudorweuu2",
+      "sourceId": "mov4sadxpcepw",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt9nf0j6och",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": true,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
