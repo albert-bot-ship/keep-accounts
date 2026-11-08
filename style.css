@@ -3200,13 +3200,9 @@ body .account-card[data-theme="gold"] .reimb-input {
 }
 
 /* ══ 字體大小 ═══════════════════════════════════════════════ */
-body.fs-small  { font-size: 13px; }
-body.fs-medium { font-size: 15px; }
-body.fs-large  { font-size: 17px; }
-body.fs-small  .stat-value { font-size: 22px !important; }
-body.fs-large  .stat-value { font-size: 32px !important; }
-body.fs-small  .account-balance { font-size: clamp(16px,3vw,22px) !important; }
-body.fs-large  .account-balance { font-size: clamp(24px,5vw,34px) !important; }
+/* 整體縮放頁面內容（文字與間距一起），上下導覽列不縮放 */
+body.fs-small  .main-content > .page-section { zoom: .92; }
+body.fs-large  .main-content > .page-section { zoom: 1.1; }
 
 /* ══ 卡片圓角 ═══════════════════════════════════════════════ */
 body.radius-square  { --r:2px;   --r-lg:4px;  }
@@ -3218,26 +3214,38 @@ body.anim-reduced * {
   animation-duration: .15s !important;
   transition-duration: .15s !important;
 }
-body.anim-reduced .particle-canvas { display: none !important; }
+body.anim-reduced #particleCanvas { display: none !important; }
 body.anim-none * {
   animation: none !important;
   transition: none !important;
 }
-body.anim-none .particle-canvas { display: none !important; }
+body.anim-none #particleCanvas { display: none !important; }
 body.anim-none .splash-char     { opacity: 1 !important; }
 
 /* ══ 背景風格 ═══════════════════════════════════════════════ */
 /* 粒子（預設）：particle-canvas 正常顯示 */
-body.bg-plain .particle-canvas { display: none !important; }
-body.bg-plain:not(.light-theme) #appBody::after { display: none !important; }
-body.bg-plain:not(.light-theme) #appBody::before { display: none !important; }
-/* 碳纖維：particle-canvas 隱藏，保留碳纖維CSS */
-body.bg-carbon .particle-canvas { display: none !important; }
+/* 粒子畫布為 #particleCanvas；碳纖維紋路為 body::before */
+body.bg-plain #particleCanvas  { display: none !important; }
+body.bg-plain::before          { display: none !important; }
+/* 碳纖維：粒子隱藏，保留碳纖維紋路（加強紋路對比，深色白線、淺色黑線） */
+body.bg-carbon #particleCanvas { display: none !important; }
+body.bg-carbon::before{
+  background-image:
+    repeating-linear-gradient(45deg,  transparent, transparent 2px, rgba(255,255,255,.045) 2px, rgba(255,255,255,.045) 4px),
+    repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(255,255,255,.03) 2px, rgba(255,255,255,.03) 4px);
+}
+body.light-theme.bg-carbon::before{
+  background-image:
+    repeating-linear-gradient(45deg,  transparent, transparent 2px, rgba(0,0,0,.05) 2px, rgba(0,0,0,.05) 4px),
+    repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(0,0,0,.035) 2px, rgba(0,0,0,.035) 4px);
+}
 /* 粒子模式：不顯示碳纖維 */
-body.bg-particles:not(.light-theme) #appBody::after { display: none !important; }
-body.bg-particles:not(.light-theme) #appBody::before { display: none !important; }
+body.bg-particles::before      { display: none !important; }
 
 /* ══ 數字字型 ═══════════════════════════════════════════════ */
+/* 切換全站顯示字型變數，涵蓋 inline 使用 var(--ff-display) 的金額 */
+body.nf-round { --ff-display: -apple-system, 'Helvetica Neue', sans-serif; }
+body.nf-mono  { --ff-display: 'Courier New', 'SF Mono', monospace; }
 body.nf-rajdhani .account-balance,
 body.nf-rajdhani .stat-value,
 body.nf-rajdhani .layer-amt,
