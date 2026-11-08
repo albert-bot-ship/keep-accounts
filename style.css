@@ -3668,3 +3668,24 @@ body.light-theme .period-row-prev{border-left-color:#7E57C2 !important;backgroun
 .tf-acc-name{color:color-mix(in srgb,var(--ac) 58%,#fff)}
 body.light-theme .txn-ico{color:color-mix(in srgb,var(--ic) 90%,#000)}
 body.light-theme .tf-acc-name{color:color-mix(in srgb,var(--ac) 88%,#000)}
+
+/* ══ 信用卡未繳款外框警示（顏色＝各卡設定色；緊急快閃 1s、警示慢閃 2s）══
+   用 ::after 疊一層外框，避免與卡片進場動畫（inline springIn）互相覆蓋 */
+.account-card.bill-due-urgent::after,
+.account-card.bill-due-warn::after{
+  content:""; position:absolute; inset:0; border-radius:inherit;
+  pointer-events:none; z-index:3;
+  box-shadow:inset 0 0 0 2.5px color-mix(in srgb, var(--due-color,var(--m-blue)) 45%, #fff),
+             inset 0 0 16px color-mix(in srgb, var(--due-color,var(--m-blue)) 40%, #fff);
+}
+@keyframes billDueBlink{
+  0%,100%{ opacity:1; }
+  50%    { opacity:.15; }
+}
+.account-card.bill-due-urgent::after{ animation:billDueBlink 1s ease-in-out infinite; }
+.account-card.bill-due-warn::after  { animation:billDueBlink 2s ease-in-out infinite; }
+/* 動畫強度「減少／無」：不閃爍，只保留靜態外框 */
+body.anim-reduced .account-card.bill-due-urgent::after, body.anim-reduced .account-card.bill-due-warn::after,
+body.anim-none .account-card.bill-due-urgent::after,    body.anim-none .account-card.bill-due-warn::after{
+  animation:none !important; opacity:1 !important;
+}
