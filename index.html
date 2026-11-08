@@ -6712,7 +6712,7 @@ function renderCards() {
     const cardCollapsedStyle = (!isExpanded && !hasTheme) ? `--auto-bg:${autoCardGradient(c.color)};` : '';
     const cardBgLayers = !hasTheme ? `<div class="card-bg-layer bg-glass"></div><div class="card-bg-layer bg-gradient"></div><div class="account-card-content">` : '';
     const cardBgLayersClose = !hasTheme ? `</div>` : '';
-    return `<div class="account-card${due!==null&&due<=2?' due-urgent':due!==null&&due<=5?' due-warn':''}${isExpanded?' expanded':' '+cardAutoTextCls}" id="card-${c.id}" data-theme="${c.cardTheme||'default'}" onclick="toggleCreditCard(event,'${c.id}')" style="cursor:pointer;${cardCollapsedStyle}">
+    return `<div class="account-card${billLbl&&billLbl.level==='urgent'?' due-urgent':billLbl&&billLbl.level==='warn'?' due-warn':''}${isExpanded?' expanded':' '+cardAutoTextCls}" id="card-${c.id}" data-theme="${c.cardTheme||'default'}" onclick="toggleCreditCard(event,'${c.id}')" style="cursor:pointer;${cardCollapsedStyle}">
       ${cardBgLayers}
       <div class="card-sheen-layer"></div>
       <div class="account-card-header" style="border-top:3px solid ${c.color}">
