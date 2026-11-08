@@ -32,6 +32,14 @@
           "color": "#ff9efd",
           "monthlyAmt": null,
           "reimbursable": true
+        },
+        {
+          "id": "mw83cg8hij4ci",
+          "label": "旅遊",
+          "amount": 0,
+          "color": "#00d8ff",
+          "monthlyAmt": null,
+          "reimbursable": false
         }
       ],
       "cardTheme": "emerald",
@@ -5302,6 +5310,80 @@
       "isTransferOut": false,
       "isTransferIn": false,
       "isFixed": false
+    },
+    {
+      "id": "mw839g6s0egiy",
+      "date": "2026-11-08",
+      "amount": -665,
+      "desc": "全家燒肉",
+      "category": "mov4018zwuesg",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt3b5ret5t3",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
+    },
+    {
+      "id": "mw83ac4x7zf6j",
+      "date": "2026-11-08",
+      "amount": 3100,
+      "desc": "爸爸轉好市多錢",
+      "category": "",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt3b5ret5t3",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": true,
+      "countInStats": false,
+      "isFixed": false
+    },
+    {
+      "id": "mw83e81c0jfc5",
+      "date": "2026-11-08",
+      "amount": -33500,
+      "desc": "旅行社團費",
+      "category": "mw83b94n0ygcv",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mw83cg8hij4ci",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
+    },
+    {
+      "id": "mw83jl0svdx4c",
+      "date": "2026-11-09",
+      "amount": -3093,
+      "desc": "轉堅銘好市多錢",
+      "category": "",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowt3b5ret5t3",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": true,
+      "isTransferIn": false,
+      "countInStats": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
@@ -5530,10 +5612,10 @@
       "budgetEndDay": 24
     },
     {
-      "id": "mpng14zb5lbex",
-      "name": "藥品",
+      "id": "mw83b94n0ygcv",
+      "name": "旅遊",
       "budget": 0,
-      "color": "#2af4e6",
+      "color": "#2ecc71",
       "icon": "",
       "emoji": "",
       "forType": "expense",
@@ -5563,10 +5645,15 @@
       "budgetEndDay": 5
     },
     {
-      "id": "mov4018zygeiv",
-      "name": "其他",
-      "color": "#7f8c8d",
-      "budget": 0
+      "id": "mpng14zb5lbex",
+      "name": "藥品",
+      "budget": 0,
+      "color": "#2af4e6",
+      "icon": "",
+      "emoji": "",
+      "forType": "expense",
+      "budgetStartDay": 8,
+      "budgetEndDay": 5
     },
     {
       "id": "mpmsd41fqkl4o",
@@ -5600,6 +5687,12 @@
       "forType": "income",
       "budgetStartDay": 8,
       "budgetEndDay": 5
+    },
+    {
+      "id": "mov4018zygeiv",
+      "name": "其他",
+      "color": "#7f8c8d",
+      "budget": 0
     }
   ],
   "userTags": [
