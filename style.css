@@ -3780,3 +3780,17 @@ body.anim-none .account-card.bill-due-urgent::after,    body.anim-none .account-
 .fcal-it.done .dt{background:color-mix(in srgb,var(--c) 22%,transparent)} .fcal-it.done .dt b{color:var(--tx-primary)} .fcal-it.done .dt small{color:var(--tx-secondary)}
 .fcal-it.done .am span{background:color-mix(in srgb,var(--c) 22%,transparent);color:var(--tx-primary)}
 .tf-edit:active{background:rgba(77,159,255,.14)}
+/* 頂部列加入 💾 快速備份後：手機寬度收緊間距、「新增消費」不換行 */
+@media(max-width:480px){
+  .topnav{gap:10px}
+  .nav-add-btn{white-space:nowrap;flex-shrink:0}
+  .nav-logo{min-width:0}
+}
+@media(max-width:380px){
+  .topnav .btn-theme-toggle{width:26px;height:26px;font-size:12px}
+  .nav-logo-text{letter-spacing:1px}
+}
+@media(max-width:340px){
+  .nav-logo-text{display:none}
+  .nav-logo-badge{flex-shrink:0}
+}
