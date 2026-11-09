@@ -5831,13 +5831,23 @@
     {
       "id": "mvyu5vo1zfrdb",
       "name": "備用金",
-      "target": 50000,
-      "saved": 21297,
+      "target": 100000,
+      "saved": 51297,
       "savedMode": "link",
       "linkedLayers": [
+        "mov4r1sf9uw5u|mpco5r3d7oglg",
         "mov74st8ti4ry|mowtfdp3hzho9"
       ],
       "deadline": ""
+    },
+    {
+      "id": "mw8z364ntsu1j",
+      "name": "去沖繩玩",
+      "target": 30000,
+      "saved": 0,
+      "savedMode": "manual",
+      "linkedLayers": [],
+      "deadline": "2027-04-30"
     }
   ]
 }
