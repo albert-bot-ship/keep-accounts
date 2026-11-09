@@ -3775,7 +3775,7 @@ body.anim-none .account-card.bill-due-urgent::after,    body.anim-none .account-
 .fcal-it .am b{display:block;font-family:var(--ff-display);font-size:18px}
 .fcal-it .am span{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(0,0,0,.3);color:#fff}
 .fcal-it .am span.hot{background:#fff;color:#c62828}
-.fcal-it.done{--fg:var(--tx-primary);background:var(--bg-card);border:1px dashed color-mix(in srgb,var(--c) 60%,transparent);opacity:.75}
+.fcal-it.done{color:var(--tx-primary);background:var(--bg-card);border:1px dashed color-mix(in srgb,var(--c) 60%,transparent);opacity:.75}
 .fcal-it.done:after{display:none}
 .fcal-it.done .dt{background:color-mix(in srgb,var(--c) 22%,transparent)} .fcal-it.done .dt b{color:var(--tx-primary)} .fcal-it.done .dt small{color:var(--tx-secondary)}
 .fcal-it.done .am span{background:color-mix(in srgb,var(--c) 22%,transparent);color:var(--tx-primary)}
