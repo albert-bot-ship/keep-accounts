@@ -217,9 +217,6 @@
   <div class="nav-item" data-page="transfers" onclick="nav(this,'transfers')">
     <span class="nav-icon">🔄</span><span>轉帳明細</span>
   </div>
-  <div class="nav-item" data-page="fixed" onclick="nav(this,'fixed')">
-    <span class="nav-icon">🔁</span><span>固定消費</span>
-  </div>
   <div class="nav-item" data-page="install" onclick="nav(this,'install')">
     <span class="nav-icon">📅</span><span>分期追蹤</span>
   </div>
@@ -464,21 +461,6 @@
         <div id="transferTableWrap"></div>
       </div>
     </section>
-
-    <!-- ─── FIXED EXPENSES ─────────────────────── -->
-    <section class="page-section" id="page-fixed">
-      <div class="page-header">
-        <div class="page-title">固定消費</div>
-        <button class="btn btn-primary" onclick="openModal('addFixed')">＋ 新增固定消費</button>
-      </div>
-      <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">每月依照設定日期自動加入消費記錄（當日或已過當日才生成）。</p>
-      <div class="chart-box" id="fixedCalendarBox" style="margin-bottom:20px">
-        <div class="chart-title">本月扣款日曆</div>
-        <div id="fixedCalendarContent"></div>
-      </div>
-      <div id="fixedList"></div>
-    </section>
-
 
     <!-- ─── INSTALLMENTS ─────────────────────── -->
     <section class="page-section" id="page-install">
@@ -911,10 +893,9 @@
                 <span>• 所有消費 / 收入 / 轉帳記錄</span>
                 <span>• 信用卡與銀行帳戶所有分層初始金額</span>
                 <span>• 信用卡分層每月分期金額（monthlyAmt）</span>
-                <span>• 固定消費已生成記錄</span>
                 <span>• 薪水撥入記錄</span>
               </div>
-              <div style="font-size:11px;color:var(--tx-muted);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,45,85,.15)">✅ 保留：卡片、帳戶、分層架構、類別、固定消費設定、訂閱、規則、外觀設定</div>
+              <div style="font-size:11px;color:var(--tx-muted);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,45,85,.15)">✅ 保留：卡片、帳戶、分層架構、類別、訂閱、規則、外觀設定</div>
             </div>
             <button class="btn btn-sm" onclick="resetDataStep1()"
               style="width:100%;background:linear-gradient(135deg,#ff2d55,#c8102e);color:#fff;font-size:14px;font-weight:700;padding:13px;border-radius:var(--r);border:none;letter-spacing:1.5px;box-shadow:0 4px 18px rgba(255,45,85,.45);cursor:pointer">
@@ -1937,36 +1918,23 @@ function cardLayerOutstanding(cardId, layerId) {
   const layer = (card.layers||[]).find(l=>l.id===layerId); if (!layer) return 0;
   // 有分期金額的分層：直接回傳 layer.amount 總額
   if (layer.monthlyAmt!=null && layer.monthlyAmt!=='') return layer.amount||0;
-  const nowDay = new Date().getDate();
-  const cardLayerIds    = new Set((card.layers||[]).map(l=>l.id));
-  const cardLayerLabels = new Set((card.layers||[]).map(l=>l.label.trim()));
   // 取得當期帳單週期
   const { periodStart, periodEnd } = card.billingDay ? cardBillingPeriod(card) : { periodStart: nowYM()+'-01', periodEnd: nowYM()+'-31' };
 
   // 整張卡當期 totalSpend
   const layerTotal = (card.layers||[]).reduce((s,l)=>{
-    const fe = DB.fixedExpenses
-      .filter(fe=>fe.sourceType==='card'&&fe.sourceId===cardId&&(fe.day||1)<=nowDay)
-      .flatMap(fe=>(fe.layers||[]))
-      .filter(fl=>fl.layerId?fl.layerId===l.id:fl.label.trim()===l.label.trim())
-      .reduce((ss,fl)=>ss+(+fl.amount||0),0);
     const tx = DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((ss,t)=>ss+Math.abs(t.amount)+(t.fee||0),0)
       + DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerAmounts&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((ss,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===l.id);return ss+(la?Math.abs(la.amount):0);},0);
-    return s+fe+tx; // 不含 layer.amount
+    return s+tx; // 不含 layer.amount
   },0);
-  const feUnmapped = DB.fixedExpenses
-    .filter(fe=>fe.sourceType==='card'&&fe.sourceId===cardId&&(fe.day||1)<=nowDay)
-    .flatMap(fe=>(fe.layers||[]))
-    .filter(fl=>fl.layerId?!cardLayerIds.has(fl.layerId):!cardLayerLabels.has(fl.label.trim()))
-    .reduce((s,fl)=>s+(+fl.amount||0),0);
   const unlayered = DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.amount<0&&!t.layerId&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>s+Math.abs(t.amount),0);
-  const totalSpend = layerTotal + feUnmapped + unlayered;
+  const totalSpend = layerTotal + unlayered;
 
   // 當期繳款+折抵
   const periodPaid = DB.transactions
@@ -1979,11 +1947,6 @@ function cardLayerOutstanding(cardId, layerId) {
   const paidRatio = totalSpend>0 ? Math.min(1,(periodPaid+periodRedeem)/totalSpend) : (netOutstanding===0?1:0);
 
   // 此分層當期消費
-  const feLayerAmt = DB.fixedExpenses
-    .filter(fe=>fe.sourceType==='card'&&fe.sourceId===cardId&&(fe.day||1)<=nowDay)
-    .flatMap(fe=>(fe.layers||[]))
-    .filter(fl=>fl.layerId?fl.layerId===layerId:fl.label.trim()===layer.label.trim())
-    .reduce((s,fl)=>s+(+fl.amount||0),0);
   const txLayerAmt = DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===layerId&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0)
@@ -1993,7 +1956,7 @@ function cardLayerOutstanding(cardId, layerId) {
   const redeemAmt = DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===layerId&&t.isRedemption&&t.amount>0&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>s+t.amount,0);
-  const totalLayerAmt = feLayerAmt + txLayerAmt;
+  const totalLayerAmt = txLayerAmt;
 
   return Math.max(0, Math.round((totalLayerAmt - redeemAmt) * (1-paidRatio)));
 }
@@ -2314,7 +2277,7 @@ function fxFieldsForTWD(sourceType, sourceId, twdAmount) {
   if (!rate) return null;
   return { fxCurrency: u, fxAmount: roundCur(twdAmount / rate, u) };
 }
-// 匯率尚未載入時，先從本機快取讀取（供開 App 時自動產生固定支出／訂閱使用）
+// 匯率尚未載入時，先從本機快取讀取（供開 App 時自動產生訂閱使用）
 let _fxGenPending = false;
 function loadRatesFromCache() {
   if (Object.keys(exchangeRates).length) return;
@@ -2667,32 +2630,19 @@ function cardBillingPeriod(card) {
 // 計算信用卡「本期」共刷了多少（含分層固定金額、手續費、未分層消費），比照信用卡頁的算法
 function cardPeriodTotalSpend(card) {
   const { periodStart, periodEnd } = card.billingDay ? cardBillingPeriod(card) : { periodStart: nowYM()+'-01', periodEnd: nowYM()+'-31' };
-  const nowDay = new Date().getDate();
-  const cardLayerLabels = new Set((card.layers||[]).map(l=>l.label.trim()));
-  const cardLayerIds    = new Set((card.layers||[]).map(l=>l.id));
 
   const layerTotal = (card.layers||[]).reduce((sum, l) => {
     const hasMonthly = l.monthlyAmt!=null && l.monthlyAmt!=='';
     if (hasMonthly) return sum + (l.amount||0);
-    const feLayerAmt = DB.fixedExpenses
-      .filter(fe=>fe.sourceType==='card'&&fe.sourceId===card.id&&(fe.day||1)<=nowDay)
-      .flatMap(fe=>(fe.layers||[]))
-      .filter(fl=>fl.layerId?fl.layerId===l.id:fl.label.trim()===l.label.trim())
-      .reduce((s,fl)=>s+(+fl.amount||0),0);
     const txLayerAmt = DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0)
       + DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.layerAmounts&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((s,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===l.id);return s+(la?Math.abs(la.amount):0);},0);
-    return sum + feLayerAmt + txLayerAmt;
+    return sum + txLayerAmt;
   }, 0);
 
-  const feUnmappedAmt = DB.fixedExpenses
-    .filter(fe=>fe.sourceType==='card'&&fe.sourceId===card.id&&(fe.day||1)<=nowDay)
-    .flatMap(fe=>(fe.layers||[]))
-    .filter(fl=>fl.layerId?!cardLayerIds.has(fl.layerId):!cardLayerLabels.has(fl.label.trim()))
-    .reduce((s,fl)=>s+(+fl.amount||0),0);
   const unlayeredSpend = DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.amount<0&&!t.layerId&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>s+Math.abs(t.amount),0);
@@ -2700,7 +2650,7 @@ function cardPeriodTotalSpend(card) {
     .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&!t.isPayment&&!t.isRedemption&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>s+(t.fee||0),0);
 
-  return layerTotal + feUnmappedAmt + unlayeredSpend + totalCardFees;
+  return layerTotal + unlayeredSpend + totalCardFees;
 }
 // Card monthly cashback
 function cardMonthlyCashback(card) {
@@ -2712,75 +2662,7 @@ function cardMonthlyCashback(card) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// FIXED AUTO-GENERATE
-// ════════════════════════════════════════════════════════════════
-function generateFixed() {
-  loadRatesFromCache();
-  const now = new Date(), curYM = nowYM(), curDay = now.getDate();
-  if (!DB.generatedFixed[curYM]) DB.generatedFixed[curYM] = [];
-  let added = 0;
-
-  DB.fixedExpenses.forEach(fe => {
-    // ── 判斷本期 key 和是否應該生成 ──
-    let periodKey, shouldGenerate, txnDate;
-
-    if (fe.sourceType === 'card') {
-      // 信用卡：依該卡的結帳週期判斷
-      const card = getCard(fe.sourceId);
-      const billingDay = card?.billingDay || 1;
-      const { periodStart } = cardBillingPeriod(card || { billingDay });
-      periodKey = 'card_' + fe.sourceId + '_' + periodStart;
-
-      // 本期內，扣款日到了才生成
-      const { periodStart: ps, periodEnd: pe } = cardBillingPeriod(card || { billingDay });
-      const psDate = new Date(ps), peDate = new Date(pe);
-      // 計算扣款日在本期內的實際日期
-      const feDayDate = new Date(psDate.getFullYear(), psDate.getMonth(), fe.day);
-      // 若扣款日 <= 本期開始日，換到下一個月
-      if (feDayDate < psDate) feDayDate.setMonth(feDayDate.getMonth() + 1);
-      // 今天已到或超過扣款日，且扣款日在本期內
-      shouldGenerate = now >= feDayDate && feDayDate <= peDate;
-      txnDate = feDayDate.toISOString().slice(0, 10);
-    } else {
-      // 銀行帳戶：維持原本自然月邏輯
-      periodKey = curYM;
-      shouldGenerate = curDay >= fe.day;
-      txnDate = curYM + '-' + String(Math.min(fe.day, 28)).padStart(2, '0');
-    }
-
-    // 已生成過就跳過
-    if (!DB.generatedFixed[periodKey]) DB.generatedFixed[periodKey] = [];
-    if (DB.generatedFixed[periodKey].includes(fe.id)) return;
-    if (!shouldGenerate) return;
-
-    // 外幣帳戶：台幣金額換算外幣（缺匯率先跳過，匯率載入後再產生）
-    const feFx = fxFieldsForTWD(fe.sourceType, fe.sourceId, -Math.abs(fe.amount));
-    if (feFx === null) { _fxGenPending = true; return; }
-
-    // 生成交易
-    const layers = (fe.layers || []).filter(l => l.layerId);
-    if (layers.length > 0) {
-      const l = layers[0];
-      DB.transactions.push({ id:uid(), date:txnDate, amount:-Math.abs(fe.amount), ...feFx,
-        desc:fe.desc+'（固定）', category:fe.category, sourceId:fe.sourceId,
-        sourceType:fe.sourceType, notes:fe.notes||'', isFixed:true, fixedId:fe.id,
-        fee:fe.fee||0, layerId:l.layerId });
-    } else {
-      DB.transactions.push({ id:uid(), date:txnDate, amount:-Math.abs(fe.amount), ...feFx,
-        desc:fe.desc+'（固定）', category:fe.category, sourceId:fe.sourceId,
-        sourceType:fe.sourceType, notes:fe.notes||'', isFixed:true, fixedId:fe.id,
-        fee:fe.fee||0 });
-    }
-    DB.generatedFixed[periodKey].push(fe.id);
-    added++;
-  });
-
-  if (added) { saveDB(); toast('已自動新增 ' + added + ' 筆固定消費', 'info'); }
-}
-
-
-// ════════════════════════════════════════════════════════════════
-// 訂閱自動生成交易（同固定消費邏輯）
+// 訂閱自動生成交易
 // ════════════════════════════════════════════════════════════════
 function generateSubscriptionTxns(debug=false) {
   loadRatesFromCache();
@@ -2850,7 +2732,7 @@ function generateSubscriptionTxns(debug=false) {
 // ════════════════════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════════════════════
-const PAGE_ORDER = ['dashboard','cards','accounts','txns','transfers','fixed','install','calendar','analytics','subscriptions','exchange','goals','settings'];
+const PAGE_ORDER = ['dashboard','cards','accounts','txns','transfers','install','calendar','analytics','subscriptions','exchange','goals','settings'];
 let currentPage = 'dashboard';
 // 返回帳戶/卡片頁時要自動展開的項目（{page, id}），由 goToTxnFilterSource 設定、navigateTo 消耗
 let _pendingExpandItem = null;
@@ -2962,19 +2844,6 @@ function fcalSubs(ym) {
   });
   return out;
 }
-// 固定消費：每月 fe.day 號扣款；今天以前視為已扣
-function fcalFixed(ym) {
-  const [y, m] = ym.split('-').map(Number);
-  const dim = new Date(y, m, 0).getDate();
-  return (DB.fixedExpenses || []).filter(fe => fe.day).map(fe => {
-    const src = fcalSrcInfo(fe.sourceType, fe.sourceId);
-    const ds = ym + '-' + fcalPad(Math.min(fe.day, dim));
-    const done = ds < fcalToday();
-    return { kind:'fixed', date:ds, name:fe.desc || '固定消費', color:src.color,
-      sub: '固定消費・' + src.name + (src.card ? '（刷卡，計入卡費）' : ' 扣款'),
-      amount:(+fe.amount||0)+(fe.fee||0), done, count: !src.card && !done, inMonth:true };
-  });
-}
 function renderCalendar() {
   const wrap = document.getElementById('fcalWrap');
   if (!wrap) return;
@@ -3003,7 +2872,7 @@ function renderCalendar() {
   const maxSpend = Math.max(1, ...Object.values(spend));
   const daysPassed = ym < curYM ? dim : ym === curYM ? +today.slice(8) : 0;
 
-  const events = [...fcalCardBills(ym, ym === curYM), ...fcalSubs(ym), ...fcalFixed(ym)]
+  const events = [...fcalCardBills(ym, ym === curYM), ...fcalSubs(ym)]
     .sort((a, b) => a.date.localeCompare(b.date) || (a.kind === 'bill' ? -1 : 1));
   const evByDay = {};
   events.filter(e => e.inMonth).forEach(e => { const d = +e.date.slice(8); (evByDay[d] = evByDay[d] || []).push(e); });
@@ -3073,7 +2942,7 @@ function renderCalendar() {
       : e.overdue ? `逾期 ${-dd} 天` : dd === 0 ? '今天' : dd < 0 ? '已過' : `${dd} 天後`;
     const hot = !e.done && (e.overdue || (dd >= 0 && dd <= 3));
     const fg = isLightColor(e.color) ? '#111' : '#fff';
-    const go = e.kind === 'bill' ? `navToItem('cards','card-${e.id}')` : e.kind === 'sub' ? `navToItem('subscriptions','page-subscriptions')` : `navToItem('fixed','page-fixed')`;
+    const go = e.kind === 'bill' ? `navToItem('cards','card-${e.id}')` : `navToItem('subscriptions','page-subscriptions')`;
     const [, em, ed] = e.date.split('-').map(Number);
     return `<div class="fcal-it${e.done ? ' done' : ''}" style="--c:${e.color};--fg:${fg}" onclick="${go}">`
       + `<div class="dt"><b>${e.inMonth ? ed : em + '/' + ed}</b><small>週${'日一二三四五六'[new Date(e.date + 'T00:00:00').getDay()]}</small></div>`
@@ -3107,7 +2976,7 @@ function renderCalendar() {
 
 function renderPage(page) {
   const fn={dashboard:renderDashboard,cards:renderCards,accounts:renderAccounts,
-    txns:renderTxns,transfers:renderTransfers,fixed:renderFixed,install:renderInstall,analytics:renderAnalytics,
+    txns:renderTxns,transfers:renderTransfers,install:renderInstall,analytics:renderAnalytics,
     settings:renderSettings,subscriptions:renderSubscriptions,exchange:renderExchange,goals:renderGoals,
     templates:renderTemplates,calendar:renderCalendar};
   if (fn[page]) fn[page]();
@@ -3602,7 +3471,7 @@ function exportPDF() {
 // 1. RIPPLE EFFECT
 // ════════════════════════════════════════════════════════════════
 document.addEventListener('pointerdown', e => {
-  const el = e.target.closest('.btn,.nav-item,.mbn-item,.account-card,.layer-bar,.fe-item,.fnp-btn,.pager-btn');
+  const el = e.target.closest('.btn,.nav-item,.mbn-item,.account-card,.layer-bar,.fnp-btn,.pager-btn');
   if (!el) return;
   el.classList.add('ripple-host');
   const r = Math.max(el.offsetWidth, el.offsetHeight);
@@ -5722,23 +5591,6 @@ function renderNotificationCenter() {
     });
   });
 
-  // 固定消費即將扣款
-  DB.fixedExpenses.forEach(fe=>{
-    const day = fe.day || fe.dueDay; // 表單儲存欄位為 day（dueDay 為舊欄位）
-    if (!day) return;
-    const target = new Date(now.getFullYear(), now.getMonth(), day);
-    if (target < now) target.setMonth(target.getMonth()+1);
-    const diff = Math.ceil((target-now)/86400000);
-    if (diff<=3 && diff>=0) {
-      items.push({
-        icon: '📅',
-        title: `${fe.desc || fe.name || '固定消費'} 扣款`,
-        desc: diff===0 ? '今日扣款' : `${diff} 天後扣款`,
-        urgent: diff===0
-      });
-    }
-  });
-
   // 備份提醒
   const lastBackup = localStorage.getItem('mwallet_last_backup');
   if (lastBackup) {
@@ -5794,77 +5646,6 @@ function setTxnMark(txnId, mark) {
   t.mark = t.mark===mark ? null : mark; // 再點一次取消
   saveDB();
   renderTxns();
-}
-
-// ════════════════════════════════════════════════════════════════
-// 固定消費月曆
-// ════════════════════════════════════════════════════════════════
-function renderFixedCalendar() {
-  const wrap = document.getElementById('fixedCalendarContent');
-  if (!wrap) return;
-  if (!DB.fixedExpenses.length) { wrap.innerHTML='<div style="text-align:center;padding:12px;font-size:12px;color:var(--tx-muted)">尚無固定消費</div>'; return; }
-
-  const now   = new Date();
-  const year  = now.getFullYear();
-  const month = now.getMonth();
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const firstDay    = new Date(year, month, 1).getDay(); // 0=日
-
-  // 建立每日扣款 map
-  const dayMap = {};
-  DB.fixedExpenses.forEach(fe=>{
-    const d = fe.day || fe.dueDay; // 表單儲存欄位為 day（dueDay 為舊欄位）
-    if (!d) return;
-    if (!dayMap[d]) dayMap[d] = [];
-    dayMap[d].push(fe);
-  });
-
-  const weekdays = ['日','一','二','三','四','五','六'];
-  const today = now.getDate();
-
-  let html = `
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px">
-      ${weekdays.map(w=>`<div style="text-align:center;font-size:10px;color:var(--tx-muted);padding:4px 0;font-family:var(--ff-display)">${w}</div>`).join('')}
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
-      ${Array(firstDay).fill('<div></div>').join('')}
-      ${Array.from({length:daysInMonth},(_,i)=>{
-        const d = i+1;
-        const fes = dayMap[d]||[];
-        const isToday = d===today;
-        const hasFe = fes.length>0;
-        const totalAmt = fes.reduce((s,fe)=>s+Math.abs(fe.amount||0),0);
-        return `<div onclick="${hasFe?`toggleFixedCalDay(this,${d})`:'null'}"
-          style="min-height:36px;border-radius:6px;padding:3px;cursor:${hasFe?'pointer':'default'};
-          background:${isToday?'rgba(0,87,184,.2)':hasFe?'rgba(200,16,46,.08)':'var(--bg-secondary)'};
-          border:1px solid ${isToday?'var(--m-blue)':hasFe?'rgba(200,16,46,.3)':'var(--bdr-subtle)'};
-          position:relative;box-sizing:border-box">
-          <div style="font-size:11px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--m-blue)':hasFe?'var(--tx-red)':'var(--tx-muted)'};text-align:center">${d}</div>
-          ${hasFe?`<div style="font-size:9px;color:var(--tx-red);text-align:center;line-height:1.2">−${fmt(totalAmt)}</div>`:''}
-        </div>`;
-      }).join('')}
-    </div>
-    <div id="fixedCalDayDetail" style="margin-top:10px"></div>`;
-
-  wrap.innerHTML = html;
-}
-
-function toggleFixedCalDay(el, day) {
-  const detail = document.getElementById('fixedCalDayDetail');
-  const fes = DB.fixedExpenses.filter(fe=>(fe.day || fe.dueDay)===day);
-  if (!fes.length || !detail) return;
-  // 已展開則收合
-  if (detail.dataset.day == day && detail.innerHTML) {
-    detail.innerHTML = '';
-    detail.dataset.day = '';
-    return;
-  }
-  detail.dataset.day = day;
-  detail.innerHTML = `<div style="font-size:11px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:6px">${day} 號扣款</div>` +
-    fes.map(fe=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--bg-secondary);border-radius:var(--r);margin-bottom:4px">
-      <span style="font-size:12px;color:var(--tx-primary)">${escHtml(fe.desc || fe.name || '固定消費')}</span>
-      <span style="font-family:var(--ff-display);font-size:13px;font-weight:700;color:var(--tx-red)">−${fmt(Math.abs(fe.amount||0))}</span>
-    </div>`).join('');
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -6757,7 +6538,6 @@ function renderCards() {
     const icon    = c.icon?`<img src="${c.icon}" alt="">`:'💳';
     // 本期結帳週期
     const { periodStart, periodEnd } = c.billingDay ? cardBillingPeriod(c) : { periodStart: nowYM()+'-01', periodEnd: nowYM()+'-31' };
-    const nowDay = new Date().getDate();
 
     // 本期消費（結帳日週期內的交易）
     const mSpend  = DB.transactions
@@ -6781,21 +6561,14 @@ function renderCards() {
       : '';
 
     // ── STEP 1：先算各分層原始數據（不依賴 totalSpend）────────────
-    const cardLayerLabels = new Set((c.layers||[]).map(l=>l.label.trim()));
-    const cardLayerIds    = new Set((c.layers||[]).map(l=>l.id));
 
     const layerDataArr = (c.layers||[]).map(l=>{
       const layerAmt = l.amount||0;
       const hasMonthly = l.monthlyAmt!=null&&l.monthlyAmt!=='';
       // 有分期金額的分層：直接用 layer.amount 作為總額顯示，不套用帳期交易計算
       if (hasMonthly) {
-        return {l, layerAmt, feLayerAmt:0, txLayerAmt:0, redeemLayerAmt:0, totalLayerAmt:layerAmt, hasDetail:false, hasMonthly, isMonthlyFixed:true};
+        return {l, layerAmt, txLayerAmt:0, redeemLayerAmt:0, totalLayerAmt:layerAmt, hasDetail:false, hasMonthly, isMonthlyFixed:true};
       }
-      const feLayerAmt = DB.fixedExpenses
-        .filter(fe=>fe.sourceType==='card'&&fe.sourceId===c.id&&(fe.day||1)<=nowDay)
-        .flatMap(fe=>(fe.layers||[]))
-        .filter(fl=>fl.layerId?fl.layerId===l.id:fl.label.trim()===l.label.trim())
-        .reduce((s,fl)=>s+(+fl.amount||0),0);
       // 只計算當期帳單週期內的交易
       const txLayerAmt = DB.transactions
         .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
@@ -6807,25 +6580,20 @@ function renderCards() {
       const redeemLayerAmt = DB.transactions
         .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.isRedemption&&t.amount>0&&t.date>=periodStart&&t.date<=periodEnd)
         .reduce((s,t)=>s+t.amount,0);
-      const totalLayerAmt = feLayerAmt + txLayerAmt;
-      const hasDetail = feLayerAmt>0||txLayerAmt>0||redeemLayerAmt>0;
-      return {l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed:false};
+      const totalLayerAmt = txLayerAmt;
+      const hasDetail = txLayerAmt>0||redeemLayerAmt>0;
+      return {l, layerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed:false};
     });
 
     // ── STEP 2：計算整張卡的 totalSpend、已繳、未還（當期範圍）────────────
     const layerTotal = layerDataArr.reduce((s,d)=>s+d.totalLayerAmt,0);
-    const feUnmappedAmt = DB.fixedExpenses
-      .filter(fe=>fe.sourceType==='card'&&fe.sourceId===c.id&&(fe.day||1)<=nowDay)
-      .flatMap(fe=>(fe.layers||[]))
-      .filter(fl=>fl.layerId?!cardLayerIds.has(fl.layerId):!cardLayerLabels.has(fl.label.trim()))
-      .reduce((s,fl)=>s+(+fl.amount||0),0);
     const unlayeredSpend = DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.layerId&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((s,t)=>s+Math.abs(t.amount),0);
     const totalCardFees = DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&!t.isPayment&&!t.isRedemption&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((s,t)=>s+(t.fee||0),0);
-    const totalSpend = layerTotal + feUnmappedAmt + unlayeredSpend + totalCardFees;
+    const totalSpend = layerTotal + unlayeredSpend + totalCardFees;
 
     // 已繳款：本期開始後的所有繳款記錄
     const totalPaid = DB.transactions
@@ -6879,7 +6647,7 @@ function renderCards() {
     const normalTotal = Object.values(normalTxMap).reduce((s,v)=>s+v,0);
     const paidRatio = 0; // 不再使用比例計算
 
-    const layerRenderData = layerDataArr.map(({l, layerAmt, feLayerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed}, idx, arr)=>{
+    const layerRenderData = layerDataArr.map(({l, layerAmt, txLayerAmt, redeemLayerAmt, totalLayerAmt, hasDetail, hasMonthly, isMonthlyFixed}, idx, arr)=>{
       let layerOutstanding, hasPaidOffset;
       if (isMonthlyFixed) {
         layerOutstanding = layerAmt;
@@ -6898,7 +6666,7 @@ function renderCards() {
         <div class="layer-dot" style="background:${l.color||c.color}"></div>
         <div style="flex:1;min-width:0">
           <div class="layer-name" ${layerNameColor?`style="color:${layerNameColor}"`:''}>${escHtml(l.label)}${hasMonthly?`<span style="font-size:10px;background:#1c69d422;color:#1c69d4;border-radius:3px;padding:1px 5px;margin-left:6px">分期 每月 −${fmt(l.monthlyAmt)}</span>`:''}${l.reimbursable?(()=>{const _pend=DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&!t.reimbursed).reduce((s,t)=>s+Math.abs(t.amount),0);return `<span style="font-size:10px;background:#f39c1222;color:#f39c12;border-radius:3px;padding:1px 5px;margin-left:6px">🧾 代墊追蹤${_pend>0?`　未核銷 ${fmt(_pend)}`:''}</span>`;})():''}</div>
-          ${hasDetail&&isMonthlyFixed?`<div style="font-size:10px;color:${layerMutedColor};margin-top:2px">${layerAmt>0?`手動 −${fmt(layerAmt)}　`:''}${txLayerAmt>0?`記帳 −${fmt(txLayerAmt)}　`:''}${feLayerAmt>0?`固定 −${fmt(feLayerAmt)}　`:''}${redeemLayerAmt>0?`<span style="color:${layerGreenColor}">折抵 +${fmt(redeemLayerAmt)}</span>`:''}</div>`:''}
+          ${hasDetail&&isMonthlyFixed?`<div style="font-size:10px;color:${layerMutedColor};margin-top:2px">${layerAmt>0?`手動 −${fmt(layerAmt)}　`:''}${txLayerAmt>0?`記帳 −${fmt(txLayerAmt)}　`:''}${redeemLayerAmt>0?`<span style="color:${layerGreenColor}">折抵 +${fmt(redeemLayerAmt)}</span>`:''}</div>`:''}
         </div>
         <div style="text-align:right;flex-shrink:0">
           ${hasPaidOffset?`<div style="font-size:10px;color:${layerMutedColor};text-decoration:line-through">−${fmt(totalLayerAmt)}</div>`:''}
@@ -6972,7 +6740,7 @@ function renderCards() {
         </div>`:''}
         <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
           <div style="font-size:11px;${is}">本期消費：<span style="${ir}">${fmt(-mSpend)}</span><span style="font-size:10px;${ic};margin-left:4px">(${periodStart.slice(5)} ～ ${periodEnd.slice(5)})</span></div>
-          ${(c.layers||[]).length>0?`<div style="font-size:11px;${is}">分層：<span style="${ir}">−${fmt(layerTotal)}</span>　快速記帳：<span style="${ir}">−${fmt(unlayeredSpend)}</span>${feUnmappedAmt>0?`　固定(未對應)：<span style="${ir}">−${fmt(feUnmappedAmt)}</span>`:''}</div>`:''}
+          ${(c.layers||[]).length>0?`<div style="font-size:11px;${is}">分層：<span style="${ir}">−${fmt(layerTotal)}</span>　快速記帳：<span style="${ir}">−${fmt(unlayeredSpend)}</span></div>`:''}
           ${totalCardFees>0?`<div style="font-size:11px;${is}">手續費：<span style="${io}">+${fmt(totalCardFees)}</span></div>`:''}
           ${c.cashbackRate>0?`<div style="font-size:11px;${is}">本月回饋：<span style="${ig}">+${fmt(-cashback)}</span><span style="font-size:10px;${ic}">（${c.cashbackRate}%）</span></div>`:''}
         </div>
@@ -8134,92 +7902,6 @@ function doExportExcel() {
 }
 
 // ════════════════════════════════════════════════════════════════
-// FIXED
-// ════════════════════════════════════════════════════════════════
-function renderFixed() {
-  const cur=nowYM();
-  const total=DB.fixedExpenses.reduce((s,f)=>s+f.amount,0);
-  let html='';
-  if (!DB.fixedExpenses.length) { html=emptyState('🔁','尚無固定消費','新增定期帳單、訂閱等固定支出','fixed'); }
-  else {
-    html=`<div class="layer-bar" style="margin-bottom:12px;border-left:3px solid var(--m-blue)">
-      <span style="flex:1;font-family:var(--ff-display);letter-spacing:1px;font-size:12px;color:var(--tx-secondary)">每月固定支出合計</span>
-      <span class="layer-amt a-neg">−${fmt(total)}</span>
-    </div>`;
-    html+=DB.fixedExpenses.map(fe=>{
-      const gen=(DB.generatedFixed[cur]||[]).includes(fe.id);
-      const cat=getCat(fe.category);
-      const src=fe.sourceType==='card'?getCard(fe.sourceId):getAcc(fe.sourceId);
-      const layers=fe.layers||[];
-      const nowDay = new Date().getDate();
-      const nowDayNum = nowDay;
-      const daysLeft = fe.day >= nowDayNum ? fe.day - nowDayNum : (new Date(new Date().getFullYear(), new Date().getMonth()+1, fe.day) - new Date()) / 86400000;
-      const daysLeftInt = Math.ceil(fe.day >= nowDayNum ? fe.day - nowDayNum : (new Date(new Date().getFullYear(), new Date().getMonth()+1, fe.day) - new Date(new Date().setHours(0,0,0,0))) / 86400000);
-      const countdownCls = daysLeftInt<=0?'a-over':daysLeftInt<=3?'a-neg':daysLeftInt<=7?'badge-warn':'badge-gray';
-      const countdownTxt = daysLeftInt<=0?'今日扣款':daysLeftInt+'天後扣款';
-      const layersHtml = layers.length ? `
-        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr-subtle);display:flex;flex-direction:column;gap:4px">
-          ${layers.map(l=>{
-            // 取得該分層的實際金額（與信用卡/帳戶頁同步）
-            let actualAmt = 0;
-            if (l.layerId) {
-              if (fe.sourceType==='card') {
-                const card = getCard(fe.sourceId);
-                const cardLayer = (card?.layers||[]).find(cl=>cl.id===l.layerId);
-                const layerManual = cardLayer?.amount||0;
-                const layerFe = DB.fixedExpenses
-                  .filter(f=>f.sourceType==='card'&&f.sourceId===fe.sourceId&&(f.day||1)<=nowDay)
-                  .flatMap(f=>f.layers||[])
-                  .filter(fl=>fl.layerId===l.layerId)
-                  .reduce((s,fl)=>s+(+fl.amount||0),0);
-                const layerTx = DB.transactions
-                  .filter(t=>t.sourceType==='card'&&t.sourceId===fe.sourceId&&t.layerId===l.layerId&&t.amount<0&&!t.isPayment)
-                  .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
-                actualAmt = layerManual + layerFe + layerTx;
-              } else {
-                actualAmt = layerDynamicBalance(fe.sourceId, l.layerId);
-              }
-            }
-            return `<div style="display:flex;align-items:center;gap:6px;font-size:11px">
-              <div style="width:8px;height:8px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
-              <span style="flex:1;color:var(--tx-secondary)">${escHtml(l.label)}</span>
-              <span style="color:${fe.sourceType==='account'&&actualAmt>=0?'var(--tx-secondary)':'var(--tx-red)'};font-weight:600">${fe.sourceType==='account'?fmtAccAmt(src,actualAmt):'−'+fmt(actualAmt)}</span>
-            </div>`;
-          }).join('')}
-        </div>` : '';
-      return `<div class="fe-item" style="flex-direction:column;align-items:stretch;gap:0">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div class="fe-day">${fe.day}</div>
-          <div style="flex:1">
-            <div style="font-weight:600;font-size:13px">${escHtml(fe.desc)}</div>
-            <div style="font-size:11px;color:var(--tx-secondary);margin-top:3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <span class="badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}55">${cat.name}</span>
-              ${src?`<span>${escHtml(src.name)}</span>`:''}
-              ${fe.notes?`<span style="color:var(--tx-muted)">${escHtml(fe.notes)}</span>`:''}
-              ${fe.fee>0?`<span class="badge" style="background:#e6780022;color:#e67800;border:1px solid #e6780055;font-size:9px">手續費 +${fmt(fe.fee)}</span>`:''}
-              ${layers.length?`<span class="badge badge-violet" style="font-size:9px">${layers.length} 個分層</span>`:''}
-            </div>
-          </div>
-          <span style="font-family:var(--ff-display);font-weight:700;color:var(--tx-red);margin-right:8px">−${fmt(fe.amount)}</span>
-          <span class="badge ${countdownCls}" style="font-size:11px">${countdownTxt}</span>
-          <span class="badge ${gen?'badge-green':'badge-gray'}">${gen?'✓ 已生成':'待生成'}</span>
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="openModal('editFixed','${fe.id}')">✏️</button>
-          <button class="btn btn-danger btn-icon btn-sm" onclick="deleteFixed('${fe.id}')">🗑</button>
-        </div>
-        ${layersHtml}
-      </div>`;
-    }).join('');
-  }
-  document.getElementById('fixedList').innerHTML=html;
-  renderFixedCalendar();
-}
-function deleteFixed(id) {
-  if (!confirm('確定刪除？')) return;
-  DB.fixedExpenses=DB.fixedExpenses.filter(f=>f.id!==id);
-  saveDB(); renderFixed(); toast('固定消費已刪除','danger');
-}
-
-// ════════════════════════════════════════════════════════════════
 // ANALYTICS
 // ════════════════════════════════════════════════════════════════
 function renderAnalytics() {
@@ -9010,7 +8692,6 @@ function openModal(type,id,preCard,preAcc,extraId) {
   const c    = id&&type==='editCard'    ?getCard(id):null;
   const a    = id&&type==='editAccount' ?getAcc(id):null;
   const txn  = id&&type==='editTxn'    ?DB.transactions.find(x=>x.id===id):null;
-  const fe   = id&&type==='editFixed'  ?DB.fixedExpenses.find(x=>x.id===id):null;
   const cat  = id&&type==='editCat'    ?DB.categories.find(x=>x.id===id):null;
   const accL  = (type==='addLayer'    ||type==='editLayer')    ?getAcc(id):null;
   const layer  = type==='editLayer'   &&accL  ?accL.layers.find(l=>l.id===extraId):null;
@@ -9422,45 +9103,6 @@ function openModal(type,id,preCard,preAcc,extraId) {
   else if (type==='addInstall'||type==='editInstall') {
     modalType=type; editTarget=id||null;
     _openInstallModal(type,id); return;
-  }
-
-  // ── FIXED ──
-  else if (type==='addFixed'||type==='editFixed') {
-    t=fe?'編輯固定消費':'新增固定消費';
-    const pFS=fe?fe.sourceType+'_'+fe.sourceId:'';
-    const initLayers = fe?.layers||[];
-    const layersJson = escAttr(JSON.stringify(initLayers));
-    b=`<div class="form-row">
-      <div class="form-group"><label class="form-label">每月幾號</label><input class="form-input" id="feDay" type="number" min="1" max="28" value="${fe?.day||1}"></div>
-      <div class="form-group"><label class="form-label">金額（NT$，無分層時填寫）</label><input class="form-input" id="feAmt" type="number" value="${fe?.amount||0}" oninput="syncFeTotal()"></div>
-    </div>
-    <div class="form-group"><label class="form-label">消費內容</label><input class="form-input" id="feDesc" value="${escAttr(fe?.desc||'')}" placeholder="e.g. Netflix"></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">類別</label><select class="form-select" id="feCat">${catOpts(fe?.category||DB.categories[0]?.id||'')}</select></div>
-      <div class="form-group"><label class="form-label">帳戶/卡片</label><select class="form-select" id="feSrc" onchange="toggleFeFee(this.value)"><option value="">請選擇</option>${srcOpts('both')}</select></div>
-    </div>
-    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="feNotes" value="${escAttr(fe?.notes||'')}"></div>
-    <div class="form-group" id="feFeeGroup" style="${fe?.sourceType==='card'||!fe?'':'display:none'}">
-      <label class="form-label">手續費（NT$，選填）</label>
-      <input class="form-input" id="feFee" type="number" min="0" step="any" value="${fe?.fee||''}" placeholder="0" oninput="syncFeTotal()">
-      <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 每月自動生成固定消費記錄時，手續費會一併帶入</div>
-    </div>
-    <!-- 分層 -->
-    <div class="m-stripe" style="margin:14px 0 10px"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div style="font-size:12px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);text-transform:uppercase">消費分層（選填）</div>
-      <button type="button" class="btn btn-sm btn-violet" onclick="addFeLayer()">＋ 選擇分層</button>
-    </div>
-    <div style="font-size:11px;color:var(--tx-secondary);margin-bottom:8px">💡 選擇帳戶/卡片後，可從現有分層中選擇</div>
-    <div id="feLayerList" style="display:flex;flex-direction:column;gap:8px"></div>
-    <input type="hidden" id="feLayersData" value="${layersJson}">
-    <div id="feTotalHint" style="font-size:11px;color:var(--tx-secondary);margin-top:8px;text-align:right"></div>`;
-    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveFixed()">儲存</button>`;
-    setTimeout(()=>{
-      const el=document.getElementById('feSrc');
-      if(el&&pFS){ el.value=pFS; toggleFeFee(pFS); }
-      renderFeLayers();
-    },60);
   }
 
   // ── CATEGORY ──
@@ -10384,115 +10026,6 @@ function doTransfer() {
   if (currentPage==='transfers') renderTransfers();
   toast('轉帳成功！ 轉入帳戶：'+(to?.name||toId)+' +'+fmt(amt),'success');
 }
-// ════════════════════════════════════════════════════════════════
-// 固定消費分層管理（Modal 內 inline）
-// ════════════════════════════════════════════════════════════════
-function toggleFeFee(srcVal) {
-  const g = document.getElementById('feFeeGroup');
-  if (g) g.style.display = srcVal.startsWith('card_') ? '' : 'none';
-  renderFeLayers(); // 帳戶切換時更新分層選項
-}
-function getFeLayersData() {
-  try { return JSON.parse(document.getElementById('feLayersData')?.value||'[]'); } catch{ return []; }
-}
-function setFeLayersData(arr) {
-  const el=document.getElementById('feLayersData'); if(el) el.value=JSON.stringify(arr);
-}
-function renderFeLayers() {
-  const layers = getFeLayersData();
-  const wrap = document.getElementById('feLayerList'); if (!wrap) return;
-
-  // 取得目前選擇的帳戶/卡片的分層選項
-  const srcVal = document.getElementById('feSrc')?.value || '';
-  let srcLayers = [];
-  if (srcVal.startsWith('account_')) srcLayers = getAcc(srcVal.split('_')[1])?.layers || [];
-  else if (srcVal.startsWith('card_')) srcLayers = getCard(srcVal.split('_')[1])?.layers || [];
-
-  if (!layers.length) {
-    wrap.innerHTML = '<div style="font-size:12px;color:var(--tx-muted)">尚無分層，點「＋ 選擇分層」加入</div>';
-    syncFeTotal(); return;
-  }
-
-  wrap.innerHTML = layers.map((l, i) => {
-    const baseId = `feLayerSel_${i}`;
-    const pickerHtml = srcLayers.length
-      ? `<div class="layer-picker" id="${baseId}_picker" style="flex:1">
-           <div class="form-select layer-picker-trigger" id="${baseId}_trigger" onclick="toggleLayerPicker('${baseId}')" style="height:32px;font-size:13px">
-             <span class="layer-picker-trigger-text" id="${baseId}_text">選擇分層</span>
-             <span class="layer-picker-caret">▾</span>
-           </div>
-           <input type="hidden" id="${baseId}" value="">
-           <div class="layer-picker-menu" id="${baseId}_menu"></div>
-         </div>`
-      : `<span style="font-size:12px;color:var(--tx-muted);flex:1">請先選擇帳戶/卡片</span>`;
-    return `<div class="layer-bar" style="gap:8px;align-items:center">
-      <div style="width:12px;height:12px;border-radius:50%;background:${l.color||'#888'};flex-shrink:0"></div>
-      ${pickerHtml}
-      <button class="btn btn-danger btn-icon btn-sm" onclick="removeFeLayer(${i})">✕</button>
-    </div>`;
-  }).join('');
-
-  // 逐列填入分層選項（顏色套用分層自己的顏色）並註冊選取後的回呼
-  if (srcLayers.length) {
-    layers.forEach((l, i) => {
-      const baseId = `feLayerSel_${i}`;
-      window._layerPickerOnChange[baseId] = (val) => applyFeLayerSelection(i, val);
-      renderLayerPicker(baseId, srcLayers.map(sl=>({ id:sl.id, label:sl.label, color:sl.color||'#888' })), l.layerId||'', '選擇分層');
-    });
-  }
-  syncFeTotal();
-}
-
-function applyFeLayerSelection(idx, layerId) {
-  const layers = getFeLayersData(); if (!layers[idx]) return;
-  const srcVal = document.getElementById('feSrc')?.value || '';
-  let srcLayers = [];
-  if (srcVal.startsWith('account_')) srcLayers = getAcc(srcVal.split('_')[1])?.layers || [];
-  else if (srcVal.startsWith('card_')) srcLayers = getCard(srcVal.split('_')[1])?.layers || [];
-  const sl = srcLayers.find(x=>x.id===layerId);
-  layers[idx].layerId = layerId;
-  layers[idx].label   = sl?.label || '';
-  layers[idx].color   = sl?.color || '#888';
-  setFeLayersData(layers); renderFeLayers();
-}
-
-function addFeLayer() {
-  const layers = getFeLayersData();
-  layers.push({ layerId:'', label:'', amount:0, color: SWATCHES[layers.length % SWATCHES.length] });
-  setFeLayersData(layers); renderFeLayers();
-}
-function removeFeLayer(idx) {
-  const layers=getFeLayersData(); layers.splice(idx,1);
-  setFeLayersData(layers); renderFeLayers();
-}
-function updateFeLayer(idx,key,val) {
-  const layers=getFeLayersData(); if(!layers[idx]) return;
-  layers[idx][key]=val; setFeLayersData(layers); syncFeTotal();
-}
-function syncFeTotal() {
-  const layers = getFeLayersData();
-  const hint = document.getElementById('feTotalHint'); if (!hint) return;
-  if (!layers.length) { hint.textContent = ''; return; }
-  const amt = parseFloat(document.getElementById('feAmt')?.value) || 0;
-  const fee = parseFloat(document.getElementById('feFee')?.value) || 0;
-  const total = amt + fee;
-  const selCount = layers.filter(l => l.layerId).length;
-  hint.innerHTML = `已選 ${selCount}/${layers.length} 個分層　系統將自動記入：<strong style="color:var(--tx-red)">−${fmt(total)}</strong>（消費 ${fmt(amt)}${fee>0?' + 手續費 '+fmt(fee):''}）`;
-}
-
-function saveFixed() {
-  const day=+v('feDay'),desc=document.getElementById('feDesc').value.trim(),
-        catId=v('feCat'),srcVal=v('feSrc'),notes=v('feNotes'),
-        fee=+(document.getElementById('feFee')?.value)||0;
-  const layers = getFeLayersData().filter(l => l.layerId);
-  const amt = layers.length ? +v('feAmt') : +v('feAmt');
-  if(!day||!amt||!desc||!srcVal){toast('請填寫完整資訊（含金額或分層）','danger');return;}
-  const [sType,sId]=srcVal.split('_');
-  const obj={day,amount:amt,desc,category:catId,sourceId:sId,sourceType:sType,notes,layers,fee:fee||0};
-  if(modalType==='editFixed'){Object.assign(DB.fixedExpenses.find(f=>f.id===editTarget),obj);toast('固定消費已更新','success');}
-  else{DB.fixedExpenses.push({id:uid(),...obj});toast('固定消費新增成功','success');}
-  saveDB();closeModal();renderFixed();
-}
 function saveCat() {
   const name=document.getElementById('catN').value.trim(),budget=+v('catB')||0,color=v('catC');
   const icon=(document.getElementById('catIcon')?.value)||'';
@@ -11102,10 +10635,6 @@ function doResetData(expectedYmd) {
       if (!selCardIds.includes(c.id)) return;
       (c.layers||[]).forEach(l => { l.amount=0; if(l.monthlyAmt!==undefined) l.monthlyAmt=''; });
     });
-    // generatedFixed 精準清除（key 含該卡 id）
-    Object.keys(DB.generatedFixed||{}).forEach(k => {
-      if (selCardIds.some(id=>k.includes(id))) delete DB.generatedFixed[k];
-    });
     const names = selCardIds.map(id=>(DB.creditCards||[]).find(c=>c.id===id)?.name||id).join('、');
     done.push('信用卡（'+names+'）');
   }
@@ -11118,8 +10647,6 @@ function doResetData(expectedYmd) {
       DB.transactions = DB.transactions.filter(t =>
         !(t.sourceType==='card' && t.sourceId===p.cardId && t.date>=p.periodStart && t.date<=p.periodEnd)
       );
-      // 精準清除該期別的固定消費生成記錄，否則之後不會重新產生該期固定消費
-      delete DB.generatedFixed['card_' + p.cardId + '_' + p.periodStart];
       affectedCardIds.add(p.cardId);
       const cardName = (DB.creditCards||[]).find(c=>c.id===p.cardId)?.name || p.cardId;
       periodLabels.push(`${cardName}(${p.periodStart}～${p.periodEnd})`);
@@ -11143,10 +10670,6 @@ function doResetData(expectedYmd) {
       if (!selBankIds.includes(a.id)) return;
       (a.layers||[]).forEach(l => { l.amount=0; });
     });
-    // generatedFixed 精準清除（key 含該帳戶 id）
-    Object.keys(DB.generatedFixed||{}).forEach(k => {
-      if (selBankIds.some(id=>k.includes(id))) delete DB.generatedFixed[k];
-    });
     const names = selBankIds.map(id=>(DB.bankAccounts||[]).find(a=>a.id===id)?.name||id).join('、');
     done.push('銀行帳戶（'+names+'）');
   }
@@ -11159,15 +10682,6 @@ function doResetData(expectedYmd) {
       DB.transactions = DB.transactions.filter(t =>
         !(t.sourceType==='account' && t.sourceId===p.accId && t.date>=p.periodStart && t.date<=p.periodEnd)
       );
-      // 銀行帳戶的 generatedFixed key 是「共用月份」（非帳戶專屬，格式為 YYYY-MM），
-      // 所以只能從該月陣列中移除屬於這個帳戶的固定收支 id，不能整把 key 刪除（會影響其他帳戶）
-      const ym = p.periodStart.slice(0, 7);
-      if (Array.isArray(DB.generatedFixed[ym])) {
-        const accFixedIds = new Set(
-          (DB.fixedExpenses || []).filter(fe => fe.sourceType === 'account' && fe.sourceId === p.accId).map(fe => fe.id)
-        );
-        DB.generatedFixed[ym] = DB.generatedFixed[ym].filter(id => !accFixedIds.has(id));
-      }
       affectedAccIds.add(p.accId);
       const accName = (DB.bankAccounts||[]).find(a=>a.id===p.accId)?.name || p.accId;
       monthLabels.push(`${accName}(${p.periodStart.slice(0,7)})`);
@@ -11919,8 +11433,8 @@ async function fetchExchangeRates() {
       });
 
       localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), rates: exchangeRates }));
-      // 先前因缺匯率而跳過的外幣固定支出／訂閱，現在補產生
-      if (_fxGenPending) { _fxGenPending = false; generateFixed(); generateSubscriptionTxns(); }
+      // 先前因缺匯率而跳過的外幣訂閱，現在補產生
+      if (_fxGenPending) { _fxGenPending = false; generateSubscriptionTxns(); }
       renderAccounts(); updateSidebarBal(); if (currentPage === 'dashboard') renderDashboard();
       return; // 成功就停
     } catch {}
@@ -12917,7 +12431,6 @@ async function init() {
   await loadFromGitHub();
 
   ensureTags();
-  generateFixed();
   generateSubscriptionTxns();
   loadDashLayerSel(); // 剩餘生活費：還原上次的分層勾選與期別
   refreshInstallBoundLayers(); // 分期到了開始月份時，自動更新綁定分層的每月分期金額
