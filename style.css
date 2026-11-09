@@ -3779,3 +3779,4 @@ body.anim-none .account-card.bill-due-urgent::after,    body.anim-none .account-
 .fcal-it.done:after{display:none}
 .fcal-it.done .dt{background:color-mix(in srgb,var(--c) 22%,transparent)} .fcal-it.done .dt b{color:var(--tx-primary)} .fcal-it.done .dt small{color:var(--tx-secondary)}
 .fcal-it.done .am span{background:color-mix(in srgb,var(--c) 22%,transparent);color:var(--tx-primary)}
+.tf-edit:active{background:rgba(77,159,255,.14)}
