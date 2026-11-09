@@ -193,6 +193,7 @@
   </a>
   <div class="nav-spacer"></div>
   <div class="nav-month" id="navMonth"></div>
+  <button class="btn-theme-toggle btn-quick-backup" id="quickBackupBtn" onclick="quickBackup()" title="快速備份" aria-label="快速備份">💾</button>
   <button class="btn-theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切換主題">🌙</button>
   <button class="nav-add-btn" onclick="openModal('addTxn')">＋ 新增消費</button>
 </header>
@@ -12047,6 +12048,24 @@ function exportData() {
   localStorage.setItem('mwallet_last_backup', Date.now().toString());
   toast('備份匯出成功！將此檔案上傳至 GitHub 即可同步。','success');
   dismissBackup();
+}
+// 頂部列 💾 快速備份：匯出備份檔，再詢問是否前往 GitHub 上傳頁
+// （iPhone 主畫面 App 下載同時開新頁容易被擋，故分兩步）
+function quickBackup() {
+  exportData();
+  const hasUrl = !!(DB.githubUploadUrl||'').trim();
+  openModal('_quickBackup');
+  document.getElementById('modalTitle').innerHTML = '<span style="font-size:15px;letter-spacing:1px">💾 備份已匯出</span>';
+  document.getElementById('modalBody').innerHTML = `<div style="font-size:14px;color:var(--tx-primary);line-height:1.7">
+      已下載 <b>mwallet_backup.json</b>。<br>
+      ${hasUrl ? '要前往 GitHub 上傳頁，把這個檔案上傳同步嗎？' : '尚未設定 GitHub 上傳頁網址，可到「設定 → 資料管理」填寫後再上傳。'}
+    </div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">稍後再說</button>
+    ${hasUrl
+      ? '<button class="btn btn-sm btn-primary" onclick="closeModal();openGithubUpload()">🚀 前往 GitHub 上傳</button>'
+      : `<button class="btn btn-sm btn-primary" onclick="closeModal();navToItem('settings','githubUploadUrl')">⚙️ 前往設定</button>`}`;
+  document.getElementById('modalOverlay').classList.add('active');
 }
 
 
