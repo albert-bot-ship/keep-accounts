@@ -226,6 +226,9 @@
     <span class="nav-icon">⭐</span><span>常用範本</span>
   </div>
   <div class="sidebar-label">分析</div>
+  <div class="nav-item" data-page="calendar" onclick="nav(this,'calendar')">
+    <span class="nav-icon">📅</span><span>財務行事曆</span>
+  </div>
   <div class="nav-item" data-page="analytics" onclick="nav(this,'analytics')">
     <span class="nav-icon">📊</span><span>趨勢分析</span>
   </div>
@@ -624,6 +627,16 @@
 
 
     <!-- ══ 財務目標頁 ══════════════════════════════════════════════ -->
+    <section class="page-section" id="page-calendar">
+      <div class="page-header">
+        <div class="page-title">財務行事曆</div>
+        <div class="fcal-nav" id="fcalNav"></div>
+      </div>
+      <div class="page-body">
+        <div id="fcalWrap"></div>
+      </div>
+    </section>
+
     <section class="page-section" id="page-goals">
       <div class="page-header">
         <div class="page-title">財務目標</div>
@@ -2836,7 +2849,7 @@ function generateSubscriptionTxns(debug=false) {
 // ════════════════════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════════════════════
-const PAGE_ORDER = ['dashboard','cards','accounts','txns','transfers','fixed','install','analytics','subscriptions','exchange','goals','settings'];
+const PAGE_ORDER = ['dashboard','cards','accounts','txns','transfers','fixed','install','calendar','analytics','subscriptions','exchange','goals','settings'];
 let currentPage = 'dashboard';
 // 返回帳戶/卡片頁時要自動展開的項目（{page, id}），由 goToTxnFilterSource 設定、navigateTo 消耗
 let _pendingExpandItem = null;
@@ -2879,11 +2892,223 @@ function navigateTo(page) {
   const mbn = document.getElementById('mbn-'+page);
   if (mbn) mbn.classList.add('active');
 }
+// ════════════════════════════════════════════════════════════════
+// 財務行事曆：月曆（每日消費＋當日繳卡費）＋下方待繳清單
+// 月消費只算一般收支統計（isStatExcluded 排除繳卡費），繳卡費另外顯示
+// ════════════════════════════════════════════════════════════════
+let fcalYM = null;      // 目前檢視月份 'YYYY-MM'（null＝本月）
+let fcalSelDay = null;  // 點選的日期 'YYYY-MM-DD'
+const fcalPad = n => String(n).padStart(2, '0');
+function fcalDateStr(d) { return d.getFullYear() + '-' + fcalPad(d.getMonth()+1) + '-' + fcalPad(d.getDate()); }
+function fcalToday() { return fcalDateStr(new Date()); }
+function fcalK(n) { n = Math.round(n); return n >= 10000 ? (n/1000).toFixed(0)+'k' : n >= 1000 ? (n/1000).toFixed(1)+'k' : String(n); }
+function fcalDaysFrom(ds) { const t = new Date(fcalToday()+'T00:00:00'); return Math.round((new Date(ds+'T00:00:00') - t) / 86400000); }
+function fcalShift(delta) {
+  if (delta === 0) fcalYM = null;
+  else {
+    const [y, m] = (fcalYM || fcalToday().slice(0,7)).split('-').map(Number);
+    const d = new Date(y, m-1+delta, 1);
+    fcalYM = d.getFullYear() + '-' + fcalPad(d.getMonth()+1);
+  }
+  fcalSelDay = null;
+  renderCalendar();
+}
+function fcalPick(ds) { fcalSelDay = fcalSelDay === ds ? null : ds; renderCalendar(); }
+function fcalSrcInfo(type, id) {
+  if (type === 'card') { const c = getCard(id); return { name: c ? c.name : '已刪除', color: safeHex(c && c.color, '#8a8aa0'), card: true }; }
+  const a = getAcc(id); return { name: a ? a.name : '已刪除', color: safeHex(a && a.color, '#8a8aa0'), card: false };
+}
+// 信用卡帳單：繳款截止日算法與 cardBillStatus 相同；本月檢視時一併帶出更早月份逾期未繳的帳單
+function fcalCardBills(ym, withOverdue) {
+  const out = [];
+  DB.creditCards.forEach(card => {
+    if (!card.dueDay) return;
+    cardPeriodSummary(card.id, 6).forEach((p, idx) => {
+      if (p.due <= 0 && p.paid <= 0) return;
+      const [y, m, d] = p.periodEnd.split('-').map(Number);
+      const mk = (yy, mm) => new Date(yy, mm, Math.min(card.dueDay, new Date(yy, mm+1, 0).getDate()));
+      let dt = mk(y, m-1);
+      if (dt <= new Date(y, m-1, d)) dt = mk(y, m);
+      const ds = fcalDateStr(dt);
+      const diff = Math.round(p.paid - p.due);
+      const done = Math.abs(diff) < 1 || diff > 0;
+      const inMonth = ds.slice(0,7) === ym;
+      const overdue = !done && ds < fcalToday();
+      if (!inMonth && !(withOverdue && overdue && ds.slice(0,7) < ym)) return;
+      const md = s => (+s.slice(5,7)) + '/' + (+s.slice(8));
+      out.push({ kind:'bill', date:ds, id:card.id, name:card.name, color:safeHex(card.color),
+        sub: idx === 0 ? '本期帳單（累積中）' : md(p.periodStart) + '～' + md(p.periodEnd) + ' 帳單',
+        amount: done ? p.paid : Math.max(0, -diff), done, open: idx === 0, overdue, count: !done, inMonth });
+    });
+  });
+  return out;
+}
+// 訂閱：由 nextDate 依週期往後推算當月扣款日（已扣過的已是交易紀錄）
+function fcalSubs(ym) {
+  const out = [];
+  (DB.subscriptions || []).forEach(sub => {
+    if (!sub.nextDate || !sub.srcId) return;
+    const [st, ...rest] = sub.srcId.split('_');
+    const src = fcalSrcInfo(st, rest.join('_'));
+    const d = new Date(sub.nextDate + 'T00:00:00');
+    for (let g = 0; g < 40 && fcalDateStr(d).slice(0,7) <= ym; g++) {
+      const ds = fcalDateStr(d);
+      if (ds.slice(0,7) === ym) out.push({ kind:'sub', date:ds, name:sub.name, color: src.card ? src.color : safeHex(sub.color, src.color),
+        sub: '訂閱・' + src.name + (src.card ? '（刷卡，計入卡費）' : ' 扣款'),
+        amount:(sub.amount||0)+(sub.fee||0), done:false, count: !src.card, inMonth:true });
+      if (sub.cycle === 'year') d.setFullYear(d.getFullYear()+1); else d.setMonth(d.getMonth()+1);
+    }
+  });
+  return out;
+}
+// 固定消費：每月 fe.day 號扣款；今天以前視為已扣
+function fcalFixed(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const dim = new Date(y, m, 0).getDate();
+  return (DB.fixedExpenses || []).filter(fe => fe.day).map(fe => {
+    const src = fcalSrcInfo(fe.sourceType, fe.sourceId);
+    const ds = ym + '-' + fcalPad(Math.min(fe.day, dim));
+    const done = ds < fcalToday();
+    return { kind:'fixed', date:ds, name:fe.desc || '固定消費', color:src.color,
+      sub: '固定消費・' + src.name + (src.card ? '（刷卡，計入卡費）' : ' 扣款'),
+      amount:(+fe.amount||0)+(fe.fee||0), done, count: !src.card && !done, inMonth:true };
+  });
+}
+function renderCalendar() {
+  const wrap = document.getElementById('fcalWrap');
+  if (!wrap) return;
+  const today = fcalToday();
+  const ym = fcalYM || today.slice(0,7);
+  const curYM = today.slice(0,7);
+  const [y, m] = ym.split('-').map(Number);
+  const dim = new Date(y, m, 0).getDate();
+  const first = new Date(y, m-1, 1).getDay();
+
+  // 每日消費、當日繳卡費、依付款來源的消費
+  const spend = {}, pays = {}, bySrc = {};
+  DB.transactions.forEach(t => {
+    if (!t.date || t.date.slice(0,7) !== ym) return;
+    const d = +t.date.slice(8,10);
+    if (t.isPayment && t.sourceType === 'card' && t.amount > 0) { (pays[d] = pays[d] || []).push(t); return; }
+    if (t.amount < 0 && !isStatExcluded(t)) {
+      const v = Math.abs(t.amount);
+      spend[d] = (spend[d] || 0) + v;
+      const k = t.sourceType + '_' + t.sourceId;
+      bySrc[k] = (bySrc[k] || 0) + v;
+    }
+  });
+  const totalSpend = Object.values(spend).reduce((s, v) => s + v, 0);
+  const totalPaid = Object.values(pays).flat().reduce((s, t) => s + t.amount, 0);
+  const maxSpend = Math.max(1, ...Object.values(spend));
+  const daysPassed = ym < curYM ? dim : ym === curYM ? +today.slice(8) : 0;
+
+  const events = [...fcalCardBills(ym, ym === curYM), ...fcalSubs(ym), ...fcalFixed(ym)]
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.kind === 'bill' ? -1 : 1));
+  const evByDay = {};
+  events.filter(e => e.inMonth).forEach(e => { const d = +e.date.slice(8); (evByDay[d] = evByDay[d] || []).push(e); });
+  const pending = events.filter(e => e.count).reduce((s, e) => s + e.amount, 0);
+  const nextBill = events.find(e => e.kind === 'bill' && !e.done && e.date >= today);
+
+  // 月份切換
+  const nav = document.getElementById('fcalNav');
+  if (nav) nav.innerHTML = `<button onclick="fcalShift(-1)" aria-label="上個月">‹</button><span>${y === +curYM.slice(0,4) ? '' : y + '.'}${m}月</span><button onclick="fcalShift(1)" aria-label="下個月">›</button>${ym !== curYM ? '<button class="fcal-today" onclick="fcalShift(0)">今天</button>' : ''}`;
+
+  // 卡片晶片列
+  const chips = DB.creditCards.filter(c => c.dueDay).map(c => {
+    const b = events.find(e => e.kind === 'bill' && e.id === c.id && e.inMonth);
+    const col = safeHex(c.color);
+    const st = !b ? '本月無帳單' : b.done ? '✓ 已繳' : `${m}/${+b.date.slice(8)} ${b.open ? '累積中' : '待繳'}`;
+    return `<div class="fcal-chip${b && !b.done ? ' due' : ''}" style="--c:${col}" onclick="navToItem('cards','card-${c.id}')"><i></i><b>${escHtml(c.name)}</b><em>${st}</em></div>`;
+  }).join('');
+
+  // 付款來源占比條
+  const bar = Object.entries(bySrc).sort((a, b) => b[1] - a[1]).map(([k, v]) => {
+    const [st, ...rest] = k.split('_'); const s = fcalSrcInfo(st, rest.join('_'));
+    return `<s style="--c:${s.color};flex:${v}" title="${escHtml(s.name)} ${fmt(v)}"></s>`;
+  }).join('');
+
+  // 月曆格子
+  let cells = '日一二三四五六'.split('').map((w, i) => `<div class="fcal-wd${i === 0 || i === 6 ? ' we' : ''}">${w}</div>`).join('');
+  for (let i = 0; i < first; i++) cells += '<div class="fcal-d out"></div>';
+  for (let d = 1; d <= dim; d++) {
+    const ds = ym + '-' + fcalPad(d);
+    const evs = evByDay[d] || [];
+    const bill = evs.find(e => e.kind === 'bill' && !e.done) || evs.find(e => e.kind === 'bill');
+    const dots = evs.filter(e => e !== bill).map(e => `<s style="--c:${e.color}"${e.done ? ' class="ok"' : ''}></s>`).join('');
+    const pay = (pays[d] || []).reduce((s, t) => s + t.amount, 0);
+    let cls = 'fcal-d', st = '';
+    if (bill) { cls += bill.done ? ' paid' : ' bill'; st = `--c:${bill.color};--fg:${!bill.done && isLightColor(bill.color) ? '#111' : '#fff'}`; }
+    if (ds === today) cls += ' today';
+    if (ds > today) cls += ' fut';
+    if (ds === fcalSelDay) cls += ' sel';
+    const sp = spend[d] || 0;
+    cells += `<div class="${cls}" style="${st}" onclick="fcalPick('${ds}')">`
+      + `<div class="n">${d}${bill && bill.done ? '<em>✓</em>' : ''}${d === 25 ? '<em class="pay">💰</em>' : ''}</div>`
+      + (sp ? `<div class="a">${fcalK(sp)}</div>` : '')
+      + (pay ? `<div class="p">繳 ${fcalK(pay)}</div>` : '')
+      + (dots ? `<div class="ev">${dots}</div>` : '')
+      + (sp ? `<div class="hm"><s style="width:${Math.max(8, Math.round(sp / maxSpend * 100))}%"></s></div>` : '')
+      + '</div>';
+  }
+
+  // 點選日期的明細
+  let detail = '';
+  if (fcalSelDay && fcalSelDay.slice(0,7) === ym) {
+    const d = +fcalSelDay.slice(8);
+    const txs = DB.transactions.filter(t => t.date === fcalSelDay).sort((a, b) => a.amount - b.amount);
+    const evs = evByDay[d] || [];
+    const rows = txs.map(t => {
+      const tag = t.isPayment ? '繳卡費' : isStatExcluded(t) ? '不計入統計' : '';
+      return `<div class="fcal-tx"><div><b>${escHtml(t.desc || '（無說明）')}</b><small>${escHtml(sourceName(t))}${tag ? '・' + tag : ''}</small></div><span class="${t.amount < 0 ? 'neg' : 'pos'}">${t.amount < 0 ? '−' : '+'}${fmt(t.amount)}</span></div>`;
+    }).join('') + evs.map(e => `<div class="fcal-tx"><div><b>${escHtml(e.name)}</b><small>${escHtml(e.sub)}</small></div><span style="color:${e.color}">${e.done ? '✓ ' : ''}${fmt(e.amount)}</span></div>`).join('');
+    detail = `<div class="fcal-detail"><div class="fcal-detail-h"><b>${m}/${d}（週${'日一二三四五六'[new Date(y, m-1, d).getDay()]}）</b><span>消費 ${fmt(spend[d] || 0)}</span></div>${rows || '<div class="fcal-empty">這天沒有紀錄</div>'}</div>`;
+  }
+
+  // 待繳清單
+  const listTitle = ym < curYM ? '本月付款紀錄' : ym === curYM ? '本月待繳' : '待繳預覽';
+  const list = events.map(e => {
+    const dd = fcalDaysFrom(e.date);
+    const tag = e.done ? (e.kind === 'bill' ? '✓ 已繳清' : '✓ 已扣款')
+      : e.overdue ? `逾期 ${-dd} 天` : dd === 0 ? '今天' : dd < 0 ? '已過' : `${dd} 天後`;
+    const hot = !e.done && (e.overdue || (dd >= 0 && dd <= 3));
+    const fg = isLightColor(e.color) ? '#111' : '#fff';
+    const go = e.kind === 'bill' ? `navToItem('cards','card-${e.id}')` : e.kind === 'sub' ? `navToItem('subscriptions','page-subscriptions')` : `navToItem('fixed','page-fixed')`;
+    const [, em, ed] = e.date.split('-').map(Number);
+    return `<div class="fcal-it${e.done ? ' done' : ''}" style="--c:${e.color};--fg:${fg}" onclick="${go}">`
+      + `<div class="dt"><b>${e.inMonth ? ed : em + '/' + ed}</b><small>週${'日一二三四五六'[new Date(e.date + 'T00:00:00').getDay()]}</small></div>`
+      + `<div class="tx"><b>${escHtml(e.name)}</b><small>${escHtml(e.sub)}</small></div>`
+      + `<div class="am"><b>${e.amount ? Math.round(e.amount).toLocaleString('zh-TW') : '—'}</b><span class="${hot ? 'hot' : ''}">${tag}</span></div></div>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    ${chips ? `<div class="fcal-chips">${chips}</div>` : ''}
+    <div class="fcal-sum">
+      <div class="fcal-box"><small>本月消費</small><b>${Math.round(totalSpend).toLocaleString('zh-TW')}</b>
+        <div class="fcal-bar">${bar || '<s style="--c:var(--bdr-normal);flex:1"></s>'}</div>
+        <div class="fcal-row"><span>依付款方式</span><span>${daysPassed ? '日均 ' + Math.round(totalSpend / daysPassed).toLocaleString('zh-TW') : '尚未開始'}</span></div></div>
+      <div class="fcal-box">
+        <div class="fcal-row"><span>待繳</span><em class="neg">${Math.round(pending).toLocaleString('zh-TW')}</em></div>
+        <div class="fcal-row"><span>已繳卡費</span><em class="pos">${Math.round(totalPaid).toLocaleString('zh-TW')}</em></div>
+        <div class="fcal-row"><span>下次繳款</span><em>${nextBill ? (fcalDaysFrom(nextBill.date) === 0 ? '今天' : fcalDaysFrom(nextBill.date) + ' 天') : '—'}</em></div></div>
+    </div>
+    <div class="fcal-grid">
+      <div>
+        <div class="fcal-cal"><div class="fcal-days">${cells}</div>
+          <div class="fcal-lg"><span><i class="lg-bill"></i>待繳卡費</span><span><i class="lg-paid"></i>已繳</span><span><i class="lg-dot"></i>自動扣款</span><span><i class="lg-hm"></i>消費多寡</span></div></div>
+        ${detail}
+      </div>
+      <div>
+        <div class="fcal-sec"><b>${listTitle}</b>${pending ? `<span>尚餘<em>${fmt(pending)}</em></span>` : ''}</div>
+        ${list || '<div class="fcal-empty">這個月沒有繳款或扣款項目</div>'}
+      </div>
+    </div>`;
+}
+
 function renderPage(page) {
   const fn={dashboard:renderDashboard,cards:renderCards,accounts:renderAccounts,
     txns:renderTxns,transfers:renderTransfers,fixed:renderFixed,install:renderInstall,analytics:renderAnalytics,
     settings:renderSettings,subscriptions:renderSubscriptions,exchange:renderExchange,goals:renderGoals,
-    templates:renderTemplates};
+    templates:renderTemplates,calendar:renderCalendar};
   if (fn[page]) fn[page]();
 }
 
@@ -5498,7 +5723,7 @@ function renderNotificationCenter() {
 
   // 固定消費即將扣款
   DB.fixedExpenses.forEach(fe=>{
-    const day = fe.dueDay;
+    const day = fe.day || fe.dueDay; // 表單儲存欄位為 day（dueDay 為舊欄位）
     if (!day) return;
     const target = new Date(now.getFullYear(), now.getMonth(), day);
     if (target < now) target.setMonth(target.getMonth()+1);
@@ -5506,7 +5731,7 @@ function renderNotificationCenter() {
     if (diff<=3 && diff>=0) {
       items.push({
         icon: '📅',
-        title: `${fe.name} 扣款`,
+        title: `${fe.desc || fe.name || '固定消費'} 扣款`,
         desc: diff===0 ? '今日扣款' : `${diff} 天後扣款`,
         urgent: diff===0
       });
@@ -5587,8 +5812,8 @@ function renderFixedCalendar() {
   // 建立每日扣款 map
   const dayMap = {};
   DB.fixedExpenses.forEach(fe=>{
-    if (!fe.dueDay) return;
-    const d = fe.dueDay;
+    const d = fe.day || fe.dueDay; // 表單儲存欄位為 day（dueDay 為舊欄位）
+    if (!d) return;
     if (!dayMap[d]) dayMap[d] = [];
     dayMap[d].push(fe);
   });
@@ -5625,7 +5850,7 @@ function renderFixedCalendar() {
 
 function toggleFixedCalDay(el, day) {
   const detail = document.getElementById('fixedCalDayDetail');
-  const fes = DB.fixedExpenses.filter(fe=>fe.dueDay===day);
+  const fes = DB.fixedExpenses.filter(fe=>(fe.day || fe.dueDay)===day);
   if (!fes.length || !detail) return;
   // 已展開則收合
   if (detail.dataset.day == day && detail.innerHTML) {
@@ -5636,7 +5861,7 @@ function toggleFixedCalDay(el, day) {
   detail.dataset.day = day;
   detail.innerHTML = `<div style="font-size:11px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:6px">${day} 號扣款</div>` +
     fes.map(fe=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--bg-secondary);border-radius:var(--r);margin-bottom:4px">
-      <span style="font-size:12px;color:var(--tx-primary)">${escHtml(fe.name)}</span>
+      <span style="font-size:12px;color:var(--tx-primary)">${escHtml(fe.desc || fe.name || '固定消費')}</span>
       <span style="font-family:var(--ff-display);font-size:13px;font-weight:700;color:var(--tx-red)">−${fmt(Math.abs(fe.amount||0))}</span>
     </div>`).join('');
 }
@@ -10259,6 +10484,12 @@ function toast(msg,type) {
 // 財務目標系統
 // ════════════════════════════════════════════════════════════════
 
+// 財務目標：展開「連結分層明細」的目標 id（僅本次頁面停留期間）
+let expandedGoals = new Set();
+function toggleGoalLayers(id) {
+  if (expandedGoals.has(id)) expandedGoals.delete(id); else expandedGoals.add(id);
+  renderGoals();
+}
 function renderGoals() {
   const el = document.getElementById('goalsList');
   if (!el) return;
@@ -10280,6 +10511,26 @@ function renderGoals() {
     if (g.deadline && !done) {
       const diff = Math.ceil((new Date(g.deadline+'T00:00:00') - new Date()) / 86400000);
       daysLeft = diff > 0 ? `（還有 ${diff} 天）` : `（已過期）`;
+    }
+    // 連結分層明細（可展開）：列出各分層金額與占比
+    let linkHtml = '';
+    if (g.savedMode === 'link') {
+      const rows = (g.linkedLayers || []).map(key => {
+        const [accId, layerId] = key.split('|');
+        const acc = getAcc(accId);
+        const layer = acc && (acc.layers || []).find(l => l.id === layerId);
+        return layer ? { name: `${acc.name} / ${layer.label}`, amt: layerBalanceTWD(accId, layerId) || 0 } : null;
+      }).filter(Boolean);
+      const open = expandedGoals.has(g.id);
+      const sum = rows.reduce((s, r) => s + r.amt, 0);
+      linkHtml = `<div onclick="toggleGoalLayers('${g.id}')" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:8px 10px;border-radius:${open?'10px 10px 0 0':'10px'};background:var(--bg-secondary);font-size:12px;color:var(--m-blue);cursor:pointer">
+        <span>🔗 連結 ${rows.length} 個分層</span><span>${rows.length ? (open ? '▴ 收合' : '▾ 查看') : ''}</span></div>`
+        + (open && rows.length ? `<div style="border-radius:0 0 10px 10px;background:var(--bg-secondary);overflow:hidden">${rows.map(r => `
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-top:1px solid var(--bdr-subtle);font-size:12px;color:var(--tx-primary)">
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.name)}</span>
+            <span style="font-family:var(--ff-display);font-weight:700;font-size:14px">${fmtSigned(r.amt)}</span>
+            <span style="width:40px;text-align:right;color:var(--tx-muted)">${sum > 0 ? Math.round(r.amt / sum * 100) + '%' : '—'}</span>
+          </div>`).join('')}</div>` : '');
     }
     return `<div class="stat-card" style="padding:16px 18px;position:relative;overflow:hidden">
       ${done ? `<div style="position:absolute;top:0;right:0;background:var(--tx-green);color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:0 0 0 8px;letter-spacing:1px">✓ 達成</div>` : ''}
@@ -10305,6 +10556,7 @@ function renderGoals() {
         <span style="color:${barColor};font-weight:600">${pct}% 達成</span>
         <span>${done ? '🎉 目標達成！' : `還差 ${fmt(remain)}`}</span>
       </div>
+      ${linkHtml}
     </div>`;
   }).join('');
 }
