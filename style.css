@@ -623,20 +623,6 @@ body:not(.light-theme) .layer-bar .layer-amt  { color: rgba(255,255,255,.9); -we
 .prog-wrap{background:var(--bg-secondary);border-radius:4px;height:5px;overflow:hidden;margin-top:5px}
 .prog-bar{height:100%;border-radius:4px;transition:width .5s ease}
 
-/* ── FIXED EXPENSE ITEM ──────────────────── */
-.fe-item{
-  display:flex;align-items:center;gap:10px;padding:10px 14px;
-  background:var(--bg-secondary);border-radius:var(--r);margin-bottom:8px;
-  border:1px solid var(--bdr-subtle);
-  border-left:3px solid var(--m-blue);
-}
-.fe-day{
-  width:32px;height:32px;border-radius:8px;
-  background:rgba(0,87,184,.15);border:1px solid rgba(0,87,184,.3);
-  display:flex;align-items:center;justify-content:center;
-  font-family:var(--ff-display);font-weight:700;font-size:14px;color:var(--tx-blue);flex-shrink:0;
-}
-
 /* ── M STRIPE DIVIDER ────────────────────── */
 .m-stripe{height:3px;background:linear-gradient(90deg,var(--m-blue) 33.3%,var(--m-violet) 33.3% 66.6%,var(--m-red) 66.6%);border-radius:2px;margin:12px 0}
 .section-div{display:flex;align-items:center;gap:12px;margin:20px 0 14px}
@@ -924,11 +910,6 @@ body.light-theme .stat-card{background:var(--bg-card);}
 }
 
 /* ── Fee item (fixed expenses) ── */
-@media(max-width:500px){
-  .fe-item{flex-wrap:wrap;gap:8px}
-  .fe-item > div[style*="flex:1"]{min-width:0;width:calc(100% - 80px)}
-}
-
 /* ── Charts grid ── */
 @media(max-width:600px){
   .charts-grid-2{grid-template-columns:1fr}
@@ -1621,7 +1602,7 @@ body.light-theme thead tr { background:var(--bg-secondary) !important; }
 body.light-theme tbody tr:nth-child(even) { background:rgba(0,0,0,.025); }
 body.light-theme .txn-row:hover { background:rgba(0,87,184,.06) !important; }
 body.light-theme .txn-row-selected { background:rgba(0,87,184,.10) !important; }
-body.light-theme .fe-item, body.light-theme .cat-row, body.light-theme .layer-bar { background:var(--bg-secondary); }
+body.light-theme .cat-row, body.light-theme .layer-bar { background:var(--bg-secondary); }
 body.light-theme .nav-item:hover { background:var(--bg-card); }
 body.light-theme .modal-overlay { background:rgba(0,0,0,.35); }
 body.light-theme .form-input, body.light-theme .form-select { background:var(--bg-input); color:var(--tx-primary); border-color:var(--bdr-normal); }
@@ -2272,7 +2253,7 @@ body.light-theme .ctx-item { border-color:rgba(0,0,0,.05); color:#111; }
 
 /* 所有 transition 加 will-change 提示瀏覽器 */
 .account-card, .stat-card, .btn, .nav-item, .mbn-item,
-.layer-bar, .fe-item, .install-item, .txn-card-mobile,
+.layer-bar, .install-item, .txn-card-mobile,
 .modal, .fnp-btn, .pager-btn {
   will-change: transform;
   -webkit-transform: translateZ(0);
@@ -2425,7 +2406,6 @@ body.density-compact .account-balance     { font-size: clamp(16px,3vw,22px); }
 body.density-compact .layer-bar           { padding: 7px 12px; margin-bottom: 5px; }
 body.density-compact .stat-card           { padding: 14px; }
 body.density-compact .stat-value          { font-size: 22px; }
-body.density-compact .fe-item             { padding: 7px 12px; }
 body.density-compact .cards-grid          { gap: 10px; }
 body.density-compact .stats-grid          { gap: 10px; }
 
@@ -3427,17 +3407,6 @@ body.nf-mono .fnp-display {
 }
 body.anim-none    #mPowerBorder { display: none !important; }
 body.anim-reduced #mPowerBorder { animation-duration: 10s !important; }
-
-/* ══ 固定消費月曆 防橫向溢出 ════════════════════════════════ */
-#fixedCalendarContent {
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-#fixedCalendarContent > div {
-  max-width: 100%;
-  box-sizing: border-box;
-}
 
 /* ══ M 徽章長按彩蛋：畫面震動 + M 三色燈光閃爍 ══ */
 @keyframes mEasterShake{
