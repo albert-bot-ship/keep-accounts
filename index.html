@@ -6294,6 +6294,7 @@ function renderTransfers() {
       </div>
       <div class="tf-foot">
         <div class="tf-notes">${p.notes ? escHtml(p.notes) : ''}</div>
+        <button type="button" class="tf-del tf-edit" onclick="event.stopPropagation();openModal('editTransfer','${p.outTxn.id}')" aria-label="編輯轉帳">✏️</button>
         <button type="button" class="tf-del" onclick="event.stopPropagation();deleteTxn('${p.outTxn.id}')" aria-label="刪除轉帳">🗑</button>
       </div>
     </div>`;
@@ -7515,6 +7516,8 @@ function renderTxns() {
   if (tagVal)   txns=txns.filter(t=>(t.tags||[]).includes(tagVal));
   if (layerVal) txns=txns.filter(t=>t.layerId===layerVal || (t.layerAmounts||[]).some(la=>la.layerId===layerVal));
   if (keyword)  txns=txns.filter(t=>(t.desc||'').toLowerCase().includes(keyword)||(t.notes||'').toLowerCase().includes(keyword));
+  // 帳戶互轉預設只在「轉帳明細」顯示；篩選單一帳戶／分層時仍顯示，讓該帳戶進出完整
+  if (!srcVal && !layerVal) txns=txns.filter(t=>!t.isTransfer);
 
   _lastTxnTotal = txns.length;
   const totalPages2 = Math.ceil(txns.length / TXN_PAGE_SIZE);
@@ -8990,6 +8993,14 @@ function catOpts(selId, forType) {
 }
 
 function openModal(type,id,preCard,preAcc,extraId) {
+  // 編輯帳戶互轉記錄：改開轉帳編輯表單（轉出、轉入兩筆一起更新）
+  if (type==='editTxn' && id) {
+    const tx = DB.transactions.find(x=>x.id===id);
+    if (tx && tx.isTransfer) {
+      const outId = tx.amount<0 ? tx.id : DB.transactions.find(x=>x.id===tx.transferPairTxnId && x.isTransfer && x.amount<0)?.id;
+      if (outId) return openModal('editTransfer', outId);
+    }
+  }
   modalType=type; editTarget=id||null;
   const overlay=document.getElementById('modalOverlay');
   document.getElementById('modalBox').className='modal';
@@ -9334,9 +9345,14 @@ function openModal(type,id,preCard,preAcc,extraId) {
   }
 
   // ── TRANSFER ──
-  else if (type==='transfer') {
-    t='帳戶轉帳';
-    const accOpts=DB.bankAccounts.map(a2=>`<option value="${a2.id}"${a2.id===id?' selected':''}>${escHtml(a2.name)}</option>`).join('');
+  else if (type==='transfer'||type==='editTransfer') {
+    // 編輯轉帳：id 為轉出記錄 id，帶入原本的轉出／轉入記錄
+    const tfOut = type==='editTransfer' ? DB.transactions.find(x=>x.id===id&&x.isTransfer) : null;
+    if (type==='editTransfer' && !tfOut) { toast('找不到這筆轉帳記錄','danger'); return; }
+    const tfIn  = tfOut ? DB.transactions.find(x=>x.id===tfOut.transferPairTxnId) : null;
+    const tfFromSel = tfOut ? tfOut.sourceId : id;
+    t = tfOut ? '編輯轉帳' : '帳戶轉帳';
+    const accOpts=DB.bankAccounts.map(a2=>`<option value="${a2.id}"${a2.id===tfFromSel?' selected':''}>${escHtml(a2.name)}</option>`).join('');
     b=`<div class="form-group"><label class="form-label">從帳戶</label>
       <select class="form-select" id="tfFrom" onchange="onTfAccChange('from',this.value)">${accOpts}</select>
     </div>
@@ -9390,13 +9406,14 @@ function openModal(type,id,preCard,preAcc,extraId) {
     <div class="form-group"><label class="form-label" id="tfAmtLabel">金額（NT$）</label><input class="form-input" id="tfAmt" type="number" placeholder="0" oninput="updateFxPreview('tf')">
       <div id="tfFxBox" style="display:none;margin-top:10px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:var(--r)"></div>
     </div>
-    <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tfDate" type="date" value="${today()}"></div>
-    <div class="form-group"><label class="form-label">備註（選填）</label><textarea class="form-input notes-autogrow" id="tfNotes" rows="1" oninput="autoGrowNotes(this)" onfocus="autoGrowNotes(this)"></textarea></div>`;
-    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-violet" onclick="doTransfer()">🔄 確認轉帳</button>`;
+    <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="tfDate" type="date" value="${tfOut?tfOut.date:today()}"></div>
+    <div class="form-group"><label class="form-label">備註（選填）</label><textarea class="form-input notes-autogrow" id="tfNotes" rows="1" oninput="autoGrowNotes(this)" onfocus="autoGrowNotes(this)">${tfOut?escHtml(tfOut.notes||tfIn?.notes||''):''}</textarea></div>`;
+    f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-violet" onclick="doTransfer()">${tfOut?'💾 儲存修改':'🔄 確認轉帳'}</button>`;
     setTimeout(()=>{
-      onTfAccChange('from', id||DB.bankAccounts[0]?.id||'');
-      const toId = DB.bankAccounts.find(a=>a.id!==id)?.id||'';
+      onTfAccChange('from', tfFromSel||DB.bankAccounts[0]?.id||'');
+      const toId = tfIn ? tfIn.sourceId : (DB.bankAccounts.find(a=>a.id!==tfFromSel)?.id||'');
       if(toId) { document.getElementById('tfTo').value=toId; onTfAccChange('to',toId); }
+      if (tfOut) prefillTransferEdit(tfOut, tfIn);
     },60);
   }
 
@@ -10226,6 +10243,49 @@ function recalcTfMultiTotal(side) {
   updateFxPreview('tf');
 }
 
+// 編輯轉帳：把原本記錄帶入表單（金額、匯率、單一或多分層）
+function prefillTransferEdit(out, inn) {
+  const from = getAcc(out.sourceId), to = inn ? getAcc(inn.sourceId) : null;
+  // 外幣：帶回當時的匯率（記錄的台幣金額 ÷ 外幣金額）
+  [[out, from], [inn, to]].forEach(([t, a]) => {
+    if (!t || !a || !t.fxCurrency || !t.fxAmount) return;
+    const el = document.getElementById('tfRate_' + t.fxCurrency);
+    const r = Math.abs(t.amount) / Math.abs(t.fxAmount);
+    if (el && r > 0) el.value = +r.toFixed(4);
+  });
+  // 金額：依表單目前的輸入幣別帶入（轉出帳戶為外幣時預設以外幣輸入）
+  const cur = fxFormCur('tf');
+  const amtEl = document.getElementById('tfAmt');
+  const accToInput = (x, acc) => {
+    const u = accUnitCur(acc);
+    if (u === cur) return x;
+    const rIn = fxFormRate('tf', u), rOut = fxFormRate('tf', cur);
+    return rIn && rOut ? roundCur(x * rIn / rOut, cur) : x;
+  };
+  if (amtEl) amtEl.value = (cur !== 'TWD' && out.fxCurrency === cur) ? Math.abs(out.fxAmount) : accToInput(Math.abs(out.amount), null);
+  // 分層
+  const setSide = (side, t, acc) => {
+    if (!t || !acc) return;
+    if (t.layerAmounts && t.layerAmounts.length) {
+      const tg = document.getElementById(side === 'from' ? 'tfFromMultiToggle' : 'tfToMultiToggle');
+      if (tg) tg.checked = true;
+      toggleTfMultiLayer(side, true);
+      t.layerAmounts.forEach(la => {
+        const chk = document.getElementById(`tf${side}chk_${la.layerId}`);
+        const inp = document.getElementById(`tf${side}amt_${la.layerId}`);
+        if (!chk || !inp) return;
+        chk.checked = true; inp.style.display = '';
+        inp.value = accToInput(Math.abs(la.amount), acc);
+      });
+    } else if (t.layerId && (acc.layers || []).some(l => l.id === t.layerId)) {
+      selectLayerPickerOption(side === 'from' ? 'tfFromLayer' : 'tfToLayer', t.layerId);
+    }
+  };
+  setSide('from', out, from);
+  setSide('to', inn, to);
+  updateFxPreview('tf');
+}
+
 // 取得轉帳表單某一側（from/to）目前實際選中的分層 ID 清單（相容單選與多分層兩種模式）
 function getTfSelectedLayerIds(side) {
   const isMulti = document.getElementById(side==='from'?'tfFromMultiToggle':'tfToMultiToggle')?.checked;
@@ -10294,6 +10354,26 @@ function doTransfer() {
     toLayerId = v('tfToLayer')||null;
   }
 
+  // 編輯轉帳：更新原本的轉出／轉入兩筆記錄（保留 id 與類別；找不到轉入記錄時補建並重新配對）
+  const editOut = modalType==='editTransfer' ? DB.transactions.find(t=>t.id===editTarget) : null;
+  if (editOut) {
+    const editIn = DB.transactions.find(t=>t.id===editOut.transferPairTxnId) || null;
+    const pid = editOut.transferPairId || pairId;
+    const inIdE = editIn ? editIn.id : inId;
+    [editOut, editIn].forEach(t=>{ if (t) ['fxCurrency','fxAmount','layerAmounts'].forEach(k=>delete t[k]); });
+    Object.assign(editOut, {date,amount:-amtTWD,...fromFx,desc:'轉帳 → '+(to?.name||''),sourceId:fromId,sourceType:'account',notes,isTransfer:true,layerId:fromLayerId,layerAmounts:fromLayerAmounts||undefined,transferPairId:pid,transferPairTxnId:inIdE});
+    const inRec = {date,amount:+amtTWD,...toFx,desc:'轉入 ← '+(from?.name||''),sourceId:toId,sourceType:'account',notes,isTransfer:true,layerId:toLayerId,layerAmounts:toLayerAmounts||undefined,transferPairId:pid,transferPairTxnId:editOut.id};
+    if (editIn) Object.assign(editIn, inRec);
+    else DB.transactions.push({id:inIdE, category:editOut.category||lastCat, ...inRec});
+    saveDB();
+    closeModal();
+    renderAccounts();
+    renderDashboard();
+    if (currentPage==='transfers') renderTransfers();
+    if (currentPage==='txns') renderTxns();
+    toast('轉帳已更新','success');
+    return;
+  }
   DB.transactions.push({id:outId,date,amount:-amtTWD,...fromFx,desc:'轉帳 → '+(to?.name||''),category:lastCat,sourceId:fromId,sourceType:'account',notes,isTransfer:true,layerId:fromLayerId,layerAmounts:fromLayerAmounts||undefined,transferPairId:pairId,transferPairTxnId:inId});
   DB.transactions.push({id:inId,date,amount:+amtTWD,...toFx,desc:'轉入 ← '+(from?.name||''),category:lastCat,sourceId:toId,sourceType:'account',notes,isTransfer:true,layerId:toLayerId,layerAmounts:toLayerAmounts||undefined,transferPairId:pairId,transferPairTxnId:outId});
   saveDB();
