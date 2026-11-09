@@ -3697,3 +3697,85 @@ body.anim-reduced .account-card.bill-due-urgent::after, body.anim-reduced .accou
 body.anim-none .account-card.bill-due-urgent::after,    body.anim-none .account-card.bill-due-warn::after{
   animation:none !important; opacity:1 !important;
 }
+
+/* ══ 財務行事曆（卡片色系）══════════════════════════════════ */
+.fcal-nav{display:flex;align-items:center;gap:2px;margin-left:auto;background:var(--bdr-subtle);border-radius:20px;padding:3px}
+.fcal-nav button{border:0;background:none;color:var(--tx-primary);min-width:30px;height:30px;border-radius:15px;font-size:16px;cursor:pointer}
+.fcal-nav span{font-family:var(--ff-display);font-size:16px;font-weight:700;color:var(--tx-primary);padding:0 4px;white-space:nowrap}
+.fcal-nav .fcal-today{background:var(--tx-primary);color:var(--bg-base);font-size:12px;font-weight:700;padding:0 12px}
+.fcal-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-bottom:12px}
+.fcal-chip{display:flex;align-items:center;gap:6px;min-width:0;padding:6px 10px 6px 6px;border-radius:12px;cursor:pointer;background:color-mix(in srgb,var(--c) 14%,var(--bg-card));border:1px solid color-mix(in srgb,var(--c) 40%,transparent)}
+.fcal-chip i{flex:none;width:20px;height:14px;border-radius:3px;background:linear-gradient(135deg,var(--c),color-mix(in srgb,var(--c) 55%,#000))}
+.fcal-chip b{font-size:12px;color:var(--tx-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcal-chip em{margin-left:auto;flex:none;font-style:normal;font-size:11px;color:var(--tx-secondary)}
+.fcal-chip.due em{color:color-mix(in srgb,var(--c) 75%,var(--tx-primary));font-weight:700}
+.fcal-sum{display:grid;grid-template-columns:1.25fr 1fr;gap:8px;margin-bottom:12px}
+.fcal-box{border-radius:16px;padding:12px;background:var(--bg-card);border:1px solid var(--bdr-subtle)}
+.fcal-box small{font-size:11px;color:var(--tx-secondary)}
+.fcal-box>b{display:block;font-family:var(--ff-display);font-size:24px;color:var(--tx-primary);line-height:1.15}
+.fcal-bar{display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden;margin-top:8px}
+.fcal-bar s{background:var(--c);min-width:3px}
+.fcal-row{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-size:11px;color:var(--tx-secondary);margin-top:4px}
+.fcal-row em{font-style:normal;font-family:var(--ff-display);font-size:15px;font-weight:700;color:var(--tx-primary)}
+.fcal-row em.neg{color:var(--tx-red)} .fcal-row em.pos{color:var(--tx-green)}
+.fcal-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:4px}
+@media (min-width:900px){.fcal-grid{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}.fcal-grid .fcal-sec{margin-top:0}}
+.fcal-cal{border-radius:20px;padding:12px 8px 10px;background:var(--bg-card);border:1px solid var(--bdr-subtle)}
+.fcal-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.fcal-wd{text-align:center;font-size:11px;color:var(--tx-secondary);padding-bottom:2px}
+.fcal-wd.we{color:var(--tx-red)}
+.fcal-d{position:relative;height:64px;border-radius:12px;padding:5px 3px 0;overflow:hidden;cursor:pointer;background:var(--bdr-subtle);border:1.5px solid transparent;-webkit-tap-highlight-color:transparent}
+.fcal-d.out{background:none;cursor:default}
+.fcal-d .n{font-family:var(--ff-display);font-size:14px;font-weight:700;color:var(--tx-primary);line-height:1;white-space:nowrap}
+.fcal-d .n em{font-style:normal;font-size:10px;margin-left:2px;color:var(--c)}
+.fcal-d .n em.pay{font-size:9px}
+.fcal-d.fut .n{opacity:.6}
+.fcal-d .a{font-family:var(--ff-display);font-size:11px;color:var(--tx-secondary);margin-top:4px;white-space:nowrap}
+.fcal-d .p{font-family:var(--ff-display);font-size:10px;font-weight:700;color:var(--tx-blue);white-space:nowrap}
+.fcal-d .ev{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap}
+.fcal-d .ev s{width:6px;height:6px;border-radius:50%;background:var(--c)}
+.fcal-d .ev s.ok{background:none;border:1.5px solid var(--c);width:3px;height:3px}
+.fcal-d .hm{position:absolute;left:4px;right:4px;bottom:4px;height:3px;border-radius:2px;background:var(--bdr-normal)}
+.fcal-d .hm s{display:block;height:100%;border-radius:2px;background:var(--tx-secondary)}
+.fcal-d.bill{background:linear-gradient(145deg,var(--c),color-mix(in srgb,var(--c) 45%,#000));box-shadow:0 4px 12px color-mix(in srgb,var(--c) 35%,transparent)}
+.fcal-d.bill:after{content:"";position:absolute;right:-8px;top:-8px;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.18)}
+.fcal-d.bill .n,.fcal-d.bill .a,.fcal-d.bill .p{color:var(--fg);opacity:1}
+.fcal-d.bill .hm{background:rgba(255,255,255,.2)} .fcal-d.bill .hm s{background:var(--fg)}
+.fcal-d.paid{background:color-mix(in srgb,var(--c) 14%,var(--bg-card));border-color:color-mix(in srgb,var(--c) 70%,transparent)}
+.fcal-d.today{border-color:var(--tx-primary)}
+.fcal-d.today .n{display:inline-block;background:var(--tx-primary);color:var(--bg-base);border-radius:6px;padding:1px 4px}
+.fcal-d.sel{box-shadow:0 0 0 2px var(--tx-blue) inset}
+.fcal-lg{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:center;margin-top:10px;font-size:10px;color:var(--tx-secondary)}
+.fcal-lg span{display:flex;align-items:center;gap:4px}
+.fcal-lg i{display:inline-block;width:10px;height:10px;border-radius:3px}
+.fcal-lg .lg-bill{background:linear-gradient(145deg,var(--tx-blue),#123)} .fcal-lg .lg-paid{border:1.5px solid var(--tx-blue);width:7px;height:7px}
+.fcal-lg .lg-dot{width:6px;height:6px;border-radius:50%;background:var(--tx-secondary)} .fcal-lg .lg-hm{height:3px;background:var(--tx-secondary)}
+.fcal-detail{margin-top:10px;border-radius:16px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--bdr-subtle)}
+.fcal-detail-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.fcal-detail-h b{font-size:14px;color:var(--tx-primary)} .fcal-detail-h span{font-size:12px;color:var(--tx-secondary)}
+.fcal-tx{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--bdr-subtle)}
+.fcal-tx div{min-width:0} .fcal-tx b{display:block;font-size:13px;font-weight:600;color:var(--tx-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcal-tx small{font-size:11px;color:var(--tx-secondary)}
+.fcal-tx span{flex:none;font-family:var(--ff-display);font-size:15px;font-weight:700}
+.fcal-tx .neg{color:var(--tx-red)} .fcal-tx .pos{color:var(--tx-green)}
+.fcal-empty{padding:14px 0;text-align:center;font-size:12px;color:var(--tx-secondary)}
+.fcal-sec{display:flex;justify-content:space-between;align-items:baseline;margin:18px 4px 10px}
+.fcal-sec b{font-size:15px;color:var(--tx-primary)}
+.fcal-sec span{font-size:12px;color:var(--tx-secondary)}
+.fcal-sec em{font-style:normal;font-family:var(--ff-display);font-size:15px;font-weight:700;color:var(--tx-primary);margin-left:4px}
+.fcal-it{position:relative;display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:9px;border-radius:16px;overflow:hidden;cursor:pointer;color:var(--fg);background:linear-gradient(120deg,var(--c),color-mix(in srgb,var(--c) 45%,#0b0b12) 80%)}
+.fcal-it:after{content:"";position:absolute;right:-30px;top:-40px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none}
+.fcal-it .dt{flex:none;width:42px;height:46px;border-radius:12px;background:rgba(0,0,0,.25);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.fcal-it .dt b{font-family:var(--ff-display);font-size:19px;line-height:1;color:#fff}
+.fcal-it .dt small{font-size:10px;color:rgba(255,255,255,.75)}
+.fcal-it .tx{flex:1;min-width:0;position:relative;z-index:1}
+.fcal-it .tx b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcal-it .tx small{display:block;font-size:11px;opacity:.78;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcal-it .am{flex:none;text-align:right;position:relative;z-index:1}
+.fcal-it .am b{display:block;font-family:var(--ff-display);font-size:18px}
+.fcal-it .am span{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(0,0,0,.3);color:#fff}
+.fcal-it .am span.hot{background:#fff;color:#c62828}
+.fcal-it.done{--fg:var(--tx-primary);background:var(--bg-card);border:1px dashed color-mix(in srgb,var(--c) 60%,transparent);opacity:.75}
+.fcal-it.done:after{display:none}
+.fcal-it.done .dt{background:color-mix(in srgb,var(--c) 22%,transparent)} .fcal-it.done .dt b{color:var(--tx-primary)} .fcal-it.done .dt small{color:var(--tx-secondary)}
+.fcal-it.done .am span{background:color-mix(in srgb,var(--c) 22%,transparent);color:var(--tx-primary)}
