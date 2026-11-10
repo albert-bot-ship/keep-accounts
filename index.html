@@ -223,7 +223,7 @@
   </div>
   <div class="sidebar-label">分析</div>
   <div class="nav-item" data-page="calendar" onclick="nav(this,'calendar')">
-    <span class="nav-icon">📅</span><span>財務行事曆</span>
+    <span class="nav-icon">🗓️</span><span>財務行事曆</span>
   </div>
   <div class="nav-item" data-page="analytics" onclick="nav(this,'analytics')">
     <span class="nav-icon">📊</span><span>趨勢分析</span>
@@ -476,7 +476,7 @@
         <div class="page-title">常用範本</div>
         <button class="btn btn-primary" onclick="openModal('addTemplate')">＋ 新增範本</button>
       </div>
-      <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">把常記的固定消費存成範本，點「✓ 記一筆」直接用今天日期記一筆。</p>
+      <p style="color:var(--tx-secondary);font-size:12px;margin-bottom:16px">把常記的消費存成範本，點「✓ 記一筆」直接用今天日期記一筆。</p>
       <div id="suggestedTemplateList" style="display:none;margin-bottom:8px"></div>
       <div id="templateList"></div>
     </section>
@@ -1197,6 +1197,20 @@
       <div class="settings-tab-panel" id="spanel-account">
         <div class="settings-section">
           <div class="settings-section-header">
+            <div class="settings-section-icon" style="background:rgba(0,200,83,.12)">💰</div>
+            <div>
+              <div class="settings-section-title">發薪日</div>
+              <div class="settings-section-desc">每月幾號發薪（1～28）。剩餘生活費、本期統計、類別預算與行事曆 💰 都依此計算</div>
+            </div>
+          </div>
+          <div class="settings-section-body" style="padding:12px 18px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:13px;color:var(--tx-secondary)">每月</span>
+            <input class="form-input" id="salaryDayInput" type="number" min="1" max="28" inputmode="numeric" style="width:90px;text-align:center" onchange="setSalaryDay(this.value)">
+            <span style="font-size:13px;color:var(--tx-secondary)">號</span>
+          </div>
+        </div>
+        <div class="settings-section" style="margin-top:16px">
+          <div class="settings-section-header">
             <div class="settings-section-icon" style="background:rgba(0,87,184,.12)">🏦</div>
             <div>
               <div class="settings-section-title">銀行帳戶排序</div>
@@ -1769,21 +1783,34 @@ function getSalaryDate(year, month) {
 // 判斷今天屬於哪個週期：
 //   今天 >= 8號 → 本月8日 ～ 下月5日
 //   今天 <= 7號 → 上月8日 ～ 本月5日
+// 發薪日（設定 → 帳戶 → 發薪日，1～28 號；未設定時預設 25 號）
+function getSalaryDay() { const d = parseInt(DB.salaryDay, 10); return d >= 1 && d <= 28 ? d : 25; }
+// 本期文字，例如「25日~隔月24日」；發薪日為 1 號時為「1日~月底」
+function salaryCycleText() { const S = getSalaryDay(); return S === 1 ? '1日~月底' : `${S}日~隔月${S-1}日`; }
+function setSalaryDay(val) {
+  const d = parseInt(val, 10);
+  const el = document.getElementById('salaryDayInput');
+  if (!(d >= 1 && d <= 28)) { toast('發薪日請填 1～28','danger'); if (el) el.value = getSalaryDay(); return; }
+  DB.salaryDay = d;
+  saveDB();
+  toast(`發薪日已設為每月 ${d} 號`,'success');
+}
 function getSalaryCycle() {
   const now = new Date();
   const y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
   const fmt2 = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const todayStr = fmt2(now);
+  const S = getSalaryDay();
 
   let fromDate, toDate;
-  if (day >= 25) {
-    // 本月25日 → 下月24日
-    fromDate = new Date(y, m, 25);
-    toDate   = new Date(m === 11 ? y+1 : y, m === 11 ? 0 : m+1, 24);
+  if (day >= S) {
+    // 本月發薪日 → 下月發薪日前一天
+    fromDate = new Date(y, m, S);
+    toDate   = new Date(y, m+1, S-1);
   } else {
-    // 上月25日 → 本月24日
-    fromDate = new Date(m === 0 ? y-1 : y, m === 0 ? 11 : m-1, 25);
-    toDate   = new Date(y, m, 24);
+    // 上月發薪日 → 本月發薪日前一天
+    fromDate = new Date(y, m-1, S);
+    toDate   = new Date(y, m, S-1);
   }
   const toStr = fmt2(toDate) < todayStr ? fmt2(toDate) : todayStr;
   return { from: fmt2(fromDate), to: toStr };
@@ -2208,6 +2235,8 @@ function autoGrowNotes(el) {
   el.style.height = el.scrollHeight + 'px';
 }
 // 是否排除於收支統計：帳戶互轉、信用卡繳款、未勾選「計入收支統計」的轉出／轉入
+// 支出金額（含手續費）：所有消費統計共用，手續費也是花費的一部分
+function spendAmt(t) { return Math.abs(t.amount) + (t.amount < 0 ? (+t.fee || 0) : 0); }
 function isStatExcluded(t) {
   return !!(t.isTransfer || t.isPayment || ((t.isTransferOut || t.isTransferIn) && !t.countInStats));
 }
@@ -2501,9 +2530,9 @@ function rangedTxns() {
 }
 function thisMonthCCSpend() {
   return DB.transactions.filter(t=>t.sourceType==='card'&&t.amount<0&&ym(t.date)===nowYM())
-    .reduce((s,t)=>s+t.amount,0);
+    .reduce((s,t)=>s-spendAmt(t),0);
 }
-// 所有類別統一使用薪資週期（上月25日～本月24日）
+// 所有類別統一使用薪資週期（上月發薪日～本月發薪日前一天）
 function catPeriodRange(cat) {
   return getSalaryCycle();
 }
@@ -2512,7 +2541,7 @@ function catMonthSpend(id) {
   const { from, to } = catPeriodRange(cat);
   return DB.transactions
     .filter(t=>t.category===id && t.amount<0 && !isStatExcluded(t) && t.date>=from && t.date<=to)
-    .reduce((s,t)=>s+Math.abs(t.amount),0);
+    .reduce((s,t)=>s+spendAmt(t),0);
 }
 function sourceName(t) {
   if (t.sourceType==='card') {
@@ -2842,6 +2871,38 @@ function fcalSubs(ym) {
   });
   return out;
 }
+// 分期：每月 inst.day 號扣款（按「記帳本月」後視為已扣）；本月以後依剩餘期數往後推算
+function fcalInstalls(ym) {
+  const out = [];
+  const curYM = fcalToday().slice(0,7);
+  const [y, m] = ym.split('-').map(Number);
+  const dim = new Date(y, m, 0).getDate();
+  const between = (a, b) => { const [ay, am] = a.split('-').map(Number), [by, bm] = b.split('-').map(Number); return (by-ay)*12 + (bm-am); };
+  (DB.installments || []).forEach(inst => {
+    if (inst.startYM === 'TBD' || (inst.startYM && ym < inst.startYM)) return;
+    const paid = inst.paidMonths || [];
+    const src = fcalSrcInfo(inst.sourceType, inst.sourceId);
+    const ds = ym + '-' + fcalPad(Math.min(inst.day || 1, 28, dim));
+    let n = null, amount, done = false;
+    if (paid.includes(ym)) {
+      done = true;
+      const tx = DB.transactions.find(t => t.installId === inst.id && (t.date || '').slice(0,7) === ym);
+      amount = tx ? spendAmt(tx) : instPeriodAmt(inst, 2);
+    } else {
+      if (ym < curYM) return; // 過去月份沒有記帳紀錄：不推測
+      const base = inst.startYM && inst.startYM > curYM ? inst.startYM : curYM;
+      n = (base === curYM && paid.includes(curYM))
+        ? paid.length + between(curYM, ym)
+        : paid.length + 1 + between(base, ym);
+      if (n > inst.months) return;
+      amount = instPeriodAmt(inst, n);
+    }
+    out.push({ kind:'inst', date:ds, name:inst.desc || '分期', color:src.color,
+      sub: (n ? `分期 ${n}/${inst.months}・` : '分期・') + src.name + (src.card ? '（刷卡，計入卡費）' : ' 扣款'),
+      amount, done, overdue: !done && ds < fcalToday(), count: !src.card && !done, inMonth:true });
+  });
+  return out;
+}
 function renderCalendar() {
   const wrap = document.getElementById('fcalWrap');
   if (!wrap) return;
@@ -2859,7 +2920,7 @@ function renderCalendar() {
     const d = +t.date.slice(8,10);
     if (t.isPayment && t.sourceType === 'card' && t.amount > 0) { (pays[d] = pays[d] || []).push(t); return; }
     if (t.amount < 0 && !isStatExcluded(t)) {
-      const v = Math.abs(t.amount);
+      const v = spendAmt(t);
       spend[d] = (spend[d] || 0) + v;
       const k = t.sourceType + '_' + t.sourceId;
       bySrc[k] = (bySrc[k] || 0) + v;
@@ -2870,7 +2931,7 @@ function renderCalendar() {
   const maxSpend = Math.max(1, ...Object.values(spend));
   const daysPassed = ym < curYM ? dim : ym === curYM ? +today.slice(8) : 0;
 
-  const events = [...fcalCardBills(ym, ym === curYM), ...fcalSubs(ym)]
+  const events = [...fcalCardBills(ym, ym === curYM), ...fcalSubs(ym), ...fcalInstalls(ym)]
     .sort((a, b) => a.date.localeCompare(b.date) || (a.kind === 'bill' ? -1 : 1));
   const evByDay = {};
   events.filter(e => e.inMonth).forEach(e => { const d = +e.date.slice(8); (evByDay[d] = evByDay[d] || []).push(e); });
@@ -2911,7 +2972,7 @@ function renderCalendar() {
     if (ds === fcalSelDay) cls += ' sel';
     const sp = spend[d] || 0;
     cells += `<div class="${cls}" style="${st}" onclick="fcalPick('${ds}')">`
-      + `<div class="n">${d}${bill && bill.done ? '<em>✓</em>' : ''}${d === 25 ? '<em class="pay">💰</em>' : ''}</div>`
+      + `<div class="n">${d}${bill && bill.done ? '<em>✓</em>' : ''}${d === getSalaryDay() ? '<em class="pay">💰</em>' : ''}</div>`
       + (sp ? `<div class="a">${fcalK(sp)}</div>` : '')
       + (pay ? `<div class="p">繳 ${fcalK(pay)}</div>` : '')
       + (dots ? `<div class="ev">${dots}</div>` : '')
@@ -2936,11 +2997,11 @@ function renderCalendar() {
   const listTitle = ym < curYM ? '本月付款紀錄' : ym === curYM ? '本月待繳' : '待繳預覽';
   const list = events.map(e => {
     const dd = fcalDaysFrom(e.date);
-    const tag = e.done ? (e.kind === 'bill' ? '✓ 已繳清' : '✓ 已扣款')
-      : e.overdue ? `逾期 ${-dd} 天` : dd === 0 ? '今天' : dd < 0 ? '已過' : `${dd} 天後`;
+    const tag = e.done ? (e.kind === 'bill' ? '✓ 已繳清' : e.kind === 'inst' ? '✓ 已記帳' : '✓ 已扣款')
+      : e.overdue ? (e.kind === 'inst' ? '尚未記帳' : `逾期 ${-dd} 天`) : dd === 0 ? '今天' : dd < 0 ? '已過' : `${dd} 天後`;
     const hot = !e.done && (e.overdue || (dd >= 0 && dd <= 3));
     const fg = isLightColor(e.color) ? '#111' : '#fff';
-    const go = e.kind === 'bill' ? `navToItem('cards','card-${e.id}')` : `navToItem('subscriptions','page-subscriptions')`;
+    const go = e.kind === 'bill' ? `navToItem('cards','card-${e.id}')` : e.kind === 'inst' ? `navToItem('install','installList')` : `navToItem('subscriptions','page-subscriptions')`;
     const [, em, ed] = e.date.split('-').map(Number);
     return `<div class="fcal-it${e.done ? ' done' : ''}" style="--c:${e.color};--fg:${fg}" onclick="${go}">`
       + `<div class="dt"><b>${e.inMonth ? ed : em + '/' + ed}</b><small>週${'日一二三四五六'[new Date(e.date + 'T00:00:00').getDay()]}</small></div>`
@@ -2962,7 +3023,7 @@ function renderCalendar() {
     <div class="fcal-grid">
       <div>
         <div class="fcal-cal"><div class="fcal-days">${cells}</div>
-          <div class="fcal-lg"><span><i class="lg-bill"></i>待繳卡費</span><span><i class="lg-paid"></i>已繳</span><span><i class="lg-dot"></i>自動扣款</span><span><i class="lg-hm"></i>消費多寡</span></div></div>
+          <div class="fcal-lg"><span><i class="lg-bill"></i>待繳卡費</span><span><i class="lg-paid"></i>已繳</span><span><i class="lg-dot"></i>訂閱／分期</span><span><i class="lg-hm"></i>消費多寡</span></div></div>
         ${detail}
       </div>
       <div>
@@ -3225,7 +3286,7 @@ function calcHealthScore() {
   const ym = nowYM();
   const txns = DB.transactions.filter(t=>t.date.startsWith(ym)&&!isStatExcluded(t));
   const income = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const expense = Math.abs(txns.filter(t=>t.amount<0&&!t.isSavingsAllocation).reduce((s,t)=>s+t.amount,0));
+  const expense = txns.filter(t=>t.amount<0&&!t.isSavingsAllocation).reduce((s,t)=>s+spendAmt(t),0);
   const savingsAllocation = Math.abs(txns.filter(t=>t.amount<0&&t.isSavingsAllocation).reduce((s,t)=>s+t.amount,0));
   const totalDebt = DB.creditCards.filter(c=>c.includeInTotal!==false).reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
   const totalAsset = DB.bankAccounts.filter(a=>a.includeInTotal!==false).reduce((s,a)=>s+Math.max(0,accountBalanceTWD(a)||0),0);
@@ -3376,10 +3437,10 @@ function exportPDF() {
   if (to)   txns = txns.filter(t=>t.date<=to);
 
   const totalIncome  = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const totalExpense = Math.abs(txns.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
+  const totalExpense = txns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
   const catTotals    = DB.categories.map(c=>({
     name:c.name, color:c.color,
-    amt: Math.abs(txns.filter(t=>t.category===c.id&&t.amount<0).reduce((s,t)=>s+t.amount,0))
+    amt: txns.filter(t=>t.category===c.id&&t.amount<0).reduce((s,t)=>s+spendAmt(t),0)
   })).filter(x=>x.amt>0).sort((a,b)=>b.amt-a.amt);
 
   const rows = txns.map(t=>`
@@ -3539,7 +3600,7 @@ function renderHeatmap(year) {
   if (!wrap) return;
   const txns = DB.transactions.filter(t=>t.date.startsWith(year)&&t.amount<0&&!isStatExcluded(t));
   const dayMap = {};
-  txns.forEach(t=>{ dayMap[t.date]=(dayMap[t.date]||0)+Math.abs(t.amount); });
+  txns.forEach(t=>{ dayMap[t.date]=(dayMap[t.date]||0)+spendAmt(t); });
   const maxDay = Math.max(...Object.values(dayMap), 1);
   const startDate = new Date(year+'-01-01');
   const endDate   = new Date(year+'-12-31');
@@ -4497,7 +4558,7 @@ async function shareSummary() {
   const ym = nowYM();
   const txns = DB.transactions.filter(t=>t.date.startsWith(ym)&&!isStatExcluded(t));
   const income  = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const expense = Math.abs(txns.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
+  const expense = txns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
   const net     = income - expense;
   const text = `📊 M WALLET 本月摘要（${ym}）\n\n`
     + `💰 收入：+NT$${income.toLocaleString()}\n`
@@ -4606,10 +4667,10 @@ function renderSubscriptions() {
   const sorted = [...subs].sort((a,b)=>(a.nextDate||'').localeCompare(b.nextDate||''));
   listEl.innerHTML = sorted.map(sub => {
     const daysLeft = sub.nextDate ? Math.ceil((new Date(sub.nextDate+'T00:00:00')-new Date())/86400000) : null;
-    const urgentCls = daysLeft!==null&&daysLeft<=3?'due-urgent':daysLeft!==null&&daysLeft<=7?'due-warn':'';
+    const urgentCls = daysLeft!==null&&daysLeft<=3?'bill-due-urgent':daysLeft!==null&&daysLeft<=7?'bill-due-warn':'';
     const cycleTxt = sub.cycle==='year'?'每年':'每月';
     const nextTxt = daysLeft===null?'未設定':daysLeft<=0?'今日扣款':daysLeft+'天後扣款';
-    return `<div class="account-card ${urgentCls}" style="margin-bottom:12px">
+    return `<div class="account-card ${urgentCls}" style="margin-bottom:12px;--due-color:${safeHex(sub.color,'#1c69d4')}">
       <div class="account-card-header" style="display:flex;align-items:center;gap:12px">
         <div style="width:40px;height:40px;border-radius:12px;background:${sub.color||'var(--m-blue)'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${sub.icon||'📱'}</div>
         <div style="flex:1;min-width:0">
@@ -4798,14 +4859,14 @@ function sendMonthlyReport() {
   const ymNow  = `${now.getFullYear()}-${String(now.getMonth()).padStart(2,'0')}`;
   const txns   = DB.transactions.filter(t=>t.date.startsWith(ymLast)&&!isStatExcluded(t));
   const income  = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const expense = Math.abs(txns.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
+  const expense = txns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
   const prevTxns   = DB.transactions.filter(t=>t.date.startsWith(ymNow)&&!isStatExcluded(t));
-  const prevExpense = Math.abs(prevTxns.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
+  const prevExpense = prevTxns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
   const diff    = prevExpense > 0 ? Math.round((expense-prevExpense)/prevExpense*100) : 0;
   // 找最大支出類別
   const catMap = {};
   txns.filter(t=>t.amount<0).forEach(t=>{
-    catMap[t.category]=(catMap[t.category]||0)+Math.abs(t.amount);
+    catMap[t.category]=(catMap[t.category]||0)+spendAmt(t);
   });
   const topCatId = Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0]?.[0];
   const topCat   = getCat(topCatId);
@@ -5005,11 +5066,11 @@ function doCleanup(cutDate) {
 function salaryPeriodInfo() {
   const { from } = getSalaryCycle();
   const now = new Date();
-  // 計算本期結束日（沿用原「本期剩餘預算」的算法：每月 24 日結束）
-  const endDate = now.getDate() >= 25
-    ? new Date(now.getMonth() === 11 ? now.getFullYear()+1 : now.getFullYear(),
-               now.getMonth() === 11 ? 0 : now.getMonth()+1, 24)
-    : new Date(now.getFullYear(), now.getMonth(), 24);
+  // 計算本期結束日：下一個發薪日的前一天
+  const S = getSalaryDay();
+  const endDate = now.getDate() >= S
+    ? new Date(now.getFullYear(), now.getMonth()+1, S-1)
+    : new Date(now.getFullYear(), now.getMonth(), S-1);
   const daysLeft  = Math.max(0, Math.ceil((endDate - now) / 86400000));
   const daysTotal = Math.round((endDate - new Date(from+'T00:00:00')) / 86400000);
   const pct = daysTotal > 0 ? Math.round((daysTotal - daysLeft) / daysTotal * 100) : 0;
@@ -5159,7 +5220,7 @@ function renderSankey() {
   }
 
   const totalIn  = income.reduce((s,t)=>s+t.amount,0);
-  const totalOut = Math.abs(expense.reduce((s,t)=>s+t.amount,0));
+  const totalOut = expense.reduce((s,t)=>s+spendAmt(t),0);
   const totalMax = Math.max(totalIn,totalOut)||1;
 
   // 收入按帳戶彙總
@@ -5169,7 +5230,7 @@ function renderSankey() {
 
   // 支出按類別彙總
   const outMap = {};
-  expense.forEach(t=>{ const cat=getCat(t.category); outMap[cat.name]=(outMap[cat.name]||0)+Math.abs(t.amount); });
+  expense.forEach(t=>{ const cat=getCat(t.category); outMap[cat.name]=(outMap[cat.name]||0)+spendAmt(t); });
   const outItems = Object.entries(outMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
   const inColors  = ['#0057B8','#6F2CA7','#00897B','#C07A00','#AD1457','#0288D1','#558B2F','#6D4C41'];
@@ -5494,8 +5555,8 @@ function renderMonthCompare() {
 
   const getTxns = m => DB.transactions.filter(t=>t.date.startsWith(m)&&!isStatExcluded(t));
   const tA = getTxns(mA), tB = getTxns(mB);
-  const expA = Math.abs(tA.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
-  const expB = Math.abs(tB.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
+  const expA = tA.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
+  const expB = tB.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
   const incA = tA.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
   const incB = tB.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
 
@@ -5504,7 +5565,7 @@ function renderMonthCompare() {
     const m = {};
     txns.filter(t=>t.amount<0).forEach(t=>{
       const c=getCat(t.category);
-      m[c.name]=(m[c.name]||0)+Math.abs(t.amount);
+      m[c.name]=(m[c.name]||0)+spendAmt(t);
     });
     return m;
   };
@@ -5589,6 +5650,34 @@ function renderNotificationCenter() {
     });
   });
 
+  // 訂閱即將扣款（3 天內）
+  (DB.subscriptions||[]).forEach(sub=>{
+    if (!sub.nextDate) return;
+    const diff = Math.round((new Date(sub.nextDate+'T00:00:00') - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+    if (diff>=0 && diff<=3) items.push({
+      icon: '🔄',
+      title: `${sub.name} 訂閱扣款`,
+      desc: (diff===0 ? '今日扣款' : `${diff} 天後扣款`) + `・${fmt((sub.amount||0)+(sub.fee||0))}`,
+      urgent: diff===0
+    });
+  });
+
+  // 分期本月待記帳（扣款日前 3 天起提醒；過了扣款日仍未記帳持續提醒）
+  (DB.installments||[]).forEach(inst=>{
+    const paidCnt = (inst.paidMonths||[]).length;
+    if (paidCnt >= inst.months || !instIsStarted(inst)) return;
+    if ((inst.paidMonths||[]).includes(nowYM())) return;
+    const day = Math.min(inst.day||1, 28);
+    const diff = day - now.getDate();
+    if (diff > 3) return;
+    items.push({
+      icon: '📅',
+      title: `${inst.desc} 分期 ${paidCnt+1}/${inst.months}`,
+      desc: (diff>0 ? `${diff} 天後扣款` : diff===0 ? '今日扣款' : `已過扣款日 ${-diff} 天，尚未記帳`) + `・${fmt(instPeriodAmt(inst, paidCnt+1))}`,
+      urgent: diff<=0
+    });
+  });
+
   // 備份提醒
   const lastBackup = localStorage.getItem('mwallet_last_backup');
   if (lastBackup) {
@@ -5655,9 +5744,9 @@ function renderImpulseReport() {
   const now  = new Date();
   const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const txns  = DB.transactions.filter(t=>t.date.startsWith(curYM)&&t.amount<0&&!isStatExcluded(t));
-  const total = Math.abs(txns.reduce((s,t)=>s+t.amount,0));
+  const total = txns.reduce((s,t)=>s+spendAmt(t),0);
   const impulse  = txns.filter(t=>t.mark==='impulse');
-  const impTotal = Math.abs(impulse.reduce((s,t)=>s+t.amount,0));
+  const impTotal = impulse.reduce((s,t)=>s+spendAmt(t),0);
   const pct = total>0 ? Math.round(impTotal/total*100) : 0;
   const pctColor = pct>=30?'var(--tx-red)':pct>=15?'var(--warn)':'var(--tx-green)';
 
@@ -6322,7 +6411,7 @@ function setCCLayerPeriodMode(cardId, layerId, mode) {
 function renderDashboard() {
   renderCCLayerSelector();
   const rtx = rangedTxns();
-  const spend  = Math.abs(rtx.filter(t=>t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
+  const spend  = rtx.filter(t=>t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0);
   const income = rtx.filter(t=>t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0);
   const totalDebt = DB.creditCards.filter(c=>c.includeInTotal!==false).reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
   const totalBank = DB.bankAccounts.filter(a=>a.includeInTotal!==false).reduce((s,a)=>{
@@ -6360,7 +6449,7 @@ function renderDashboard() {
   const layerSubLabel = anySelected ? '薪水分層 − 信用卡分層' : '請在上方勾選分層';
   dashRemainAmt = anySelected ? layerRemain : null;
 
-  const labels = {month:'本月',salary:'本期(25日~隔月24日)',30:'近30天',7:'近7天',today:'今天',all:'全部'};
+  const labels = {month:'本月',salary:`本期(${salaryCycleText()})`,30:'近30天',7:'近7天',today:'今天',all:'全部'};
   const lbl = labels[dashRange]||'';
 
   // 計算已過天數（用於日均）
@@ -6425,7 +6514,7 @@ function renderDashboard() {
       </div>`;
     }).join('')||emptyState('🏦','尚無銀行帳戶','點擊右上角新增第一個帳戶','accounts');
 
-  const rangeLabel = {month:'最近消費',salary:'本期(25日~隔月24日)消費',30:'近30天消費',7:'近7天消費',today:'今天消費',all:'全部消費'};
+  const rangeLabel = {month:'最近消費',salary:`本期(${salaryCycleText()})消費`,30:'近30天消費',7:'近7天消費',today:'今天消費',all:'全部消費'};
   document.getElementById('dashRecentLabel').textContent = rangeLabel[dashRange]||'最近消費';
   const sorted = [...rtx].sort((a,b)=>b.date.localeCompare(a.date));
   const recent = sorted.slice(0, dashRecentLimit);
@@ -6873,7 +6962,7 @@ function renderAccounts() {
       : (salaryLayer ? layerDynamicBalance(a.id, salaryLayer.id) : null);
     const salaryIsFx = dashRemainAmt === null && !!salaryLayer && a.accType==='外幣' && !!a.currency;
     const isLow = a.minBalance>0 && bal<a.minBalance;
-    const mthOut = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount<0&&ym(t.date)===nowYM()).reduce((s,t)=>s+Math.abs(t.amount),0);
+    const mthOut = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount<0&&ym(t.date)===nowYM()).reduce((s,t)=>s+spendAmt(t),0);
     const mthIn  = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===a.id&&t.amount>0&&ym(t.date)===nowYM()).reduce((s,t)=>s+t.amount,0);
     const typeBadge = a.accType?`<span class="badge badge-blue" style="font-size:9px">${a.accType}</span>`:'';
     const lockBadge = a.locked?`<span title="已鎖定" style="font-size:11px">🔒</span>`:'';
@@ -7916,22 +8005,22 @@ function renderAnalytics() {
   }
   const year=yearSel.value||String(new Date().getFullYear());
   const ytx=DB.transactions.filter(t=>t.date.startsWith(year)&&!isStatExcluded(t));
-  const ysp=Math.abs(ytx.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
+  const ysp=ytx.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
   const yin=ytx.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
   const maxCat=DB.categories.reduce((best,c)=>{
-    const v2=Math.abs(ytx.filter(t=>t.category===c.id&&t.amount<0).reduce((s,t)=>s+t.amount,0));
+    const v2=ytx.filter(t=>t.category===c.id&&t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
     return v2>(best.v||0)?{name:c.name,v:v2}:best;
   },{});
 
   // 本期 vs 上期對比
   const { from: curFrom, to: curTo } = getSalaryCycle();
-  const curSpend = Math.abs(DB.transactions.filter(t=>t.date>=curFrom&&t.date<=curTo&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
+  const curSpend = DB.transactions.filter(t=>t.date>=curFrom&&t.date<=curTo&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0);
   const curInc   = DB.transactions.filter(t=>t.date>=curFrom&&t.date<=curTo&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0);
   // 上期：同樣30天往前推一個月
   const prevFrom = new Date(curFrom); prevFrom.setMonth(prevFrom.getMonth()-1);
   const prevTo   = new Date(curTo);   prevTo.setMonth(prevTo.getMonth()-1);
   const pf = (prevFrom.getFullYear()+'-'+String(prevFrom.getMonth()+1).padStart(2,'0')+'-'+String(prevFrom.getDate()).padStart(2,'0')), pt = (prevTo.getFullYear()+'-'+String(prevTo.getMonth()+1).padStart(2,'0')+'-'+String(prevTo.getDate()).padStart(2,'0'));
-  const prevSpend = Math.abs(DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
+  const prevSpend = DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0);
   const prevInc   = DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0);
   const spDiff = prevSpend>0 ? Math.round((curSpend-prevSpend)/prevSpend*100) : null;
   const inDiff = prevInc>0  ? Math.round((curInc-prevInc)/prevInc*100) : null;
@@ -7978,7 +8067,7 @@ function renderAnalytics() {
 
   const months=['01','02','03','04','05','06','07','08','09','10','11','12'];
   const mLabels=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-  const mSp=months.map(m=>Math.abs(DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0)));
+  const mSp=months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0));
   const mIn=months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
 
   if (charts.trend) charts.trend.destroy();
@@ -7997,7 +8086,7 @@ function renderAnalytics() {
     options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{labels:{color:'#8080A8',font:{size:10},boxWidth:12,padding:8},position:'right'}}}
   });
 
-  const catYr=DB.categories.map(c=>Math.abs(DB.transactions.filter(t=>t.category===c.id&&t.date.startsWith(year)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0)));
+  const catYr=DB.categories.map(c=>DB.transactions.filter(t=>t.category===c.id&&t.date.startsWith(year)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0));
   if (charts.catBar) charts.catBar.destroy();
   charts.catBar=new Chart(document.getElementById('catBarChart').getContext('2d'),{
     type:'bar',data:{labels:DB.categories.map(c=>c.name),datasets:[{label:'年度支出',data:catYr,backgroundColor:DB.categories.map(c=>c.color+'cc'),borderRadius:5}]},
@@ -8011,7 +8100,7 @@ function renderAnalytics() {
   const wdTotals = Array(7).fill(0), wdCounts = Array(7).fill(0);
   ytxnSpend.forEach(t => {
     const wd = new Date(t.date+'T00:00:00').getDay();
-    wdTotals[wd] += Math.abs(t.amount);
+    wdTotals[wd] += spendAmt(t);
     wdCounts[wd]++;
   });
   const wdMax = Math.max(...wdTotals, 1);
@@ -8020,7 +8109,7 @@ function renderAnalytics() {
   const dayTotals = Array(31).fill(0);
   ytxnSpend.forEach(t => {
     const d = parseInt(t.date.slice(8)) - 1;
-    dayTotals[d] += Math.abs(t.amount);
+    dayTotals[d] += spendAmt(t);
   });
   const dayMax = Math.max(...dayTotals, 1);
 
@@ -8046,7 +8135,7 @@ function renderAnalytics() {
   ytxnSpend.forEach(t => {
     const mo = parseInt(t.date.slice(5,7)) - 1;
     const da = parseInt(t.date.slice(8)) - 1;
-    if (mo>=0&&mo<12&&da>=0&&da<31) grid[mo][da] += Math.abs(t.amount);
+    if (mo>=0&&mo<12&&da>=0&&da<31) grid[mo][da] += spendAmt(t);
   });
   const gridMax = Math.max(...grid.flat(), 1);
 
@@ -8111,7 +8200,7 @@ function renderAnalytics() {
   if (charts.incomeExpense) { charts.incomeExpense.destroy(); delete charts.incomeExpense; }
   const ieLabels = mLabels;
   const incomeData  = months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
-  const expenseData = months.map(m=>Math.abs(DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0)));
+  const expenseData = months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0));
   const ieCtx = document.getElementById('incomeExpenseChart');
   if (ieCtx) charts.incomeExpense = new Chart(ieCtx.getContext('2d'),{
     type:'bar',
@@ -8128,10 +8217,10 @@ function renderAnalytics() {
   if (charts.cardCompare) { charts.cardCompare.destroy(); delete charts.cardCompare; }
   const { from: cycleFrom, to: cycleTo } = getSalaryCycle();
   const cardLabels = DB.creditCards.map(c=>c.name);
-  const cardData   = DB.creditCards.map(c=>Math.abs(DB.transactions.filter(t=>
+  const cardData   = DB.creditCards.map(c=>DB.transactions.filter(t=>
     t.date>=cycleFrom&&t.date<=cycleTo&&t.amount<0&&!t.isPayment&&
     (t.sourceId===c.id||(t.cardId&&t.cardId===c.id))
-  ).reduce((s,t)=>s+t.amount,0)));
+  ).reduce((s,t)=>s+spendAmt(t),0));
   const ccCtx = document.getElementById('cardCompareChart');
   if (ccCtx) charts.cardCompare = new Chart(ccCtx.getContext('2d'),{
     type:'bar',
@@ -12209,7 +12298,7 @@ function switchSettingsTab(tab) {
   if(tab==='data') refreshDataTabBtns();
   if(tab==='rules') renderRuleList();
   if(tab==='security') initSecurityPanel();
-  if(tab==='account') renderAcctOrderLists();
+  if(tab==='account') { renderAcctOrderLists(); const sd=document.getElementById('salaryDayInput'); if(sd) sd.value=getSalaryDay(); }
   if(tab==='smart') { initAnomalyMultiplier(); initTplSuggestSettings(); }
 }
 
