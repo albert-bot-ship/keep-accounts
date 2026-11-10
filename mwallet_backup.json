@@ -4557,7 +4557,9 @@
       "fee": 0,
       "isSavingsAllocation": false,
       "isTransferOut": false,
-      "isFixed": false
+      "isFixed": false,
+      "reimbursed": true,
+      "reimbursedDate": "2026-11-11"
     },
     {
       "id": "mvrkoihz9xcop",
@@ -4574,7 +4576,9 @@
       "fee": 0,
       "isSavingsAllocation": false,
       "isTransferOut": false,
-      "isFixed": false
+      "isFixed": false,
+      "reimbursed": true,
+      "reimbursedDate": "2026-11-11"
     },
     {
       "id": "mvrkp4mhea0m7",
@@ -4591,7 +4595,9 @@
       "fee": 0,
       "isSavingsAllocation": false,
       "isTransferOut": false,
-      "isFixed": false
+      "isFixed": false,
+      "reimbursed": true,
+      "reimbursedDate": "2026-11-11"
     },
     {
       "id": "mvrvjb7z4kd8v",
@@ -5502,6 +5508,35 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
+      "isFixed": false
+    },
+    {
+      "id": "mwawtgqoascrq",
+      "date": "2026-11-11",
+      "amount": 1400,
+      "desc": "",
+      "category": "",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": null,
+      "layerAmounts": [
+        {
+          "layerId": "mowt3b5ret5t3",
+          "amount": 10
+        },
+        {
+          "layerId": "mt84rxv5bsopq",
+          "amount": 1390
+        }
+      ],
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": true,
+      "countInStats": false,
       "isFixed": false
     }
   ],
