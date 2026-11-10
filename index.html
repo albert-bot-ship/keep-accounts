@@ -1200,13 +1200,20 @@
             <div class="settings-section-icon" style="background:rgba(0,200,83,.12)">💰</div>
             <div>
               <div class="settings-section-title">發薪日</div>
-              <div class="settings-section-desc">每月幾號發薪（1～28）。剩餘生活費、本期統計、類別預算與行事曆 💰 都依此計算</div>
+              <div class="settings-section-desc">每月幾號發薪（1～28）。剩餘生活費、本期統計、類別預算與行事曆 💰 都依實際入帳日計算</div>
             </div>
           </div>
-          <div class="settings-section-body" style="padding:12px 18px;display:flex;align-items:center;gap:10px">
-            <span style="font-size:13px;color:var(--tx-secondary)">每月</span>
-            <input class="form-input" id="salaryDayInput" type="number" min="1" max="28" inputmode="numeric" style="width:90px;text-align:center" onchange="setSalaryDay(this.value)">
-            <span style="font-size:13px;color:var(--tx-secondary)">號</span>
+          <div class="settings-section-body" style="padding:12px 18px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:13px;color:var(--tx-secondary)">每月</span>
+              <input class="form-input" id="salaryDayInput" type="number" min="1" max="28" inputmode="numeric" style="width:90px;text-align:center" onchange="setSalaryDay(this.value)">
+              <span style="font-size:13px;color:var(--tx-secondary)">號</span>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--tx-primary);cursor:pointer">
+              <input type="checkbox" id="salaryShiftToggle" onchange="setSalaryShift(this.checked)" style="width:18px;height:18px;flex-shrink:0">
+              遇假日提前到前一個工作日（含國定假日、補假；補班日照常發薪）
+            </label>
+            <div id="salaryDayPreview" style="margin-top:10px;font-size:12px;line-height:1.7;color:var(--tx-secondary)"></div>
           </div>
         </div>
         <div class="settings-section" style="margin-top:16px">
@@ -1785,33 +1792,132 @@ function getSalaryDate(year, month) {
 //   今天 <= 7號 → 上月8日 ～ 本月5日
 // 發薪日（設定 → 帳戶 → 發薪日，1～28 號；未設定時預設 25 號）
 function getSalaryDay() { const d = parseInt(DB.salaryDay, 10); return d >= 1 && d <= 28 ? d : 25; }
-// 本期文字，例如「25日~隔月24日」；發薪日為 1 號時為「1日~月底」
-function salaryCycleText() { const S = getSalaryDay(); return S === 1 ? '1日~月底' : `${S}日~隔月${S-1}日`; }
+// 遇假日提前到前一個工作日（預設開啟；設定 → 帳戶 → 發薪日 可關閉）
+function salaryShiftOn() { return DB.salaryShift !== false; }
+
+// ── 政府行政機關辦公日曆表（行政院人事行政總處，政府資料開放平台）──
+// 經整理成 JSON 的公開版本（jsDelivr CDN），依序嘗試；抓不到時改用「只看週末」規則
+const TW_CAL_SOURCES = [
+  y => `https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${y}.json`,
+  y => `https://cdn.jsdelivr.net/gh/jacktdry/TaiwanCalendar/docs/${y}.json`,
+];
+const TW_CAL_KEY = 'mwallet_twcal';          // localStorage：{ years:{ 'YYYY':[放假日...] }, ts:{ 'YYYY':抓取時間 } }
+const TW_CAL_REFRESH_MS = 30 * 86400000;     // 30 天重新抓一次（政府偶有修正）
+let twHolidays = {};                          // { 'YYYY': Set('YYYY-MM-DD') }
+let twCalTs = {};
+function twCalLoadCache() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TW_CAL_KEY) || '{}');
+    Object.entries(raw.years || {}).forEach(([y, arr]) => { twHolidays[y] = new Set(arr); });
+    twCalTs = raw.ts || {};
+  } catch (e) { twHolidays = {}; twCalTs = {}; }
+}
+function twCalSaveCache() {
+  try {
+    const years = {};
+    Object.entries(twHolidays).forEach(([y, set]) => { years[y] = [...set]; });
+    localStorage.setItem(TW_CAL_KEY, JSON.stringify({ years, ts: twCalTs }));
+  } catch (e) {}
+}
+async function twCalFetchYear(y) {
+  for (const src of TW_CAL_SOURCES) {
+    try {
+      const r = await fetch(src(y), { cache: 'no-cache' });
+      if (!r.ok) continue;
+      const arr = await r.json();
+      if (!Array.isArray(arr) || arr.length < 300) continue; // 整年資料才採用
+      return arr.filter(d => d && d.isHoliday).map(d => {
+        const s = String(d.date).replace(/-/g, '');
+        return s.slice(0,4) + '-' + s.slice(4,6) + '-' + s.slice(6,8);
+      });
+    } catch (e) {}
+  }
+  return null;
+}
+// 開 App 時：補抓去年、今年、明年（缺少或超過 30 天）的日曆；抓到後重繪目前頁面
+async function twCalEnsure() {
+  if (!salaryShiftOn()) return;
+  const y = new Date().getFullYear();
+  let changed = false;
+  for (const yy of [y - 1, y, y + 1]) {
+    const k = String(yy);
+    if (twHolidays[k] && Date.now() - (twCalTs[k] || 0) < TW_CAL_REFRESH_MS) continue;
+    const list = await twCalFetchYear(yy);
+    if (list) { twHolidays[k] = new Set(list); twCalTs[k] = Date.now(); changed = true; }
+  }
+  if (changed) {
+    twCalSaveCache();
+    try { if (typeof renderPage === 'function' && currentPage) renderPage(currentPage); } catch (e) {}
+    updateSalaryDayPanel();
+  }
+}
+twCalLoadCache();
+// 是否為放假日：有該年度政府日曆就照日曆（含國定假日、補假；補班日算上班），否則只看週末
+function isOffDay(d) {
+  const k = String(d.getFullYear());
+  const ds = k + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  if (twHolidays[k]) return twHolidays[k].has(ds);
+  const w = d.getDay(); return w === 0 || w === 6;
+}
+// 某月（month 為 0 起算，可超出範圍）的實際入帳日：遇放假日往前找最近的上班日
+function actualPayDate(year, month) {
+  const d = new Date(year, month, getSalaryDay());
+  if (salaryShiftOn()) for (let g = 0; g < 20 && isOffDay(d); g++) d.setDate(d.getDate() - 1);
+  return d;
+}
+// 本期起訖（未截到今天）：本次實際入帳日 ～ 下次實際入帳日前一天
+function salaryCycleBounds(now) {
+  now = now || new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const t0 = new Date(y, m, now.getDate());
+  const payThis = actualPayDate(y, m);
+  let fromDate, nextPay;
+  if (t0 >= payThis) { fromDate = payThis; nextPay = actualPayDate(y, m + 1); }
+  else { fromDate = actualPayDate(y, m - 1); nextPay = payThis; }
+  const toDate = new Date(nextPay.getFullYear(), nextPay.getMonth(), nextPay.getDate() - 1);
+  return { fromDate, toDate };
+}
+// 本期文字（實際日期），例如「10/23~11/24」
+function salaryCycleText() {
+  const { fromDate, toDate } = salaryCycleBounds();
+  const md = d => (d.getMonth()+1) + '/' + d.getDate();
+  return md(fromDate) + '~' + md(toDate);
+}
 function setSalaryDay(val) {
   const d = parseInt(val, 10);
   const el = document.getElementById('salaryDayInput');
   if (!(d >= 1 && d <= 28)) { toast('發薪日請填 1～28','danger'); if (el) el.value = getSalaryDay(); return; }
   DB.salaryDay = d;
   saveDB();
+  updateSalaryDayPanel();
   toast(`發薪日已設為每月 ${d} 號`,'success');
+}
+function setSalaryShift(on) {
+  DB.salaryShift = !!on;
+  saveDB();
+  updateSalaryDayPanel();
+  if (on) twCalEnsure();
+  toast(on ? '遇假日會提前到前一個工作日' : '固定在設定的日期，不提前','success');
+}
+// 設定 → 帳戶 → 發薪日：顯示目前設定與本月／下月的實際入帳日
+function updateSalaryDayPanel() {
+  const inp = document.getElementById('salaryDayInput'); if (inp) inp.value = getSalaryDay();
+  const sw = document.getElementById('salaryShiftToggle'); if (sw) sw.checked = salaryShiftOn();
+  const box = document.getElementById('salaryDayPreview'); if (!box) return;
+  const now = new Date();
+  const wd = '日一二三四五六';
+  const show = d => `${d.getMonth()+1}/${d.getDate()}（${wd[d.getDay()]}）`;
+  const a = actualPayDate(now.getFullYear(), now.getMonth()), b = actualPayDate(now.getFullYear(), now.getMonth()+1);
+  const src = !salaryShiftOn() ? '未開啟假日提前'
+    : (twHolidays[String(a.getFullYear())] && twHolidays[String(b.getFullYear())]) ? '依政府行政機關辦公日曆表'
+    : '政府日曆尚未取得，暫以週末判斷';
+  box.innerHTML = `本月入帳 <b>${show(a)}</b>　下月入帳 <b>${show(b)}</b><br><span style="color:var(--tx-muted)">${src}</span>`;
 }
 function getSalaryCycle() {
   const now = new Date();
-  const y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
   const fmt2 = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const todayStr = fmt2(now);
-  const S = getSalaryDay();
-
-  let fromDate, toDate;
-  if (day >= S) {
-    // 本月發薪日 → 下月發薪日前一天
-    fromDate = new Date(y, m, S);
-    toDate   = new Date(y, m+1, S-1);
-  } else {
-    // 上月發薪日 → 本月發薪日前一天
-    fromDate = new Date(y, m-1, S);
-    toDate   = new Date(y, m, S-1);
-  }
+  const { fromDate, toDate } = salaryCycleBounds(now);
   const toStr = fmt2(toDate) < todayStr ? fmt2(toDate) : todayStr;
   return { from: fmt2(fromDate), to: toStr };
 }
@@ -2912,6 +3018,7 @@ function renderCalendar() {
   const [y, m] = ym.split('-').map(Number);
   const dim = new Date(y, m, 0).getDate();
   const first = new Date(y, m-1, 1).getDay();
+  const payDs = fcalDateStr(actualPayDate(y, m-1)); // 本月實際入帳日（遇假日提前）
 
   // 每日消費、當日繳卡費、依付款來源的消費
   const spend = {}, pays = {}, bySrc = {};
@@ -2972,7 +3079,7 @@ function renderCalendar() {
     if (ds === fcalSelDay) cls += ' sel';
     const sp = spend[d] || 0;
     cells += `<div class="${cls}" style="${st}" onclick="fcalPick('${ds}')">`
-      + `<div class="n">${d}${bill && bill.done ? '<em>✓</em>' : ''}${d === getSalaryDay() ? '<em class="pay">💰</em>' : ''}</div>`
+      + `<div class="n">${d}${bill && bill.done ? '<em>✓</em>' : ''}${ds === payDs ? '<em class="pay">💰</em>' : ''}</div>`
       + (sp ? `<div class="a">${fcalK(sp)}</div>` : '')
       + (pay ? `<div class="p">繳 ${fcalK(pay)}</div>` : '')
       + (dots ? `<div class="ev">${dots}</div>` : '')
@@ -5066,11 +5173,8 @@ function doCleanup(cutDate) {
 function salaryPeriodInfo() {
   const { from } = getSalaryCycle();
   const now = new Date();
-  // 計算本期結束日：下一個發薪日的前一天
-  const S = getSalaryDay();
-  const endDate = now.getDate() >= S
-    ? new Date(now.getFullYear(), now.getMonth()+1, S-1)
-    : new Date(now.getFullYear(), now.getMonth(), S-1);
+  // 計算本期結束日：下一次實際入帳日的前一天
+  const endDate = salaryCycleBounds(now).toDate;
   const daysLeft  = Math.max(0, Math.ceil((endDate - now) / 86400000));
   const daysTotal = Math.round((endDate - new Date(from+'T00:00:00')) / 86400000);
   const pct = daysTotal > 0 ? Math.round((daysTotal - daysLeft) / daysTotal * 100) : 0;
@@ -12298,7 +12402,7 @@ function switchSettingsTab(tab) {
   if(tab==='data') refreshDataTabBtns();
   if(tab==='rules') renderRuleList();
   if(tab==='security') initSecurityPanel();
-  if(tab==='account') { renderAcctOrderLists(); const sd=document.getElementById('salaryDayInput'); if(sd) sd.value=getSalaryDay(); }
+  if(tab==='account') { renderAcctOrderLists(); updateSalaryDayPanel(); }
   if(tab==='smart') { initAnomalyMultiplier(); initTplSuggestSettings(); }
 }
 
@@ -12520,6 +12624,7 @@ async function init() {
 
   ensureTags();
   generateSubscriptionTxns();
+  twCalEnsure(); // 背景抓政府行事曆（發薪日遇假日提前用）
   loadDashLayerSel(); // 剩餘生活費：還原上次的分層勾選與期別
   refreshInstallBoundLayers(); // 分期到了開始月份時，自動更新綁定分層的每月分期金額
   renderDashboard();
