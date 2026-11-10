@@ -3763,3 +3763,131 @@ body.anim-none .account-card.bill-due-urgent::after,    body.anim-none .account-
   .nav-logo-text{display:none}
   .nav-logo-badge{flex-shrink:0}
 }
+
+/* ══════════════════════════════════════════════════════════════
+   ✨ 奢華主題（Dark Luxury Editorial）：絲絨底、象牙字、香檳金細線、襯線字
+   套用方式：body.luxury-theme（設定 → 外觀主題 → 主題模式 → 奢華）
+   信用卡卡面、分層、行事曆卡片色維持使用者設定的顏色
+   ══════════════════════════════════════════════════════════════ */
+body.luxury-theme {
+  --lux-night:#120D12; --lux-velvet:#1B141B; --lux-velvet2:#241A23;
+  --lux-ivory:#F4EEE3; --lux-muted:#CDC2B4; --lux-dim:#A0958A;
+  --lux-gold:#E2C893; --lux-gold-deep:#C9AA70; --lux-gold-line:rgba(216,190,138,.38); --lux-gold-faint:rgba(216,190,138,.14);
+  --lux-rose:#E3A79A;
+  --lux-serif:'Noto Serif TC','Songti TC','PMingLiU',serif;
+  --lux-didone:'Bodoni Moda','Noto Serif TC','Songti TC',serif;
+  --lux-goldtext:linear-gradient(100deg,#A88A55 0%,#F3DFB2 35%,#D8BE8A 55%,#9C7E4B 100%);
+
+  --m-blue:#C9AA70; --m-blue-light:#E2C893; --m-violet:#8E7244; --m-red:#B5545C; --m-red-light:#E3A79A;
+  --bg-base:#0D090D; --bg-primary:#120D12; --bg-secondary:#1B141B; --bg-card:#1B141B; --bg-card-hov:#241A23;
+  --bg-input:#160F16; --bg-modal:#1B141B;
+  --bdr-subtle:rgba(216,190,138,.14); --bdr-normal:rgba(216,190,138,.24); --bdr-accent:rgba(226,200,147,.55); --bdr-red:rgba(227,167,154,.5);
+  --tx-primary:#F4EEE3; --tx-secondary:#CDC2B4; --tx-muted:#A0958A;
+  --tx-blue:#E2C893; --tx-red:#E8877A; --tx-green:#A9CFA0; --tx-warning:#E2C893;
+  --ok:#A9CFA0; --err:#E8877A; --warn:#E2C893;
+  --glo-blue:0 0 18px rgba(226,200,147,.18); --glo-red:none; --glo-grn:none;
+  --sha-md:0 18px 40px -22px rgba(0,0,0,.85); --sha-lg:0 30px 60px -30px rgba(0,0,0,.85);
+  --ff-display:'Bodoni Moda','Noto Serif TC','Songti TC',serif;
+  color-scheme:dark;
+  background:radial-gradient(120% 60% at 50% 0%,#2A1C27 0%,transparent 60%),#120D12 !important;
+}
+/* 背景：粒子改為絲絨細紋 */
+body.luxury-theme #particleCanvas { display:none !important; }
+body.luxury-theme::before {
+  display:block !important; content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.012) 0 2px,transparent 2px 6px) !important;
+}
+/* 外框呼吸光環 → 香檳金 */
+body.luxury-theme #mPowerBorder { animation:luxGlow 7s ease-in-out infinite; }
+@keyframes luxGlow {
+  0%,100% { box-shadow:0 0 0 1px rgba(216,190,138,.35), inset 0 0 30px 6px rgba(216,190,138,.05); }
+  50%     { box-shadow:0 0 0 1px rgba(243,223,178,.6), inset 0 0 50px 12px rgba(216,190,138,.10); }
+}
+/* 頂部列、側邊選單、底部頁籤 */
+body.luxury-theme .topnav { background:rgba(18,13,18,.82) !important; border-bottom:1px solid var(--lux-gold-faint); }
+body.luxury-theme .topnav::after { height:1px; background:linear-gradient(90deg,transparent,#F3DFB2,transparent) !important; opacity:.8; }
+body.luxury-theme .nav-logo-text { font-family:var(--lux-didone); font-style:italic; font-weight:500; color:var(--lux-gold); letter-spacing:.12em; }
+body.luxury-theme .sidebar { background:rgba(18,13,18,.9) !important; border-right:1px solid var(--lux-gold-faint); }
+body.luxury-theme .sidebar-label { font-family:var(--lux-didone); font-style:italic; color:var(--lux-gold-deep); letter-spacing:.2em; }
+body.luxury-theme .nav-item.active { background:linear-gradient(90deg,rgba(216,190,138,.16),transparent) !important; color:var(--lux-gold) !important; }
+body.luxury-theme .nav-item.active::before { background:var(--lux-gold) !important; }
+body.luxury-theme .mobile-bottom-nav { background:rgba(18,13,18,.88) !important; border-top:1px solid var(--lux-gold-faint); }
+body.luxury-theme .mobile-bottom-nav::before { background:linear-gradient(90deg,transparent,#F3DFB2,transparent) !important; height:1px; opacity:.7; }
+body.luxury-theme .mbn-item.active { color:var(--lux-gold); }
+body.luxury-theme .mbn-fab-center, body.luxury-theme .fab-btn {
+  background:linear-gradient(135deg,#F0DBA9,#B8995F 60%,#8E7244) !important; color:#1B141B !important;
+  box-shadow:0 6px 18px rgba(0,0,0,.6), 0 0 0 1px rgba(243,223,178,.5) !important;
+}
+body.luxury-theme .mbn-fab-icon { color:#1B141B !important; }
+/* 頁面標題：雜誌章節（襯線大標＋金色漸層底線） */
+body.luxury-theme .page-title {
+  font-family:var(--lux-serif); font-weight:900; text-transform:none; letter-spacing:.08em; font-size:26px;
+  background:var(--lux-goldtext); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+}
+body.luxury-theme .page-title::before {
+  width:auto; height:auto; background:none !important; border-radius:0;
+  content:"N°"; font-family:var(--lux-didone); font-style:italic; font-weight:500; font-size:15px; letter-spacing:0;
+  -webkit-text-fill-color:var(--lux-gold-deep); color:var(--lux-gold-deep); align-self:flex-end; margin-bottom:3px;
+}
+body.luxury-theme .page-header { position:relative; padding-bottom:12px; }
+body.luxury-theme .page-header::after {
+  content:""; position:absolute; left:0; right:0; bottom:0; height:1px;
+  background:linear-gradient(90deg,var(--lux-gold),transparent);
+}
+/* 精品櫥窗卡片：雙層金框＋頂部打光 */
+body.luxury-theme .stat-card, body.luxury-theme .settings-section, body.luxury-theme .install-item,
+body.luxury-theme .fcal-box, body.luxury-theme .fcal-cal, body.luxury-theme .fcal-detail {
+  background:
+    linear-gradient(90deg,transparent 12%,rgba(243,223,178,.75) 50%,transparent 88%) top/100% 1px no-repeat,
+    radial-gradient(70% 55% at 50% -5%,rgba(243,223,178,.14) 0%,rgba(243,223,178,.03) 45%,transparent 70%),
+    linear-gradient(180deg,var(--lux-velvet2),var(--lux-velvet)) !important;
+  border:1px solid var(--lux-gold-line) !important; border-radius:2px !important;
+  box-shadow:inset 0 0 0 6px transparent, inset 0 0 0 7px var(--lux-gold-faint), var(--sha-lg) !important;
+}
+body.luxury-theme .stat-card::before { display:none; }
+body.luxury-theme .stat-card:hover { transform:none; }
+body.luxury-theme .stat-label { font-family:var(--lux-serif); letter-spacing:.3em; color:var(--lux-muted); }
+body.luxury-theme .stat-value { font-family:var(--lux-didone); font-weight:500; text-shadow:none; }
+body.luxury-theme .stat-value:not(.danger):not(.success):not(.warning) {
+  background:var(--lux-goldtext); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+}
+body.luxury-theme .stat-value.blue .stat-val { background:var(--lux-goldtext); -webkit-background-clip:text; background-clip:text; }
+body.luxury-theme .stat-value.danger .stat-val { background:linear-gradient(135deg,#F0B3A6,#C9786C); -webkit-background-clip:text; background-clip:text; }
+/* 帳戶卡（銀行帳戶、訂閱）：金線框，卡面顏色不動 */
+body.luxury-theme .account-card { border-radius:4px !important; border:1px solid var(--lux-gold-line) !important; }
+/* 設定、彈出視窗、表單 */
+body.luxury-theme .settings-section-title, body.luxury-theme .modal-title, body.luxury-theme .fcal-sec b {
+  font-family:var(--lux-serif); font-weight:700; letter-spacing:.12em; text-transform:none; color:var(--lux-ivory);
+}
+body.luxury-theme .modal { background:rgba(27,20,27,.96) !important; border:1px solid var(--lux-gold-line); border-radius:6px 6px 0 0; }
+body.luxury-theme .modal::after { content:""; position:absolute; top:0; left:12%; right:12%; height:1px; background:linear-gradient(90deg,transparent,#F3DFB2,transparent); pointer-events:none; }
+body.luxury-theme .form-input, body.luxury-theme .form-select, body.luxury-theme select, body.luxury-theme textarea {
+  background:var(--bg-input) !important; border-color:var(--lux-gold-faint) !important; color:var(--lux-ivory);
+}
+body.luxury-theme .form-input:focus { border-color:var(--lux-gold) !important; box-shadow:0 0 0 2px rgba(226,200,147,.18) !important; }
+body.luxury-theme .form-label, body.luxury-theme .section-div-label { font-family:var(--lux-serif); letter-spacing:.18em; color:var(--lux-muted); }
+/* 按鈕：精品店的細金框膠囊 */
+body.luxury-theme .btn-primary, body.luxury-theme .nav-add-btn {
+  background:transparent !important; color:var(--lux-gold) !important; border:1px solid var(--lux-gold-line) !important;
+  border-radius:999px !important; box-shadow:none !important; font-family:var(--lux-serif); letter-spacing:.2em;
+}
+body.luxury-theme .btn-primary:hover, body.luxury-theme .nav-add-btn:hover { border-color:var(--lux-gold) !important; background:rgba(226,200,147,.08) !important; }
+body.luxury-theme .btn-ghost { border-color:var(--lux-gold-faint) !important; color:var(--lux-muted) !important; }
+body.luxury-theme .btn-danger { background:transparent !important; color:var(--lux-rose) !important; border:1px solid rgba(227,167,154,.45) !important; box-shadow:none !important; }
+body.luxury-theme .btn-violet { background:linear-gradient(135deg,#F0DBA9,#B8995F) !important; color:#1B141B !important; border:none !important; }
+body.luxury-theme .dash-filter-btn.active { background:transparent !important; color:var(--lux-gold) !important; border-color:var(--lux-gold) !important; box-shadow:none !important; }
+body.luxury-theme .btn-theme-toggle { border-color:var(--lux-gold-faint); }
+/* 主題模式卡片 */
+body.luxury-theme .theme-mode-card.active { border-color:var(--lux-gold) !important; background:linear-gradient(135deg,rgba(226,200,147,.14),transparent) !important; box-shadow:0 0 0 3px rgba(226,200,147,.15) !important; }
+.theme-mode-card.lux-card .theme-mode-label { font-family:'Noto Serif TC','Songti TC',serif; }
+
+/* ── 裝飾：儀表板的雜誌刊頭（只在奢華主題顯示）── */
+.lux-masthead { display:none; }
+body.luxury-theme .lux-masthead { display:block; margin:-6px 0 18px; }
+.lux-issue { display:flex; justify-content:space-between; gap:12px; font-family:var(--lux-didone); font-weight:500; font-size:13px; color:var(--lux-muted); border-top:1px solid var(--lux-gold-line); border-bottom:1px solid var(--lux-gold-line); padding:6px 0; letter-spacing:.08em; }
+.lux-issue i { color:var(--lux-gold); }
+body.anim-none.luxury-theme #mPowerBorder { display:none !important; }
+body.luxury-theme .topnav::before { background:linear-gradient(90deg,transparent,rgba(216,190,138,.5),transparent) !important; height:1px !important; }
+body.luxury-theme .mbn-fab-center { border:1px solid rgba(243,223,178,.6) !important; background:#1B141B !important; box-shadow:0 0 0 3px rgba(216,190,138,.12),0 6px 18px rgba(0,0,0,.6) !important; }
+body.luxury-theme .mbn-fab-center::before { background:radial-gradient(circle at 40% 35%,#F3DFB2,#C9AA70 55%,#8E7244) !important; box-shadow:inset 0 0 0 1px rgba(255,255,255,.25) !important; }
+body.luxury-theme .fab-ring-pulse { border-color:rgba(226,200,147,.7); }
