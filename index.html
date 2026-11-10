@@ -252,6 +252,7 @@
 
     <!-- ─── DASHBOARD ──────────────────────────── -->
     <section class="page-section active" id="page-dashboard">
+      <div class="lux-masthead" id="luxMasthead"></div>
       <div class="page-header">
         <div class="page-title">儀表板</div>
         <button class="btn btn-ghost btn-sm" onclick="shareSummary()" title="分享月結">📤 分享</button>
@@ -917,7 +918,7 @@
             </div>
           </div>
           <div class="settings-section-body">
-            <div class="theme-mode-grid" style="grid-template-columns:repeat(4,1fr)">
+            <div class="theme-mode-grid" style="grid-template-columns:repeat(3,1fr)">
               <div class="theme-mode-card" id="tcard-auto" onclick="setThemeMode('auto')">
                 <div class="theme-mode-icon">🌗</div>
                 <div class="theme-mode-label">自動</div>
@@ -937,6 +938,11 @@
                 <div class="theme-mode-icon">⬛</div>
                 <div class="theme-mode-label">OLED</div>
                 <div class="theme-mode-sub">純黑省電</div>
+              </div>
+              <div class="theme-mode-card lux-card" id="tcard-luxury" onclick="setThemeMode('luxury')">
+                <div class="theme-mode-icon">✨</div>
+                <div class="theme-mode-label">奢華</div>
+                <div class="theme-mode-sub">絲絨與香檳金</div>
               </div>
             </div>
             <div id="themeModeStatus" style="margin-top:10px;font-size:12px;color:var(--tx-secondary)"></div>
@@ -1999,16 +2005,40 @@ function getSunTimes(date) {
 function applyTheme(theme) {
   const body = document.getElementById('appBody');
   const btn  = document.getElementById('themeToggle');
-  body.classList.remove('light-theme','oled-theme');
+  body.classList.remove('light-theme','oled-theme','luxury-theme');
   if (theme === 'light') {
     body.classList.add('light-theme');
     if (btn) btn.textContent = '☀️';
   } else if (theme === 'oled') {
     body.classList.add('oled-theme');
     if (btn) btn.textContent = '⬛';
+  } else if (theme === 'luxury') {
+    body.classList.add('luxury-theme');
+    if (btn) btn.textContent = '✨';
+    luxLoadFonts();
   } else {
     if (btn) btn.textContent = '🌙';
   }
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', theme === 'luxury' ? '#120D12' : theme === 'light' ? '#E0E4F0' : '#07070F');
+  luxDecor();
+}
+// ── 奢華主題：字體只在使用時才載入（Bodoni Moda、Noto Serif TC）──
+function luxLoadFonts() {
+  if (document.getElementById('luxFonts')) return;
+  const l = document.createElement('link');
+  l.id = 'luxFonts'; l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Noto+Serif+TC:wght@400;700;900&display=swap';
+  document.head.appendChild(l);
+}
+// ── 奢華主題：儀表板刊頭（期號列）──
+function luxDecor() {
+  const box = document.getElementById('luxMasthead');
+  if (!box) return;
+  if (!document.body.classList.contains('luxury-theme')) { box.innerHTML = ''; return; }
+  const now = new Date();
+  const mon = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][now.getMonth()];
+  box.innerHTML = `<div class="lux-issue"><span>N° ${String(now.getMonth()+1).padStart(2,'0')} · <i>${mon}</i> ${now.getFullYear()}</span><span><i>Édition</i> Privée</span></div>`;
 }
 
 function autoTheme() {
@@ -3146,6 +3176,7 @@ function renderPage(page) {
     settings:renderSettings,subscriptions:renderSubscriptions,exchange:renderExchange,goals:renderGoals,
     templates:renderTemplates,calendar:renderCalendar};
   if (fn[page]) fn[page]();
+  if (page === 'dashboard') luxDecor();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -12058,11 +12089,11 @@ function setTxnPage(p) {
 function setThemeMode(mode) {
   manualTheme=mode; localStorage.setItem('mwallet_theme',mode); autoTheme();
   updateThemeCards();
-  const labels={auto:'🌗 已設定為自動模式',light:'☀️ 已設定為固定淺色',dark:'🌙 已設定為固定深色',oled:'⬛ 已設定為 OLED 純黑'};
+  const labels={auto:'🌗 已設定為自動模式',light:'☀️ 已設定為固定淺色',dark:'🌙 已設定為固定深色',oled:'⬛ 已設定為 OLED 純黑',luxury:'✨ 已設定為奢華主題'};
   toast(labels[mode]||'主題已更新','success');
 }
 function updateThemeCards() {
-  ['auto','light','dark','oled'].forEach(m=>{
+  ['auto','light','dark','oled','luxury'].forEach(m=>{
     const el=document.getElementById('tcard-'+m);
     if(el) el.classList.toggle('active', manualTheme===m);
   });
