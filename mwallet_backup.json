@@ -4841,8 +4841,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": true,
-      "countInStats": true,
-      "isFixed": false
+      "countInStats": false,
+      "isFixed": false,
+      "isSubsidy": true
     },
     {
       "id": "mw3u3gg4epcf8",
@@ -4915,7 +4916,8 @@
       "isTransferOut": false,
       "isTransferIn": true,
       "countInStats": false,
-      "isFixed": false
+      "isFixed": false,
+      "isSubsidy": true
     },
     {
       "id": "mw607edlssw2r",
@@ -5034,7 +5036,8 @@
       "isTransferOut": false,
       "isTransferIn": true,
       "countInStats": false,
-      "isFixed": false
+      "isFixed": false,
+      "isSubsidy": true
     },
     {
       "id": "mw83e81c0jfc5",
@@ -5144,7 +5147,8 @@
       "isTransferOut": false,
       "isTransferIn": true,
       "countInStats": false,
-      "isFixed": false
+      "isFixed": false,
+      "isSubsidy": true
     },
     {
       "id": "mwawkn2dv9sph",
@@ -5196,7 +5200,7 @@
       "id": "mwawtgqoascrq",
       "date": "2026-11-11",
       "amount": 1400,
-      "desc": "",
+      "desc": "出差費",
       "category": "",
       "sourceId": "mov4r1sf9uw5u",
       "sourceType": "account",
@@ -5219,7 +5223,8 @@
       "isTransferOut": false,
       "isTransferIn": true,
       "countInStats": false,
-      "isFixed": false
+      "isFixed": false,
+      "isSubsidy": true
     },
     {
       "id": "mwb0kjpvp9275",
