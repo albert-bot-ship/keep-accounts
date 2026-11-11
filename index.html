@@ -437,6 +437,10 @@
       <div class="table-container">
         <div class="table-toolbar" style="flex-wrap:wrap;gap:6px">
           <div style="display:flex;gap:6px;width:100%;align-items:center;flex-wrap:wrap">
+            <div class="dash-filter-bar" id="transferTabs">
+              <button class="dash-filter-btn active" data-tab="cross" onclick="setTransferTab('cross')">帳戶互轉</button>
+              <button class="dash-filter-btn" data-tab="layer" onclick="setTransferTab('layer')">分層調撥</button>
+            </div>
             <button class="btn btn-ghost btn-sm filter-toggle-btn" id="transferFilterToggleBtn" onclick="toggleTransferFilter()">篩選 ▾</button>
           </div>
           <div id="transferFilterPanel" class="txn-filter-panel" onkeydown="if(event.key==='Enter'){event.preventDefault();applyTransferFilter();}">
@@ -6238,6 +6242,15 @@ function applyTxnFilter() {
 // TRANSFERS PAGE（轉帳明細：獨立於消費記錄之外，配對顯示）
 // ════════════════════════════════════════════════════════════════
 let transferCurrentPage=1, _lastTransferTotal=0;
+// 轉帳明細分頁籤：'cross' 不同帳戶互轉；'layer' 同帳戶內分層調撥
+let transferTab = 'cross';
+function isLayerTransferPair(p) { return !!(p.toId && p.fromId === p.toId); }
+function setTransferTab(tab) {
+  transferTab = tab;
+  transferCurrentPage = 1;
+  document.querySelectorAll('#transferTabs .dash-filter-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  renderTransfers();
+}
 const TRANSFER_PAGE_SIZE=30;
 
 function getAllTransferPairs() {
@@ -6357,7 +6370,7 @@ function renderTransfers() {
 
   const from = v('transferFilterFrom'), to = v('transferFilterTo'), accVal = accSel?accSel.value:'';
 
-  let pairs = getAllTransferPairs();
+  let pairs = getAllTransferPairs().filter(p => transferTab==='layer' ? isLayerTransferPair(p) : !isLayerTransferPair(p));
   if (from) pairs = pairs.filter(p=>p.date>=from);
   if (to)   pairs = pairs.filter(p=>p.date<=to);
   if (accVal) pairs = pairs.filter(p=>p.fromId===accVal || p.toId===accVal);
@@ -6370,7 +6383,7 @@ function renderTransfers() {
   const paged = pairs.slice(start, start + TRANSFER_PAGE_SIZE);
 
   if (!pairs.length) {
-    wrap.innerHTML = '<div class="empty-state">尚無轉帳記錄</div>';
+    wrap.innerHTML = `<div class="empty-state">${transferTab==='layer'?'尚無分層調撥記錄':'尚無轉帳記錄'}</div>`;
     return;
   }
 
