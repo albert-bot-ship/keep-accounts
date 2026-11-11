@@ -90,6 +90,22 @@
   input[type=number]::-webkit-inner-spin-button,
   input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
   input[type=number] { -moz-appearance:textfield; appearance:textfield; }
+  /* 轉帳明細：分層色塊標籤（--lc＝分層顏色） */
+  .tf-chip{--lc:#1c69d4;display:inline-flex;align-items:center;gap:5px;max-width:100%;min-width:0;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;line-height:1.5;background:color-mix(in srgb,var(--lc) 18%,transparent);border:1px solid color-mix(in srgb,var(--lc) 42%,transparent);color:color-mix(in srgb,var(--lc) 40%,#fff)}
+  body.light-theme .tf-chip{color:color-mix(in srgb,var(--lc) 80%,#000)}
+  .tf-chip>i{width:7px;height:7px;border-radius:50%;background:var(--lc);flex-shrink:0}
+  .tf-chip>span{white-space:normal;word-break:break-all;min-width:0}
+  .tf-chip.big{font-size:14px;padding:4px 11px}
+  .tf-acc .tf-chip{margin-top:4px}
+  .tf-acc-hdr{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-bottom:8px;color:color-mix(in srgb,var(--ac) 58%,#fff)}
+  body.light-theme .tf-acc-hdr{color:color-mix(in srgb,var(--ac) 88%,#000)}
+  .tf-acc-hdr>i{width:8px;height:8px;border-radius:2px;background:var(--ac)}
+  .tf-lyr{min-width:0;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:4px}
+  .tf-lyr.to{align-items:flex-end;text-align:right}
+  .tf-ml{display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100%;font-size:11px;color:var(--tx-secondary)}
+  .tf-ml>b{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0}
+  @media(max-width:480px){.tf-lyr{padding:8px 8px}.tf-chip.big{font-size:13px;padding:4px 9px}}
+  .tf-acc:not(.to) .tf-ml,.tf-lyr:not(.to) .tf-ml{justify-content:flex-start}
   </style>
   <link rel="icon" type="image/png" href="icon.png?v=2"><!-- 換圖時把 v=2 加 1，Safari 才會抓新圖 -->
   <link rel="apple-touch-icon" href="icon.png?v=2"><!-- 換圖時把 v=2 加 1，iPhone 才會抓新圖 -->
@@ -6269,6 +6285,24 @@ function getAllTransferPairs() {
   });
 }
 
+// 轉帳明細用：取出某筆轉帳的分層清單 [{label,color,amt}]；多分層附各自金額，單一分層 amt 為 null
+function txnLayerItems(accId, txn) {
+  if (!txn) return [];
+  const acc = getAcc(accId); if (!acc) return [];
+  const find = id => (acc.layers||[]).find(l=>l.id===id);
+  if (txn.layerAmounts && txn.layerAmounts.length) {
+    return txn.layerAmounts.map(la=>{ const l=find(la.layerId); return l ? {label:l.label, color:l.color||acc.color, amt:Math.abs(la.amount)} : null; }).filter(Boolean);
+  }
+  const l = txn.layerId ? find(txn.layerId) : null;
+  return l ? [{label:l.label, color:l.color||acc.color, amt:null}] : [];
+}
+// 分層色塊標籤 HTML；big＝分層調撥頁籤的大字主角
+function tfChipsHtml(items, big, emptyText) {
+  if (!items.length) return emptyText ? `<span class="tf-chip${big?' big':''}" style="--lc:#888"><i></i><span>${escHtml(emptyText)}</span></span>` : '';
+  if (items.length === 1 && items[0].amt == null)
+    return `<span class="tf-chip${big?' big':''}" style="--lc:${safeHex(items[0].color)}"><i></i><span>${escHtml(items[0].label)}</span></span>`;
+  return items.map(it=>`<div class="tf-ml"><span class="tf-chip" style="--lc:${safeHex(it.color)}"><i></i><span>${escHtml(it.label)}</span></span>${it.amt!=null?`<b>${fmt(it.amt).replace('NT$','')}</b>`:''}</div>`).join('');
+}
 function txnLayerLabel(accId, txn) {
   if (!txn) return null;
   const acc = getAcc(accId);
@@ -6394,22 +6428,27 @@ function renderTransfers() {
 
   const weekdays = ['日','一','二','三','四','五','六'];
   // 轉帳卡片：左「轉出帳戶」→ 中「金額」→ 右「轉入帳戶」，下方一行放分層、外幣金額、備註與刪除
-  const accBox = (acc, fallbackName, layer, txn, isTo) => {
+  const accBox = (acc, fallbackName, layerItems, txn, isTo) => {
     const c = safeHex(acc?.color);
     const fx = (txn && txn.fxAmount != null && txn.fxCurrency) ? `<div class="tf-acc-sub">${escHtml(txn.fxCurrency)} ${Math.abs(txn.fxAmount).toLocaleString()}</div>` : '';
     return `<div class="tf-acc${isTo?' to':''}" style="--ac:${c}">
         <div class="tf-acc-label">${isTo?'轉入':'轉出'}</div>
         <div class="tf-acc-name">${escHtml(acc?.name || fallbackName)}</div>
-        ${layer ? `<div class="tf-acc-sub">${escHtml(layer)}</div>` : ''}
+        ${tfChipsHtml(layerItems, false, '')}
         ${fx}
       </div>`;
   };
+  // 分層調撥：帳戶名只寫一次（A），左右以分層色塊為主角（A＋B），多分層逐行附金額（C）
+  const lyrBox = (acc, layerItems, isTo) => `<div class="tf-acc tf-lyr${isTo?' to':''}" style="--ac:${safeHex(acc?.color)}">
+        <div class="tf-acc-label">${isTo?'轉入':'轉出'}</div>
+        ${tfChipsHtml(layerItems, true, '未指定分層')}
+      </div>`;
   let prevTfDate = null;
   const items = paged.map(p=>{
     const fromAccObj = getAcc(p.fromId);
     const toAccObj   = p.toId ? getAcc(p.toId) : null;
-    const fromLayer = txnLayerLabel(p.fromId, p.outTxn);
-    const toLayer   = p.toId ? txnLayerLabel(p.toId, p.inTxn) : null;
+    const fromLayers = txnLayerItems(p.fromId, p.outTxn);
+    const toLayers   = p.toId ? txnLayerItems(p.toId, p.inTxn) : [];
     let groupHdr = '';
     if (p.date !== prevTfDate) {
       const d = new Date(p.date+'T00:00:00');
@@ -6418,13 +6457,14 @@ function renderTransfers() {
     }
     const sameAcc = p.fromId && p.toId && p.fromId === p.toId;
     return `${groupHdr}<div class="tf-card">
+      ${sameAcc ? `<div class="tf-acc-hdr" style="--ac:${safeHex(fromAccObj?.color)}"><i></i>${escHtml(fromAccObj?.name||'未知帳戶')}</div>` : ''}
       <div class="tf-route">
-        ${accBox(fromAccObj, '未知帳戶', sameAcc ? (fromLayer||'未指定分層') : fromLayer, p.outTxn, false)}
+        ${sameAcc ? lyrBox(fromAccObj, fromLayers, false) : accBox(fromAccObj, '未知帳戶', fromLayers, p.outTxn, false)}
         <div class="tf-mid">
           <div class="tf-amt">${fmt(p.amount)}</div>
           <div class="tf-arrow" aria-hidden="true"><span></span></div>
         </div>
-        ${p.toId ? accBox(toAccObj, '未知帳戶', sameAcc ? (toLayer||'未指定分層') : toLayer, p.inTxn, true)
+        ${p.toId ? (sameAcc ? lyrBox(toAccObj, toLayers, true) : accBox(toAccObj, '未知帳戶', toLayers, p.inTxn, true))
                  : `<div class="tf-acc to tf-unpaired"><div class="tf-acc-label">轉入</div><div class="tf-acc-name">⚠️ 未配對</div></div>`}
       </div>
       <div class="tf-foot">
