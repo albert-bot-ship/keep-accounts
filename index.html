@@ -2376,6 +2376,11 @@ function spendAmt(t) { return Math.abs(t.amount) + (t.amount < 0 ? (+t.fee || 0)
 function isStatExcluded(t) {
   return !!(t.isTransfer || t.isPayment || ((t.isTransferOut || t.isTransferIn) && !t.countInStats));
 }
+// 他人補助（轉入且勾選他人補助）：不算收入，從「總支出」扣除；類別／分層／每日等明細不扣
+// pred：篩選條件（例如日期範圍）；list：要計算的紀錄（預設全部）
+function subsidySum(pred, list) {
+  return (list || DB.transactions).filter(t => t.isSubsidy && t.amount > 0 && (!pred || pred(t))).reduce((s, t) => s + t.amount, 0);
+}
 // 轉出／轉入：只限銀行帳戶；不需類別；顯示「計入收支統計」（p：'t' 記帳、'qa' 快速記帳）
 function syncTransferTypeUI(p) {
   const typeEl = document.getElementById(p + 'Type'), srcEl = document.getElementById(p + 'Src');
@@ -3070,7 +3075,7 @@ function renderCalendar() {
       bySrc[k] = (bySrc[k] || 0) + v;
     }
   });
-  const totalSpend = Object.values(spend).reduce((s, v) => s + v, 0);
+  const totalSpend = Object.values(spend).reduce((s, v) => s + v, 0) - subsidySum(t => (t.date || '').slice(0,7) === ym);
   const totalPaid = Object.values(pays).flat().reduce((s, t) => s + t.amount, 0);
   const maxSpend = Math.max(1, ...Object.values(spend));
   const daysPassed = ym < curYM ? dim : ym === curYM ? +today.slice(8) : 0;
@@ -3131,7 +3136,7 @@ function renderCalendar() {
     const txs = DB.transactions.filter(t => t.date === fcalSelDay).sort((a, b) => a.amount - b.amount);
     const evs = evByDay[d] || [];
     const rows = txs.map(t => {
-      const tag = t.isPayment ? '繳卡費' : isStatExcluded(t) ? '不計入統計' : '';
+      const tag = t.isPayment ? '繳卡費' : t.isSubsidy ? '他人補助' : isStatExcluded(t) ? '不計入統計' : '';
       return `<div class="fcal-tx"><div><b>${escHtml(t.desc || '（無說明）')}</b><small>${escHtml(sourceName(t))}${tag ? '・' + tag : ''}</small></div><span class="${t.amount < 0 ? 'neg' : 'pos'}">${t.amount < 0 ? '−' : '+'}${fmt(t.amount)}</span></div>`;
     }).join('') + evs.map(e => `<div class="fcal-tx"><div><b>${escHtml(e.name)}</b><small>${escHtml(e.sub)}</small></div><span style="color:${e.color}">${e.done ? '✓ ' : ''}${fmt(e.amount)}</span></div>`).join('');
     detail = `<div class="fcal-detail"><div class="fcal-detail-h"><b>${m}/${d}（週${'日一二三四五六'[new Date(y, m-1, d).getDay()]}）</b><span>消費 ${fmt(spend[d] || 0)}</span></div>${rows || '<div class="fcal-empty">這天沒有紀錄</div>'}</div>`;
@@ -3431,7 +3436,7 @@ function calcHealthScore() {
   const ym = nowYM();
   const txns = DB.transactions.filter(t=>t.date.startsWith(ym)&&!isStatExcluded(t));
   const income = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const expense = txns.filter(t=>t.amount<0&&!t.isSavingsAllocation).reduce((s,t)=>s+spendAmt(t),0);
+  const expense = txns.filter(t=>t.amount<0&&!t.isSavingsAllocation).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date.startsWith(ym));
   const savingsAllocation = Math.abs(txns.filter(t=>t.amount<0&&t.isSavingsAllocation).reduce((s,t)=>s+t.amount,0));
   const totalDebt = DB.creditCards.filter(c=>c.includeInTotal!==false).reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
   const totalAsset = DB.bankAccounts.filter(a=>a.includeInTotal!==false).reduce((s,a)=>s+Math.max(0,accountBalanceTWD(a)||0),0);
@@ -3582,7 +3587,8 @@ function exportPDF() {
   if (to)   txns = txns.filter(t=>t.date<=to);
 
   const totalIncome  = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const totalExpense = txns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
+  const grossExpense = txns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0); // 類別占比用（未扣他人補助）
+  const totalExpense = grossExpense - subsidySum(t=>(!from||t.date>=from)&&(!to||t.date<=to));
   const catTotals    = DB.categories.map(c=>({
     name:c.name, color:c.color,
     amt: txns.filter(t=>t.category===c.id&&t.amount<0).reduce((s,t)=>s+spendAmt(t),0)
@@ -3598,7 +3604,7 @@ function exportPDF() {
     </tr>`).join('');
 
   const catBars = catTotals.slice(0,8).map(c=>{
-    const pct = Math.round(c.amt/totalExpense*100);
+    const pct = Math.round(c.amt/grossExpense*100);
     return `<div style="margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
         <span>${c.name}</span><span>NT$${c.amt.toLocaleString()} (${pct}%)</span>
@@ -4703,7 +4709,7 @@ async function shareSummary() {
   const ym = nowYM();
   const txns = DB.transactions.filter(t=>t.date.startsWith(ym)&&!isStatExcluded(t));
   const income  = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const expense = txns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
+  const expense = txns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date.startsWith(ym));
   const net     = income - expense;
   const text = `📊 M WALLET 本月摘要（${ym}）\n\n`
     + `💰 收入：+NT$${income.toLocaleString()}\n`
@@ -5004,9 +5010,9 @@ function sendMonthlyReport() {
   const ymNow  = `${now.getFullYear()}-${String(now.getMonth()).padStart(2,'0')}`;
   const txns   = DB.transactions.filter(t=>t.date.startsWith(ymLast)&&!isStatExcluded(t));
   const income  = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const expense = txns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
+  const expense = txns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date.startsWith(ymLast));
   const prevTxns   = DB.transactions.filter(t=>t.date.startsWith(ymNow)&&!isStatExcluded(t));
-  const prevExpense = prevTxns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
+  const prevExpense = prevTxns.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date.startsWith(ymNow));
   const diff    = prevExpense > 0 ? Math.round((expense-prevExpense)/prevExpense*100) : 0;
   // 找最大支出類別
   const catMap = {};
@@ -5697,8 +5703,8 @@ function renderMonthCompare() {
 
   const getTxns = m => DB.transactions.filter(t=>t.date.startsWith(m)&&!isStatExcluded(t));
   const tA = getTxns(mA), tB = getTxns(mB);
-  const expA = tA.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
-  const expB = tB.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
+  const expA = tA.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date.startsWith(mA));
+  const expB = tB.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date.startsWith(mB));
   const incA = tA.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
   const incB = tB.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
 
@@ -6553,7 +6559,7 @@ function setCCLayerPeriodMode(cardId, layerId, mode) {
 function renderDashboard() {
   renderCCLayerSelector();
   const rtx = rangedTxns();
-  const spend  = rtx.filter(t=>t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0);
+  const spend  = rtx.filter(t=>t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(null, rtx);
   const income = rtx.filter(t=>t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0);
   const totalDebt = DB.creditCards.filter(c=>c.includeInTotal!==false).reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
   const totalBank = DB.bankAccounts.filter(a=>a.includeInTotal!==false).reduce((s,a)=>{
@@ -8149,7 +8155,7 @@ function renderAnalytics() {
   }
   const year=yearSel.value||String(new Date().getFullYear());
   const ytx=DB.transactions.filter(t=>t.date.startsWith(year)&&!isStatExcluded(t));
-  const ysp=ytx.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
+  const ysp=ytx.filter(t=>t.amount<0).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date.startsWith(year));
   const yin=ytx.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
   const maxCat=DB.categories.reduce((best,c)=>{
     const v2=ytx.filter(t=>t.category===c.id&&t.amount<0).reduce((s,t)=>s+spendAmt(t),0);
@@ -8158,13 +8164,13 @@ function renderAnalytics() {
 
   // 本期 vs 上期對比
   const { from: curFrom, to: curTo } = getSalaryCycle();
-  const curSpend = DB.transactions.filter(t=>t.date>=curFrom&&t.date<=curTo&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0);
+  const curSpend = DB.transactions.filter(t=>t.date>=curFrom&&t.date<=curTo&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date>=curFrom&&t.date<=curTo);
   const curInc   = DB.transactions.filter(t=>t.date>=curFrom&&t.date<=curTo&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0);
   // 上期：同樣30天往前推一個月
   const prevFrom = new Date(curFrom); prevFrom.setMonth(prevFrom.getMonth()-1);
   const prevTo   = new Date(curTo);   prevTo.setMonth(prevTo.getMonth()-1);
   const pf = (prevFrom.getFullYear()+'-'+String(prevFrom.getMonth()+1).padStart(2,'0')+'-'+String(prevFrom.getDate()).padStart(2,'0')), pt = (prevTo.getFullYear()+'-'+String(prevTo.getMonth()+1).padStart(2,'0')+'-'+String(prevTo.getDate()).padStart(2,'0'));
-  const prevSpend = DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0);
+  const prevSpend = DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date>=pf&&t.date<=pt);
   const prevInc   = DB.transactions.filter(t=>t.date>=pf&&t.date<=pt&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0);
   const spDiff = prevSpend>0 ? Math.round((curSpend-prevSpend)/prevSpend*100) : null;
   const inDiff = prevInc>0  ? Math.round((curInc-prevInc)/prevInc*100) : null;
@@ -8211,7 +8217,7 @@ function renderAnalytics() {
 
   const months=['01','02','03','04','05','06','07','08','09','10','11','12'];
   const mLabels=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-  const mSp=months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0));
+  const mSp=months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date.startsWith(year+'-'+m)));
   const mIn=months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
 
   if (charts.trend) charts.trend.destroy();
@@ -8344,7 +8350,7 @@ function renderAnalytics() {
   if (charts.incomeExpense) { charts.incomeExpense.destroy(); delete charts.incomeExpense; }
   const ieLabels = mLabels;
   const incomeData  = months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount>0&&!isStatExcluded(t)).reduce((s,t)=>s+t.amount,0));
-  const expenseData = months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0));
+  const expenseData = months.map(m=>DB.transactions.filter(t=>t.date.startsWith(year+'-'+m)&&t.amount<0&&!isStatExcluded(t)).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date.startsWith(year+'-'+m)));
   const ieCtx = document.getElementById('incomeExpenseChart');
   if (ieCtx) charts.incomeExpense = new Chart(ieCtx.getContext('2d'),{
     type:'bar',
