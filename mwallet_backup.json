@@ -14,9 +14,9 @@
         {
           "id": "mowulbb3xlf57",
           "label": "南山年繳",
-          "amount": 25572,
+          "amount": 23605,
           "color": "#54b02d",
-          "monthlyAmt": 1967,
+          "monthlyAmt": 1968,
           "reimbursable": false
         },
         {
@@ -5339,6 +5339,81 @@
       "isTransferOut": false,
       "isTransferIn": false,
       "isFixed": false
+    },
+    {
+      "id": "mwcd4ei8uug4o",
+      "date": "2026-11-07",
+      "amount": -1967,
+      "desc": "儲蓄保單-5（分期 12/12）",
+      "category": "mp9mudorweuu2",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isFixed": false,
+      "tags": [],
+      "installId": "msogxtnznyymh",
+      "isRedemption": false,
+      "layerId": null,
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false
+    },
+    {
+      "id": "mwcd9v276xz1n",
+      "date": "2026-11-12",
+      "amount": -211,
+      "desc": "轉帳 → 國泰主帳戶",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "msoaaqi4bf9j2",
+      "transferPairId": "mwcd9v27jlvvn",
+      "transferPairTxnId": "mwcd9v27slxhx"
+    },
+    {
+      "id": "mwcd9v27slxhx",
+      "date": "2026-11-12",
+      "amount": 211,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt7wruf1yp4",
+      "transferPairId": "mwcd9v27jlvvn",
+      "transferPairTxnId": "mwcd9v276xz1n"
+    },
+    {
+      "id": "mwcdae0wchpec",
+      "date": "2026-11-12",
+      "amount": -13461,
+      "desc": "信用卡繳款 — CUBE",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4rvq0uv0ah",
+      "sourceType": "account",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "layerId": "mowt7wruf1yp4",
+      "transferPairTxnId": "mwcdae0w3tmxw"
+    },
+    {
+      "id": "mwcdae0w3tmxw",
+      "date": "2026-11-12",
+      "amount": 13461,
+      "desc": "繳款入帳 — CUBE",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isPayment": true,
+      "isTransfer": false,
+      "transferPairTxnId": "mwcdae0wchpec",
+      "payForPeriodEnd": "2026-11-08"
     }
   ],
   "fixedExpenses": [],
@@ -5689,7 +5764,8 @@
         "preset-7-msogxtnzlqcmu",
         "preset-8-msogxtnz62li1",
         "2026-09",
-        "2026-10"
+        "2026-10",
+        "2026-11"
       ],
       "boundCardId": "mov4et7fpt7kr",
       "boundLayerId": "mowulbb3xlf57"
@@ -5707,7 +5783,7 @@
       "paidMonths": [],
       "boundCardId": "mov4et7fpt7kr",
       "boundLayerId": "mowulbb3xlf57",
-      "startYM": "TBD"
+      "startYM": ""
     }
   ],
   "autoRules": [
