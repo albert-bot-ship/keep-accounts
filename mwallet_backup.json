@@ -4494,7 +4494,7 @@
     },
     {
       "id": "mvym1smpvxqba",
-      "date": "2026-11-02",
+      "date": "2026-10-28",
       "amount": -860,
       "desc": "高鐵車票",
       "category": "mov4018zncy6t",
@@ -4507,7 +4507,8 @@
       "fee": 0,
       "isSavingsAllocation": false,
       "isTransferOut": false,
-      "isFixed": false
+      "isFixed": false,
+      "isTransferIn": false
     },
     {
       "id": "mvym9d0kl0541",
@@ -4633,7 +4634,7 @@
     {
       "id": "mw0wx9g3drzhn",
       "date": "2026-11-04",
-      "amount": 160,
+      "amount": 163,
       "desc": "",
       "category": "movlnwb2fjdqd",
       "sourceId": "mov4et7fpt7kr",
@@ -4645,7 +4646,8 @@
       "fee": 0,
       "isSavingsAllocation": false,
       "isTransferOut": false,
-      "isFixed": false
+      "isFixed": false,
+      "isTransferIn": false
     },
     {
       "id": "mw2zuaf9v81px",
