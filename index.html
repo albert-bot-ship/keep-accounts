@@ -93,18 +93,22 @@
   /* 轉帳明細：分層色塊標籤（--lc＝分層顏色） */
   .tf-chip{--lc:#1c69d4;display:inline-flex;align-items:center;gap:5px;max-width:100%;min-width:0;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;line-height:1.5;background:color-mix(in srgb,var(--lc) 18%,transparent);border:1px solid color-mix(in srgb,var(--lc) 42%,transparent);color:color-mix(in srgb,var(--lc) 40%,#fff)}
   body.light-theme .tf-chip{color:color-mix(in srgb,var(--lc) 80%,#000)}
-  .tf-chip>i{width:7px;height:7px;border-radius:50%;background:var(--lc);flex-shrink:0}
+  .tf-chip>i{width:7px;height:7px;border-radius:50%;background:var(--lc);flex-shrink:0;box-shadow:0 0 0 1.5px rgba(255,255,255,.75)}
+  body.light-theme .tf-chip>i{box-shadow:0 0 0 1.5px rgba(0,0,0,.3)}
+  @media(min-width:768px){.tf-list{max-width:760px;margin-left:auto;margin-right:auto}}
+  .tf-acc-hdr .tf-del{width:28px;height:28px;font-size:12px}
+  .tf-acc-hdr .tf-hdr-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .tf-chip>span{white-space:normal;word-break:break-all;min-width:0}
   .tf-chip.big{font-size:14px;padding:4px 11px}
   .tf-acc .tf-chip{margin-top:4px}
   .tf-acc-hdr{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-bottom:8px;color:color-mix(in srgb,var(--ac) 58%,#fff)}
   body.light-theme .tf-acc-hdr{color:color-mix(in srgb,var(--ac) 88%,#000)}
-  .tf-acc-hdr>i{width:8px;height:8px;border-radius:2px;background:var(--ac)}
+  .tf-acc-hdr>i{width:8px;height:8px;border-radius:2px;background:var(--ac);flex-shrink:0}
   .tf-lyr{min-width:0;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:4px}
   .tf-lyr.to{align-items:flex-end;text-align:right}
   .tf-ml{display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100%;font-size:11px;color:var(--tx-secondary)}
   .tf-ml>b{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0}
-  @media(max-width:480px){.tf-lyr{padding:8px 8px}.tf-chip.big{font-size:13px;padding:4px 9px}}
+  @media(max-width:480px){.tf-lyr{padding:8px 6px}.tf-chip.big{font-size:13px;padding:4px 7px;gap:4px}.tf-route{gap:6px}}
   .tf-acc:not(.to) .tf-ml,.tf-lyr:not(.to) .tf-ml{justify-content:flex-start}
   </style>
   <link rel="icon" type="image/png" href="icon.png?v=2"><!-- 換圖時把 v=2 加 1，Safari 才會抓新圖 -->
@@ -6439,8 +6443,7 @@ function renderTransfers() {
       </div>`;
   };
   // 分層調撥：帳戶名只寫一次（A），左右以分層色塊為主角（A＋B），多分層逐行附金額（C）
-  const lyrBox = (acc, layerItems, isTo) => `<div class="tf-acc tf-lyr${isTo?' to':''}" style="--ac:${safeHex(acc?.color)}">
-        <div class="tf-acc-label">${isTo?'轉入':'轉出'}</div>
+  const lyrBox = (acc, layerItems, isTo) => `<div class="tf-acc tf-lyr${isTo?' to':''}" style="--ac:${safeHex(acc?.color)}" aria-label="${isTo?'轉入':'轉出'}">
         ${tfChipsHtml(layerItems, true, '未指定分層')}
       </div>`;
   let prevTfDate = null;
@@ -6456,8 +6459,10 @@ function renderTransfers() {
       prevTfDate = p.date;
     }
     const sameAcc = p.fromId && p.toId && p.fromId === p.toId;
+    const tfBtns = `<button type="button" class="tf-del tf-edit" onclick="event.stopPropagation();openModal('editTransfer','${p.outTxn.id}')" aria-label="編輯轉帳">✏️</button>
+        <button type="button" class="tf-del" onclick="event.stopPropagation();deleteTxn('${p.outTxn.id}')" aria-label="刪除轉帳">🗑</button>`;
     return `${groupHdr}<div class="tf-card">
-      ${sameAcc ? `<div class="tf-acc-hdr" style="--ac:${safeHex(fromAccObj?.color)}"><i></i>${escHtml(fromAccObj?.name||'未知帳戶')}</div>` : ''}
+      ${sameAcc ? `<div class="tf-acc-hdr" style="--ac:${safeHex(fromAccObj?.color)}"><i></i><span class="tf-hdr-name">${escHtml(fromAccObj?.name||'未知帳戶')}</span>${tfBtns}</div>` : ''}
       <div class="tf-route">
         ${sameAcc ? lyrBox(fromAccObj, fromLayers, false) : accBox(fromAccObj, '未知帳戶', fromLayers, p.outTxn, false)}
         <div class="tf-mid">
@@ -6467,11 +6472,8 @@ function renderTransfers() {
         ${p.toId ? (sameAcc ? lyrBox(toAccObj, toLayers, true) : accBox(toAccObj, '未知帳戶', toLayers, p.inTxn, true))
                  : `<div class="tf-acc to tf-unpaired"><div class="tf-acc-label">轉入</div><div class="tf-acc-name">⚠️ 未配對</div></div>`}
       </div>
-      <div class="tf-foot">
-        <div class="tf-notes">${p.notes ? escHtml(p.notes) : ''}</div>
-        <button type="button" class="tf-del tf-edit" onclick="event.stopPropagation();openModal('editTransfer','${p.outTxn.id}')" aria-label="編輯轉帳">✏️</button>
-        <button type="button" class="tf-del" onclick="event.stopPropagation();deleteTxn('${p.outTxn.id}')" aria-label="刪除轉帳">🗑</button>
-      </div>
+      ${sameAcc ? (p.notes ? `<div class="tf-foot"><div class="tf-notes">${escHtml(p.notes)}</div></div>` : '')
+                : `<div class="tf-foot"><div class="tf-notes">${p.notes ? escHtml(p.notes) : ''}</div>${tfBtns}</div>`}
     </div>`;
   }).join('');
   const listHtml = `<div class="tf-list">${items}</div>`;
