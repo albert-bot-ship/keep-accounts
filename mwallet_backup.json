@@ -5265,6 +5265,34 @@
       "countInStats": false,
       "isSubsidy": true,
       "isFixed": false
+    },
+    {
+      "id": "mwbrlttnhu8zb",
+      "date": "2026-11-11",
+      "amount": -211,
+      "desc": "轉帳 → 台灣銀行",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "mwbrlttn5sm6n",
+      "transferPairTxnId": "mwbrlttnqx9sj"
+    },
+    {
+      "id": "mwbrlttnqx9sj",
+      "date": "2026-11-11",
+      "amount": 211,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "msoaaqi4bf9j2",
+      "transferPairId": "mwbrlttn5sm6n",
+      "transferPairTxnId": "mwbrlttnhu8zb"
     }
   ],
   "fixedExpenses": [],
