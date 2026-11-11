@@ -14,9 +14,9 @@
         {
           "id": "mowulbb3xlf57",
           "label": "南山年繳",
-          "amount": 23605,
+          "amount": 0,
           "color": "#54b02d",
-          "monthlyAmt": 1968,
+          "monthlyAmt": "",
           "reimbursable": false
         },
         {
@@ -5390,7 +5390,7 @@
     {
       "id": "mwcdae0wchpec",
       "date": "2026-11-12",
-      "amount": -13461,
+      "amount": -13641,
       "desc": "信用卡繳款 — CUBE",
       "category": "mov4018zygeiv",
       "sourceId": "mov4rvq0uv0ah",
@@ -5399,21 +5399,34 @@
       "isPayment": true,
       "isTransfer": false,
       "layerId": "mowt7wruf1yp4",
-      "transferPairTxnId": "mwcdae0w3tmxw"
+      "transferPairTxnId": "mwcdae0w3tmxw",
+      "isRedemption": false,
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false
     },
     {
       "id": "mwcdae0w3tmxw",
       "date": "2026-11-12",
-      "amount": 13461,
+      "amount": 13641,
       "desc": "繳款入帳 — CUBE",
-      "category": "mov4018zygeiv",
+      "category": "mp9mrsge4di8n",
       "sourceId": "mov4et7fpt7kr",
       "sourceType": "card",
       "notes": "",
       "isPayment": true,
       "isTransfer": false,
       "transferPairTxnId": "mwcdae0wchpec",
-      "payForPeriodEnd": "2026-11-08"
+      "payForPeriodEnd": "2026-11-08",
+      "isRedemption": false,
+      "layerId": null,
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false
     }
   ],
   "fixedExpenses": [],
@@ -5783,7 +5796,7 @@
       "paidMonths": [],
       "boundCardId": "mov4et7fpt7kr",
       "boundLayerId": "mowulbb3xlf57",
-      "startYM": ""
+      "startYM": "2026-12"
     }
   ],
   "autoRules": [
