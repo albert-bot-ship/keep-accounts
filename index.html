@@ -3423,6 +3423,14 @@ function getAnomalyDetails() {
   }).sort((a,b)=> b.t.date.localeCompare(a.t.date));
 }
 let healthAnomalyOpen = false;
+let healthOverspendOpen = false;
+function toggleHealthOverspend() {
+  healthOverspendOpen = !healthOverspendOpen;
+  const box = document.getElementById('healthOverspendList');
+  const arw = document.getElementById('healthOverspendArrow');
+  if (box) box.style.display = healthOverspendOpen ? 'flex' : 'none';
+  if (arw) arw.textContent = healthOverspendOpen ? '▾' : '▸';
+}
 function toggleHealthAnomaly() {
   healthAnomalyOpen = !healthAnomalyOpen;
   const box = document.getElementById('healthAnomalyList');
@@ -3436,7 +3444,8 @@ function calcHealthScore() {
   const ym = nowYM();
   const txns = DB.transactions.filter(t=>t.date.startsWith(ym)&&!isStatExcluded(t));
   const income = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
-  const expense = txns.filter(t=>t.amount<0&&!t.isSavingsAllocation).reduce((s,t)=>s+spendAmt(t),0) - subsidySum(t=>t.date.startsWith(ym));
+  const monthSubsidy = subsidySum(t=>t.date.startsWith(ym));
+  const expense = txns.filter(t=>t.amount<0&&!t.isSavingsAllocation).reduce((s,t)=>s+spendAmt(t),0) - monthSubsidy;
   const savingsAllocation = Math.abs(txns.filter(t=>t.amount<0&&t.isSavingsAllocation).reduce((s,t)=>s+t.amount,0));
   const totalDebt = DB.creditCards.filter(c=>c.includeInTotal!==false).reduce((s,c)=>{const b=cardBalance(c.id);return s+(b<0?Math.abs(b):0);},0);
   const totalAsset = DB.bankAccounts.filter(a=>a.includeInTotal!==false).reduce((s,a)=>s+Math.max(0,accountBalanceTWD(a)||0),0);
@@ -3446,7 +3455,9 @@ function calcHealthScore() {
 
   // 儲蓄率（收入有多少沒花掉；投資／儲蓄型保單等資產配置不計入消費支出）
   const savingsRate = income>0 ? (income-expense)/income : 0;
-  if (savingsRate < 0)       { score -= 30; notes.push({icon:'🔴',txt:'本月支出超過收入',val:Math.round(savingsRate*100)+'%'}); }
+  if (savingsRate < 0)       { score -= 30; notes.push({icon:'🔴',txt:'本月支出超過收入',val:Math.round(savingsRate*100)+'%',detail:'overspend',
+    income, expense, subsidy:monthSubsidy,
+    top:txns.filter(t=>t.amount<0&&!t.isSavingsAllocation).sort((a,b)=>spendAmt(b)-spendAmt(a)).slice(0,5)}); }
   else if (savingsRate < 0.1){ score -= 15; notes.push({icon:'🟡',txt:'儲蓄率偏低',val:Math.round(savingsRate*100)+'%'}); }
   else if (savingsRate < 0.2){ score -= 5;  notes.push({icon:'🟡',txt:'儲蓄率尚可',val:Math.round(savingsRate*100)+'%'}); }
   else                        { notes.push({icon:'🟢',txt:'儲蓄率良好',val:Math.round(savingsRate*100)+'%'}); }
@@ -3503,6 +3514,24 @@ function renderHealthScore() {
       <div style="font-family:var(--ff-display);font-size:18px;font-weight:700;color:${color};margin-bottom:8px">${label}</div>
       <div style="display:flex;flex-direction:column;gap:4px">
         ${notes.map(n=>{
+          if (n.detail === 'overspend') {
+            const row = (k, v, c) => `<div style="display:flex;justify-content:space-between;gap:8px"><span style="color:var(--tx-muted)">${k}</span><span style="color:${c};font-weight:700;white-space:nowrap">${v}</span></div>`;
+            const sum = `<div style="padding:6px 8px;border-radius:8px;background:var(--bg-secondary);font-size:11px;line-height:1.7">
+                ${row('收入', '+'+fmt(n.income), 'var(--tx-green)')}
+                ${row('支出（未扣補助）', '−'+fmt(n.expense+n.subsidy), 'var(--tx-red)')}
+                ${n.subsidy>0 ? row('他人補助', '+'+fmt(n.subsidy), 'var(--tx-green)') : ''}
+                ${row('結餘', '−'+fmt(n.expense-n.income), 'var(--tx-red)')}
+              </div>`;
+            const tops = n.top.map(t=>`<div style="padding:6px 8px;border-radius:8px;background:var(--bg-secondary);font-size:11px;line-height:1.5">
+                <div style="display:flex;justify-content:space-between;gap:8px">
+                  <span style="color:var(--tx-primary);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.date.slice(5).replace('-','/')}　${escHtml(t.desc||'—')}</span>
+                  <span style="color:var(--tx-red);font-weight:700;white-space:nowrap">−${fmt(spendAmt(t))}</span>
+                </div>
+                <div style="color:var(--tx-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(sourceName(t))}／${escHtml(getCat(t.category)?.name||'—')}</div>
+              </div>`).join('');
+            return `<div style="font-size:11px;color:var(--tx-secondary);cursor:pointer" onclick="toggleHealthOverspend()">${n.icon} ${n.txt} <span style="color:var(--tx-muted)">${n.val}（收入 ${fmt(n.income)}／支出 ${fmt(n.expense)}${n.subsidy>0?`，含他人補助 −${fmt(n.subsidy)}`:''}）</span> <span id="healthOverspendArrow" style="color:var(--tx-muted)">${healthOverspendOpen?'▾':'▸'}</span></div>
+            <div id="healthOverspendList" style="display:${healthOverspendOpen?'flex':'none'};flex-direction:column;gap:4px;margin:2px 0 4px 18px">${sum}${tops?`<div style="font-size:10px;color:var(--tx-muted);letter-spacing:1px;margin-top:2px">本月前 5 大支出</div>${tops}`:''}</div>`;
+          }
           if (n.detail !== 'anomaly') return `<div style="font-size:11px;color:var(--tx-secondary)">${n.icon} ${n.txt}${n.val?` <span style="color:var(--tx-muted)">${n.val}</span>`:''}</div>`;
           const items = getAnomalyDetails().map(d=>`<div style="padding:6px 8px;border-radius:8px;background:var(--bg-secondary);font-size:11px;line-height:1.5">
               <div style="display:flex;justify-content:space-between;gap:8px">
