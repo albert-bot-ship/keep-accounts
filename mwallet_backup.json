@@ -266,7 +266,7 @@
         {
           "id": "muyysu8k282y7",
           "label": "公司旅遊補助金",
-          "amount": 45000,
+          "amount": 0,
           "color": "#d10000",
           "goal": null
         }
@@ -5242,6 +5242,26 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
+      "isFixed": false
+    },
+    {
+      "id": "mwbgdzb4hcfsb",
+      "date": "2026-10-08",
+      "amount": 45000,
+      "desc": "公司旅遊補助金",
+      "category": "",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "muyysu8k282y7",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": true,
+      "countInStats": false,
+      "isSubsidy": true,
       "isFixed": false
     }
   ],
