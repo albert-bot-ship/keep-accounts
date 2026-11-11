@@ -2604,6 +2604,82 @@ function layerDynamicBalance(accId, layerId) {
   return (layer.amount||0) + txSum + mlSum + allocSum;
 }
 
+// ════════════════════════════════════════════════════════════════
+// 分層明細彈窗：點信用卡／銀行帳戶的分層名稱或金額開啟
+// 信用卡：本帳期（與卡片上的分層金額一致）；銀行帳戶：全部（與分層餘額一致）
+// ════════════════════════════════════════════════════════════════
+function openLayerDetail(kind, ownerId, layerId) {
+  const isCard = kind === 'card';
+  const owner  = isCard ? getCard(ownerId) : getAcc(ownerId);
+  if (!owner) return;
+  const layer  = (owner.layers||[]).find(l=>l.id===layerId);
+  if (!layer) return;
+  const rows = []; // {date, desc, sub, amt(帶正負), txnId}
+  let periodTxt = '', total = 0, note = '';
+  if (isCard) {
+    const { periodStart, periodEnd } = owner.billingDay ? cardBillingPeriod(owner) : { periodStart: nowYM()+'-01', periodEnd: nowYM()+'-31' };
+    periodTxt = `本帳期 ${periodStart.slice(5).replace('-','/')} ～ ${periodEnd.slice(5).replace('-','/')}`;
+    if (layer.monthlyAmt!=null && layer.monthlyAmt!=='') {
+      note = '此分層為手動金額，無交易明細';
+      total = -(layer.amount||0);
+    } else {
+      const inPeriod = t => t.sourceType==='card' && t.sourceId===owner.id && t.date>=periodStart && t.date<=periodEnd;
+      DB.transactions.filter(t=>inPeriod(t)).forEach(t=>{
+        if (t.layerId===layer.id && t.amount<0 && !t.isPayment)
+          rows.push({date:t.date, desc:t.desc, sub:getCat(t.category)?.name||'—', amt:-(Math.abs(t.amount)+(t.fee||0)), txnId:t.id});
+        else if (t.layerAmounts && t.amount<0 && !t.isPayment) {
+          const la = t.layerAmounts.find(x=>x.layerId===layer.id);
+          if (la) rows.push({date:t.date, desc:t.desc, sub:(getCat(t.category)?.name||'—')+'・多分層', amt:-Math.abs(la.amount), txnId:t.id});
+        }
+        else if (t.layerId===layer.id && t.isRedemption && t.amount>0)
+          rows.push({date:t.date, desc:t.desc, sub:'折抵', amt:t.amount, txnId:t.id});
+      });
+      const spend = rows.filter(r=>r.amt<0).reduce((s,r)=>s-r.amt,0), redeem = rows.filter(r=>r.amt>0).reduce((s,r)=>s+r.amt,0);
+      total = -Math.max(0, spend - redeem);
+    }
+  } else {
+    const isFx = owner.accType === '外幣';
+    periodTxt = '全部記錄';
+    DB.transactions.filter(t=>t.sourceType==='account' && t.sourceId===owner.id).forEach(t=>{
+      if (t.layerId===layer.id)
+        rows.push({date:t.date, desc:t.desc, sub:t.isSubsidy?'他人補助':t.isTransferIn?'轉入':t.isTransferOut?'轉出':t.isTransfer?'互轉':(getCat(t.category)?.name||'—'), amt:txnAccUnits(t, isFx), txnId:t.id});
+      if (t.layerAmounts) {
+        const la = t.layerAmounts.find(x=>x.layerId===layer.id);
+        if (la) rows.push({date:t.date, desc:t.desc, sub:(getCat(t.category)?.name||'—')+'・多分層', amt:la.amount, txnId:t.id});
+      }
+    });
+    (DB.layerAllocations||[]).filter(x=>x.accId===owner.id && x.layerId===layer.id).forEach(x=>{
+      const src = DB.transactions.find(t=>t.id===x.txnId);
+      rows.push({date:x.date, desc:src?.desc||'薪水撥入', sub:'薪水撥入', amt:x.amount, txnId:src?x.txnId:null});
+    });
+    total = layerDynamicBalance(owner.id, layer.id);
+    if (layer.amount) note = `含初始金額 ${fmtAccAmt(owner, layer.amount)}`;
+  }
+  rows.sort((a,b)=>b.date.localeCompare(a.date));
+  const money = n => isCard ? (n<0?'−':'+')+fmt(Math.abs(n)) : (n<0?'':'+')+fmtAccAmt(owner, n);
+  const list = rows.length ? rows.map(r=>`<div ${r.txnId?`onclick="openModal('editTxn','${r.txnId}')"`:''} style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--bg-secondary);${r.txnId?'cursor:pointer':''}">
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--tx-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.date.slice(5).replace('-','/')}　${escHtml(r.desc||'—')}</div>
+          <div style="font-size:11px;color:var(--tx-muted)">${escHtml(r.sub)}</div>
+        </div>
+        <div style="font-size:13px;font-weight:700;white-space:nowrap;color:${r.amt<0?'var(--tx-red)':'var(--tx-green)'}">${money(r.amt)}</div>
+      </div>`).join('')
+    : `<div style="text-align:center;color:var(--tx-muted);font-size:13px;padding:24px 0">${isCard&&note?'':'此期間沒有交易記錄'}</div>`;
+  openModal('_layerDetail');
+  document.getElementById('modalTitle').textContent = `${isCard?'💳':'🏦'} ${owner.name}／${layer.label}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;color:var(--tx-muted)">${periodTxt}・${rows.length} 筆</div>
+        ${note?`<div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${note}</div>`:''}
+      </div>
+      <div style="font-family:var(--ff-display);font-size:20px;font-weight:700;color:${total<0?'var(--tx-red)':'var(--m-blue)'}">${isCard?(total<0?'−':'')+fmt(Math.abs(total)):fmtAccAmt(owner,total)}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">${list}</div>
+    ${rows.some(r=>r.txnId)?'<div style="font-size:11px;color:var(--tx-muted);margin-top:10px">💡 點選記錄可直接編輯</div>':''}`;
+  document.getElementById('modalFooter').innerHTML = `<button class="btn btn-ghost" onclick="closeModal()">關閉</button>`;
+}
+
 // 逐筆累計餘額（即時計算，不寫入資料）
 // 依 日期 → 建立時間（id 時間戳）排序，逐筆推算每筆交易當下的分層餘額／帳戶總餘額
 // 計算口徑與 layerDynamicBalance / accountBalance 一致；信用卡交易不計算
@@ -6928,11 +7004,11 @@ function renderCards() {
       const layerNameColor  = hasTheme ? (isLight?'#1a1a2e':'rgba(255,255,255,.95)') : '';
       const html = `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||c.color}"></div>
-        <div style="flex:1;min-width:0">
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="event.stopPropagation();openLayerDetail('card','${c.id}','${l.id}')">
           <div class="layer-name" ${layerNameColor?`style="color:${layerNameColor}"`:''}>${escHtml(l.label)}${hasMonthly?`<span style="font-size:10px;background:#1c69d422;color:#1c69d4;border-radius:3px;padding:1px 5px;margin-left:6px">分期 每月 −${fmt(l.monthlyAmt)}</span>`:''}${l.reimbursable?(()=>{const _pend=DB.transactions.filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&!t.reimbursed).reduce((s,t)=>s+Math.abs(t.amount),0);return `<span style="font-size:10px;background:#f39c1222;color:#f39c12;border-radius:3px;padding:1px 5px;margin-left:6px">🧾 代墊追蹤${_pend>0?`　未核銷 ${fmt(_pend)}`:''}</span>`;})():''}</div>
           ${hasDetail&&isMonthlyFixed?`<div style="font-size:10px;color:${layerMutedColor};margin-top:2px">${layerAmt>0?`手動 −${fmt(layerAmt)}　`:''}${txLayerAmt>0?`記帳 −${fmt(txLayerAmt)}　`:''}${redeemLayerAmt>0?`<span style="color:${layerGreenColor}">折抵 +${fmt(redeemLayerAmt)}</span>`:''}</div>`:''}
         </div>
-        <div style="text-align:right;flex-shrink:0">
+        <div style="text-align:right;flex-shrink:0;cursor:pointer" onclick="event.stopPropagation();openLayerDetail('card','${c.id}','${l.id}')">
           ${hasPaidOffset?`<div style="font-size:10px;color:${layerMutedColor};text-decoration:line-through">−${fmt(totalLayerAmt)}</div>`:''}
           <span class="layer-amt" style="color:${layerOutstanding>0?layerRedColor:layerMutedColor};font-weight:700">${layerOutstanding>0?'−'+fmt(layerOutstanding):'−0'}</span>
         </div>
@@ -7151,10 +7227,10 @@ function renderAccounts() {
       const dynCls   = `color:${dynColor};-webkit-text-fill-color:${dynColor};font-weight:700`;
       const html = `<div class="layer-bar">
         <div class="layer-dot" style="background:${l.color||a.color}"></div>
-        <div style="flex:1;min-width:0">
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="event.stopPropagation();openLayerDetail('account','${a.id}','${l.id}')">
           <div class="layer-name">${escHtml(l.label)}</div>
         </div>
-        <div style="text-align:right">
+        <div style="text-align:right;cursor:pointer" onclick="event.stopPropagation();openLayerDetail('account','${a.id}','${l.id}')">
           <span class="layer-amt" style="${dynCls}">${fmtAccAmt(a, dynBal)}</span>
           ${(()=>{
             if (a.accType!=='外幣'||!a.currency) return '';
