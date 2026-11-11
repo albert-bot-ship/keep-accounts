@@ -7642,6 +7642,9 @@ function renderTxns() {
   if (tagVal)   txns=txns.filter(t=>(t.tags||[]).includes(tagVal));
   if (layerVal) txns=txns.filter(t=>t.layerId===layerVal || (t.layerAmounts||[]).some(la=>la.layerId===layerVal));
   if (keyword)  txns=txns.filter(t=>(t.desc||'').toLowerCase().includes(keyword)||(t.notes||'').toLowerCase().includes(keyword));
+  // 同帳戶分層調撥一律不在帳務明細顯示（只在「轉帳明細 → 分層調撥」查看）
+  const _txById = new Map(DB.transactions.map(t=>[t.id,t]));
+  txns=txns.filter(t=>!(t.isTransfer && _txById.get(t.transferPairTxnId)?.sourceId===t.sourceId));
   // 帳戶互轉預設只在「轉帳明細」顯示；篩選單一帳戶／分層時仍顯示，讓該帳戶進出完整
   if (!srcVal && !layerVal) txns=txns.filter(t=>!t.isTransfer);
 
