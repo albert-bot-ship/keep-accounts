@@ -210,7 +210,7 @@
   </div>
   <div class="sidebar-label">記帳</div>
   <div class="nav-item" data-page="txns" onclick="nav(this,'txns')">
-    <span class="nav-icon">📋</span><span>消費記錄</span>
+    <span class="nav-icon">📋</span><span>帳務明細</span>
   </div>
   <div class="nav-item" data-page="transfers" onclick="nav(this,'transfers')">
     <span class="nav-icon">🔄</span><span>轉帳明細</span>
@@ -322,7 +322,7 @@
     <!-- ─── TRANSACTIONS ───────────────────────── -->
     <section class="page-section" id="page-txns">
       <div class="page-header">
-        <div class="page-title">消費記錄</div>
+        <div class="page-title">帳務明細</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="copyLastTxn()" title="複製最後一筆消費">📋 複製上筆</button>
           <button class="btn btn-primary" onclick="openAddTxnForFilterSource()">＋ 新增記錄</button>
@@ -3655,7 +3655,7 @@ function exportPDF() {
     <div class="sum-card"><div class="sum-val">${txns.length}</div><div class="sum-label">記錄筆數</div></div>
   </div>
   ${catTotals.length?`<h2>各類別支出</h2><div>${catBars}</div>`:''}
-  <h2>消費明細（共 ${txns.length} 筆）</h2>
+  <h2>帳務明細（共 ${txns.length} 筆）</h2>
   <table>
     <thead><tr><th>日期</th><th>內容</th><th>類別</th><th>帳戶</th><th>金額</th></tr></thead>
     <tbody>${rows}</tbody>
@@ -7005,7 +7005,7 @@ function renderCards() {
 function deleteCard(id) {
   const c = getCard(id); if (!c) return;
   openActionSheet(
-    `刪除「${escHtml(c.name)}」？相關消費記錄也會一併刪除`,
+    `刪除「${escHtml(c.name)}」？相關帳務記錄也會一併刪除`,
     [{label:'刪除信用卡', danger:true, fn:`doDeleteCard('${id}')`}]
   );
 }
@@ -7362,7 +7362,7 @@ function moveLayer(ownerType, ownerId, layerId, dir) {
 function deleteAccount(id) {
   const a = getAcc(id); if (!a) return;
   openActionSheet(
-    `刪除「${escHtml(a.name)}」？相關消費記錄也會一併刪除`,
+    `刪除「${escHtml(a.name)}」？相關帳務記錄也會一併刪除`,
     [{label:'刪除帳戶', danger:true, fn:`doDeleteAccount('${id}')`}]
   );
 }
@@ -7476,20 +7476,24 @@ function renderTxns() {
   DB.categories.forEach(c=>{catSel.innerHTML+=`<option value="${c.id}">${escHtml(c.name)}</option>`;});
   catSel.value=oldCat;
 
-  // Layer filter：所有信用卡分層＋銀行帳戶分層，標示所屬卡片/帳戶名稱以便辨識
-  const layerSel=document.getElementById('filterLayer'), oldLayer=layerSel?.value||'';
+  // Layer filter：信用卡分層＋銀行帳戶分層，標示所屬卡片/帳戶名稱以便辨識
+  // 有選「帳戶／卡片」時只列該卡片／帳戶的分層；原選分層不屬於它則回到「全部分層」
+  const layerSel=document.getElementById('filterLayer');
+  let oldLayer=layerSel?.value||'';
   if (layerSel) {
+    const [lfType, lfId] = (srcSel.value||'').split('_');
     const filterLayerItems = [];
-    DB.creditCards.forEach(c=>{
+    DB.creditCards.filter(c=>!lfType || (lfType==='card' && c.id===lfId)).forEach(c=>{
       (c.layers||[]).forEach(l=>{
         filterLayerItems.push({ id:l.id, label:`[卡] ${c.name} / ${l.label}`, color:l.color||null });
       });
     });
-    DB.bankAccounts.forEach(a=>{
+    DB.bankAccounts.filter(a=>!lfType || (lfType==='account' && a.id===lfId)).forEach(a=>{
       (a.layers||[]).forEach(l=>{
         filterLayerItems.push({ id:l.id, label:`[帳] ${a.name} / ${l.label}`, color:l.color||null });
       });
     });
+    if (oldLayer && !filterLayerItems.some(x=>x.id===oldLayer)) oldLayer='';
     window._layerPickerOnChange['filterLayer'] = () => { updateFilterBtn(); renderTxns(); };
     renderLayerPicker('filterLayer', filterLayerItems, oldLayer, '全部分層');
   }
@@ -7546,7 +7550,7 @@ function renderTxns() {
 }
 
 function txnTable(txns, withActions, periodInfo) {
-  if (!txns.length) return emptyState('📋','無消費記錄','點擊「新增記錄」開始記帳','txns');
+  if (!txns.length) return emptyState('📋','無帳務記錄','點擊「新增記錄」開始記帳','txns');
   const weekdays = ['日','一','二','三','四','五','六'];
   let prevDate = null;
   // 期別判斷（僅在篩選單一信用卡時傳入 periodInfo）：回傳期別索引，0 = 本期、1 = 上一期、2 以後 = 更早
@@ -8049,7 +8053,7 @@ function batchDelete() {
 }
 function copyLastTxn() {
   const last=[...DB.transactions].sort((a,b)=>b.date.localeCompare(a.date)).find(t=>!t.isPayment&&!t.isTransfer);
-  if (!last) { toast('尚無消費記錄可複製','info'); return; }
+  if (!last) { toast('尚無記錄可複製','info'); return; }
   openModal('addTxn');
   setTimeout(()=>{
     const el=document.getElementById('tDate'); if(el) el.value=today();
@@ -8132,7 +8136,7 @@ function doExportExcel() {
     return row;
   });
   const ws=XLSX.utils.json_to_sheet(data);
-  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'消費明細');
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'帳務明細');
   XLSX.writeFile(wb,'MWallet_'+(from||'all')+'_'+(to||'all')+'.xlsx');
   closeModal();
   toast('Excel 匯出成功！','success');
@@ -9064,7 +9068,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
 
   // ── TRANSACTION ──
   else if (type==='addTxn'||type==='editTxn') {
-    t=txn?'編輯消費記錄':'新增消費記錄';
+    t=txn?'編輯記錄':'新增記錄';
     const isInc=txn&&txn.amount>0;
     const preSrc=preCard?'card_'+preCard:preAcc?'account_'+preAcc:txn?txn.sourceType+'_'+txn.sourceId:'';
     b=`<div class="form-row">
