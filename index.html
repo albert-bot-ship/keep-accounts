@@ -2392,6 +2392,13 @@ function syncTransferTypeUI(p) {
   const isTf = typeEl.value === 'transferOut' || typeEl.value === 'transferIn';
   const catGrp = document.getElementById(p + 'CatGroup'); if (catGrp) catGrp.style.display = isTf ? 'none' : '';
   const csGrp  = document.getElementById(p + 'CountStatsGroup'); if (csGrp) csGrp.style.display = isTf ? '' : 'none';
+  const sbGrp  = document.getElementById(p + 'SubsidyGroup'); if (sbGrp) sbGrp.style.display = typeEl.value === 'transferIn' ? '' : 'none';
+}
+// 他人補助 與 計入收支統計 互斥（p：'t' 記帳、'qa' 快速記帳；which：被勾選的那一個）
+function toggleSubsidyExclusive(p, which) {
+  const cs = document.getElementById(p + 'CountStats'), sb = document.getElementById(p + 'IsSubsidy');
+  if (which === 'sb' && sb?.checked && cs) cs.checked = false;
+  if (which === 'cs' && cs?.checked && sb) sb.checked = false;
 }
 // 交易在帳戶記帳單位的金額：外幣帳戶取外幣金額，正負號一律跟隨台幣金額（相容舊資料）
 function txnAccUnits(t, isFx) {
@@ -7591,7 +7598,8 @@ function txnTable(txns, withActions, periodInfo) {
                  + (t.isSavingsAllocation?'<span class="badge" style="margin-left:4px;background:#1c69d422;color:#1c69d4;border:1px solid #1c69d444">📈 資產配置</span>':'')
                  + (t.isTransferOut?'<span class="badge badge-blue" style="margin-left:4px">轉出</span>':'')
                  + (t.isTransferIn?'<span class="badge badge-blue" style="margin-left:4px">轉入</span>':'')
-                 + ((t.isTransferOut||t.isTransferIn)&&!t.countInStats?'<span class="badge" style="margin-left:4px;background:var(--bg-secondary);color:var(--tx-muted);border:1px solid var(--bdr-subtle)">不計統計</span>':'');
+                 + (t.isSubsidy?'<span class="badge" style="margin-left:4px;background:var(--bg-secondary);color:var(--tx-muted);border:1px solid var(--bdr-subtle)">他人補助</span>':'')
+                 + ((t.isTransferOut||t.isTransferIn)&&!t.countInStats&&!t.isSubsidy?'<span class="badge" style="margin-left:4px;background:var(--bg-secondary);color:var(--tx-muted);border:1px solid var(--bdr-subtle)">不計統計</span>':'');
     const userTagBadges = (t.tags||[]).map(tid=>{
       const tg=(DB.userTags||[]).find(x=>x.id===tid);
       return tg?`<span class="user-tag-badge" style="background:${tg.color}22;color:${tg.color};border:1px solid ${tg.color}66">#${escHtml(tg.name)}</span>`:'';
@@ -7636,7 +7644,8 @@ function txnTable(txns, withActions, periodInfo) {
     if (t.isTransfer) out.push(tagHtml('轉帳'));
     if (t.isTransferOut) out.push(tagHtml('轉出'));
     if (t.isTransferIn) out.push(tagHtml('轉入'));
-    if ((t.isTransferOut||t.isTransferIn) && !t.countInStats) out.push(tagHtml('不計統計'));
+    if (t.isSubsidy) out.push(tagHtml('他人補助'));
+    else if ((t.isTransferOut||t.isTransferIn) && !t.countInStats) out.push(tagHtml('不計統計'));
     if (t.isRedemption) out.push(tagHtml('折抵'));
     if (t.isSavingsAllocation) out.push(tagHtml('📈 資產配置'));
     const reimb = (t.sourceType==='card'&&t.layerId) ? (getCard(t.sourceId)?.layers||[]).find(l=>l.id===t.layerId&&l.reimbursable) : null;
@@ -9128,10 +9137,17 @@ function openModal(type,id,preCard,preAcc,extraId) {
     </div>
     <div class="form-group" id="tCountStatsGroup" style="display:none">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx-secondary);cursor:pointer">
-        <input type="checkbox" id="tCountStats"${txn?.countInStats?' checked':''}>
+        <input type="checkbox" id="tCountStats"${txn?.countInStats?' checked':''} onchange="toggleSubsidyExclusive('t','cs')">
         計入收支統計
       </label>
       <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">💡 預設不計入（例如借還款、代墊款）；若是孝親費等真正的支出或收入，請勾選。不論是否勾選，帳戶餘額都會正常增減</div>
+    </div>
+    <div class="form-group" id="tSubsidyGroup" style="display:none">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx-secondary);cursor:pointer">
+        <input type="checkbox" id="tIsSubsidy"${txn?.isSubsidy?' checked':''} onchange="toggleSubsidyExclusive('t','sb')">
+        他人補助
+      </label>
+      <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">💡 別人幫忙付的錢：不算收入，改從總支出扣除。與「計入收支統計」只能擇一</div>
     </div>
     <div class="form-group">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx-secondary);cursor:pointer">
@@ -9773,10 +9789,11 @@ function saveTxn() {
   // 轉出（給他人）相關欄位
   const isTransferOut = type === 'transferOut';
   const isTransferIn  = type === 'transferIn';
-  const countInStats  = isTfType ? !!document.getElementById('tCountStats')?.checked : undefined;
+  const isSubsidy     = isTransferIn ? !!document.getElementById('tIsSubsidy')?.checked : undefined;
+  const countInStats  = isTfType ? (!!document.getElementById('tCountStats')?.checked && !isSubsidy) : undefined;
 
   const txnObj = {date,amount,desc,category:isTfType?'':catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0,isSavingsAllocation:!!document.getElementById('tIsSavings')?.checked,
-    isTransferOut, isTransferIn, countInStats,
+    isTransferOut, isTransferIn, countInStats, isSubsidy,
     ...(hasFx ? {fxCurrency, fxAmount: amount<0 ? -fxAmtRaw : fxAmtRaw} : {})};
   if(modalType==='editTxn'){
     const thisTxn = DB.transactions.find(t=>t.id===editTarget);
@@ -11476,9 +11493,15 @@ function openQuickAdd() {
     </div>
     <div class="form-group" id="qaCountStatsGroup" style="display:none">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx-secondary);cursor:pointer">
-        <input type="checkbox" id="qaCountStats"> 計入收支統計
+        <input type="checkbox" id="qaCountStats" onchange="toggleSubsidyExclusive('qa','cs')"> 計入收支統計
       </label>
       <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">💡 預設不計入；孝親費等真正的支出或收入請勾選。帳戶餘額都會正常增減</div>
+    </div>
+    <div class="form-group" id="qaSubsidyGroup" style="display:none">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx-secondary);cursor:pointer">
+        <input type="checkbox" id="qaIsSubsidy" onchange="toggleSubsidyExclusive('qa','sb')"> 他人補助
+      </label>
+      <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">💡 別人幫忙付的錢：不算收入，改從總支出扣除</div>
     </div>
     <div class="form-group"><label class="form-label">帳戶/卡片</label>
       <select class="form-select" id="qaSrc" onchange="onQaSrcChange(this.value)">
@@ -11597,7 +11620,8 @@ function saveQuickAdd() {
     sourceId:sId, sourceType:sType, notes, isFixed:false,
     tags, layerId, fee: fee||undefined, isRedemption: isRedemption||undefined,
     ...(isTfType ? { isTransferOut: type==='transferOut', isTransferIn: type==='transferIn',
-                     countInStats: !!document.getElementById('qaCountStats')?.checked } : {})
+                     isSubsidy: type==='transferIn' ? !!document.getElementById('qaIsSubsidy')?.checked : undefined,
+                     countInStats: !!document.getElementById('qaCountStats')?.checked && !(type==='transferIn' && document.getElementById('qaIsSubsidy')?.checked) } : {})
   });
 
   const cat = getCat(catId);
