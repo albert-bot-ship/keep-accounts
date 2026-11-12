@@ -2561,7 +2561,7 @@ function autoGrowNotes(el) {
 // 支出金額（含手續費）：所有消費統計共用，手續費也是花費的一部分
 function spendAmt(t) { return Math.abs(t.amount) + (t.amount < 0 ? (+t.fee || 0) : 0); }
 function isStatExcluded(t) {
-  return !!(t.isTransfer || t.isPayment || ((t.isTransferOut || t.isTransferIn) && !t.countInStats));
+  return !!(t.isTransfer || t.isPayment || t.isAdjust || ((t.isTransferOut || t.isTransferIn) && !t.countInStats));
 }
 // 他人補助（轉入且勾選他人補助）：不算收入，從「總支出」扣除；類別／分層／每日等明細不扣
 // pred：篩選條件（例如日期範圍）；list：要計算的紀錄（預設全部）
@@ -2865,6 +2865,99 @@ function openLayerDetail(kind, ownerId, layerId) {
     <div style="display:flex;flex-direction:column;gap:6px">${list}</div>
     ${rows.some(r=>r.txnId)?'<div style="font-size:11px;color:var(--tx-muted);margin-top:10px">💡 點選記錄可直接編輯</div>':''}`;
   document.getElementById('modalFooter').innerHTML = `<button class="btn btn-ghost" onclick="closeModal()">關閉</button>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// 對帳：輸入網銀實際餘額 → 差額＋可能原因；可記差額調整、標記已對帳
+// ════════════════════════════════════════════════════════════════
+function openReconcile(accId) {
+  const a = getAcc(accId); if (!a) return;
+  openModal('_reconcile');
+  document.getElementById('modalTitle').textContent = '🔍 對帳 — ' + a.name;
+  document.getElementById('modalBody').innerHTML = `
+    <input type="hidden" id="rcAcc" value="${a.id}">
+    <div class="form-group"><label class="form-label">網銀實際餘額（${a.accType==='外幣'&&a.currency?escHtml(a.currency):'NT$'}）</label>
+      <input class="form-input" id="rcActual" type="number" inputmode="decimal" placeholder="輸入網銀顯示的餘額" oninput="renderReconcile()"></div>
+    <div id="rcResult"></div>
+    ${a.reconciled?`<div style="font-size:11px;color:var(--tx-muted);margin-top:8px">上次對帳：${a.reconciled.date}（餘額 ${fmtAccAmt(a,a.reconciled.balance)}）</div>`:''}`;
+  document.getElementById('modalFooter').innerHTML = `<button class="btn btn-ghost" onclick="closeModal()">關閉</button>`;
+  setTimeout(()=>document.getElementById('rcActual')?.focus(), 200);
+}
+// 找可能原因：回傳 [{tag, html, txnId, match}]
+function reconcileSuspects(acc, diff) {
+  const out = []; const ad = Math.abs(Math.round(diff)); if (!ad) return out;
+  const isFx = acc.accType === '外幣';
+  const since = (()=>{ const d=new Date(); d.setDate(d.getDate()-90); return d.toISOString().slice(0,10); })();
+  const accTx = DB.transactions.filter(t=>t.sourceType==='account'&&t.sourceId===acc.id&&t.date>=since);
+  const md = d => d.slice(5).replace('-','/');
+  // 1. 繳款金額與該期應繳不同
+  accTx.filter(t=>t.isPayment && t.amount<0).forEach(t=>{
+    const ct = DB.transactions.find(x=>x.transferPairTxnId===t.id && x.sourceType==='card');
+    if (!ct) return;
+    const card = getCard(ct.sourceId); if (!card) return;
+    const ps = cardPeriodSummary(card.id, 6);
+    let p = ct.payForPeriodEnd ? ps.find(x=>x.periodEnd===ct.payForPeriodEnd) : null;
+    if (!p) { const i = cardPeriodIndexForDate(ps, ct.date); p = i>=0 ? ps[i+1] : null; }
+    if (!p || p.due <= 0) return; // 找不到對應期別或該期無應繳：不列入，避免誤報
+    const paid = Math.abs(t.amount), dd = Math.round(paid - p.due);
+    if (dd === 0) return;
+    const match = Math.abs(dd) === ad;
+    out.push({ tag:'繳款', txnId:ct.id, match,
+      html:`${md(t.date)} ${escHtml(card.name)} 繳款記 <b>${fmt(paid)}</b>，該期應繳 <b>${fmt(p.due)}</b>，差 ${fmt(Math.abs(dd))}${isDigitSwap(paid,p.due)?'（數字順序可能打反）':''}` });
+  });
+  // 2. 分層餘額剛好等於差額
+  (acc.layers||[]).forEach(l=>{
+    const b = Math.round(layerDynamicBalance(acc.id, l.id));
+    if (Math.abs(b) === ad) out.push({ tag:'分層', match:true, layerId:l.id, html:`「${escHtml(l.label)}」分層餘額剛好是 <b>${fmtAccAmt(acc,b)}</b>` });
+  });
+  // 3. 近 90 天有同金額的記錄（可能重複記或漏記）
+  accTx.filter(t=>Math.abs(Math.round(txnAccUnits(t,isFx)))===ad && !t.isPayment).slice(0,5).forEach(t=>{
+    out.push({ tag:'同金額', txnId:t.id, match:false, html:`${md(t.date)} ${escHtml(t.desc||'—')} ${fmtAccAmt(acc,txnAccUnits(t,isFx))}（可能重複或漏記）` });
+  });
+  // 4. 差額是 9 的倍數
+  if (ad % 9 === 0) out.push({ tag:'打字', match:false, html:'差額是 9 的倍數，常見於數字順序打反' });
+  return out.sort((x,y)=>(y.match?1:0)-(x.match?1:0));
+}
+function renderReconcile() {
+  const acc = getAcc(v('rcAcc')), box = document.getElementById('rcResult'); if (!acc || !box) return;
+  const raw = document.getElementById('rcActual').value;
+  if (raw === '') { box.innerHTML = ''; return; }
+  const actual = +raw, appBal = accountBalance(acc.id), diff = Math.round((appBal - actual)*100)/100;
+  const row = (k,val,st='') => `<div style="display:flex;justify-content:space-between;padding:4px 0;${st}"><span>${k}</span><span style="font-variant-numeric:tabular-nums">${val}</span></div>`;
+  let h = `<div style="padding:10px 12px;border-radius:var(--r);background:var(--bg-secondary);border:1px solid var(--bdr-subtle);font-size:13px">
+    ${row('App 餘額', fmtAccAmt(acc, appBal))}${row('實際餘額', fmtAccAmt(acc, actual))}
+    ${row('差額', diff===0?'✓ 完全吻合':(diff>0?'App 多 ':'App 少 ')+fmtAccAmt(acc, Math.abs(diff)), `font-weight:700;font-size:15px;border-top:1px solid var(--bdr-subtle);margin-top:4px;padding-top:8px;color:${diff===0?'var(--tx-green)':'var(--warn)'}`)}</div>`;
+  if (diff !== 0) {
+    const sus = reconcileSuspects(acc, diff);
+    h += `<div style="font-size:11px;color:var(--tx-muted);letter-spacing:1px;margin:12px 0 6px">可能原因${sus.length?'（點選可直接編輯）':''}</div>`;
+    h += sus.length ? sus.map(x=>`<div ${x.txnId?`onclick="openModal('editTxn','${x.txnId}')"`:x.layerId?`onclick="openLayerDetail('account','${acc.id}','${x.layerId}')"`:''} style="padding:8px 10px;border-radius:var(--r);background:var(--bg-secondary);border:1px solid ${x.match?'var(--warn)':'var(--bdr-subtle)'};margin-bottom:6px;font-size:12px;line-height:1.6;${x.txnId||x.layerId?'cursor:pointer':''}">
+        <span class="badge" style="font-size:9px;margin-right:4px">${x.tag}</span>${x.html}${x.match?' <span style="color:var(--tx-green);font-weight:700">← 剛好吻合</span>':''}</div>`).join('')
+      : '<div style="font-size:12px;color:var(--tx-muted)">找不到明顯原因，可能是漏記手續費、利息或其他扣款</div>';
+  }
+  box.innerHTML = h;
+  document.getElementById('modalFooter').innerHTML = `<button class="btn btn-ghost" onclick="closeModal()">關閉</button>`
+    + (diff!==0 ? `<button class="btn btn-ghost" onclick="reconcileAdjust()">記一筆差額調整</button>` : '')
+    + `<button class="btn btn-primary" onclick="reconcileMark()">✅ 標記已對帳</button>`;
+}
+// 差額調整：記一筆不計入收支統計的調整記錄，讓 App 餘額＝實際餘額
+function reconcileAdjust() {
+  const acc = getAcc(v('rcAcc')); if (!acc) return;
+  const actual = +document.getElementById('rcActual').value, diff = actual - accountBalance(acc.id);
+  if (!diff) return;
+  if (!confirm(`將新增一筆「對帳調整」${diff>0?'+':'−'}${fmtAccAmt(acc,Math.abs(diff))}，讓 App 餘額與實際餘額一致。\n此記錄不計入收支統計。\n\n建議先從「可能原因」修正錯誤的記錄，確定找不到原因再調整。要繼續嗎？`)) return;
+  const isFx = acc.accType === '外幣' && acc.currency;
+  const twd = isFx ? (getRateTWD(acc.currency) ? roundCur(diff*getRateTWD(acc.currency),'TWD') : 0) : diff;
+  DB.transactions.push({ id:uid(), date:today(), amount:twd, ...(isFx?{fxCurrency:accUnitCur(acc), fxAmount:diff}:{}),
+    desc:'對帳調整', category:'', sourceId:acc.id, sourceType:'account', notes:'對帳時記錄的差額調整', isAdjust:true, tags:[] });
+  acc.reconciled = { date: today(), balance: actual };
+  saveDB(); closeModal(); renderAccounts(); toast('已記錄對帳調整並標記已對帳','success');
+}
+function reconcileMark() {
+  const acc = getAcc(v('rcAcc')); if (!acc) return;
+  const actual = +document.getElementById('rcActual').value, diff = Math.round((accountBalance(acc.id)-actual)*100)/100;
+  if (diff !== 0 && !confirm(`目前還有差額 ${fmtAccAmt(acc,Math.abs(diff))}，仍要標記為已對帳嗎？`)) return;
+  acc.reconciled = { date: today(), balance: actual };
+  saveDB(); closeModal(); renderAccounts(); toast('已標記對帳','success');
 }
 
 // 逐筆累計餘額（即時計算，不寫入資料）
@@ -7561,10 +7654,12 @@ function renderAccounts() {
             ${typeBadge}
             <div class="account-card-type">BANK ACCOUNT</div>
             ${last4show}
+            ${a.reconciled?`<span class="badge badge-green" style="font-size:9px" title="上次對帳餘額 ${fmtAccAmt(a,a.reconciled.balance)}">✅ 對帳 ${a.reconciled.date.slice(5).replace('-','/')}</span>`:''}
           </div>
         </div>
         <div style="display:flex;gap:4px">
           <button class="btn btn-ghost btn-icon btn-sm drag-handle" title="拖曳排序">⠿</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openReconcile('${a.id}')" title="對帳">🔍</button>
           <button class="btn btn-ghost btn-icon btn-sm" onclick="${a.locked?`requestAccountUnlock('${a.id}','edit')`:`openModal('editAccount','${a.id}')`}">✏️</button>
           <button class="btn btn-danger btn-icon btn-sm" onclick="${a.locked?`requestAccountUnlock('${a.id}','delete')`:`deleteAccount('${a.id}')`}">🗑</button>
         </div>
@@ -9612,7 +9707,8 @@ function openModal(type,id,preCard,preAcc,extraId) {
       <div style="font-size:11px;color:var(--tx-muted);margin-bottom:4px">目前欠款</div>
       <div style="font-family:var(--ff-display);font-size:24px;font-weight:700;color:var(--tx-red)">−${fmt(Math.abs(bal))}</div>
     </div>
-    <div class="form-group"><label class="form-label" id="pyAmtLabel">繳款金額（NT$）</label><input class="form-input" id="pyAmt" type="number" value="${Math.abs(bal)}" oninput="updateFxPreview('py')">
+    <div class="form-group"><label class="form-label" id="pyAmtLabel">繳款金額（NT$）</label><input class="form-input" id="pyAmt" type="number" value="${(()=>{const pp=cardPeriodSummary(id,6)[1]; return pp?Math.max(0,pp.due-pp.paid):Math.abs(bal);})()}" oninput="updateFxPreview('py');pyGuardUpdate()">
+      <div id="pyGuard" style="display:none;margin-top:6px;padding:8px 10px;border-radius:var(--r);font-size:12px;line-height:1.6"></div>
       <div id="pyFxBox" style="display:none;margin-top:10px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-radius:var(--r)"></div>
     </div>
     <div class="form-group"><label class="form-label">從哪個帳戶扣款</label>
@@ -9642,12 +9738,13 @@ function openModal(type,id,preCard,preAcc,extraId) {
     </div>
     <div class="form-group"><label class="form-label">繳款日期</label><input class="form-input" id="pyDate" type="date" value="${today()}"></div>
     <div class="form-group"><label class="form-label">繳哪一期</label>
-      <select class="form-select" id="pyPeriod">${cardPayPeriodOptionsHtml(id)}</select>
+      <select class="form-select" id="pyPeriod" onchange="pyPeriodChanged()">${cardPayPeriodOptionsHtml(id)}</select>
       <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">用來比對該期「應繳 / 已繳」，可在信用卡消費紀錄的期別標題查看</div>
     </div>
     ${monthlyLayersHtml}
     <div class="form-group"><label class="form-label">備註（選填）</label><textarea class="form-input notes-autogrow" id="pyNotes" rows="1" oninput="autoGrowNotes(this)" onfocus="autoGrowNotes(this)"></textarea></div>`;
     f=`<button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-success" onclick="doPayment()">✅ 確認繳款</button>`;
+    setTimeout(pyGuardUpdate, 0);
   }
 
   // ── TRANSFER ──
@@ -10284,8 +10381,63 @@ function fillLayerSel(selId, groupId, accId) {
   })), '');
   grp.style.display = '';
 }
+// ── 繳款防呆 ──
+// 選定期別的未繳金額（應繳 − 已繳）
+function pyPeriodRemain() {
+  const cardId = v('pyCardId'), end = v('pyPeriod');
+  const p = cardPeriodSummary(cardId, 6).find(x => x.periodEnd === end);
+  return p ? { due: p.due, paid: p.paid, remain: Math.max(0, p.due - p.paid) } : null;
+}
+// 兩個數字的位數相同、只是順序不同（例如 13641 ↔ 13461）
+function isDigitSwap(a, b) {
+  const x = String(Math.round(Math.abs(a))), y = String(Math.round(Math.abs(b)));
+  return x !== y && x.length === y.length && [...x].sort().join('') === [...y].sort().join('');
+}
+function pyPeriodChanged() {
+  const r = pyPeriodRemain(); const el = document.getElementById('pyAmt');
+  if (r && el) { el.value = r.remain; updateFxPreview('py'); }
+  pyGuardUpdate();
+}
+// 回傳 {ok, msgs}；ok=false 表示金額與該期未繳金額不同
+function pyGuardCheck() {
+  const msgs = []; let ok = true;
+  const amt = +v('pyAmt') || 0, r = pyPeriodRemain();
+  const isTWD = typeof fxFormCur !== 'function' || fxFormCur('py') === 'TWD';
+  if (r && isTWD && amt > 0 && r.remain > 0) {
+    const diff = Math.round(amt - r.remain);
+    if (diff !== 0) {
+      ok = false;
+      msgs.push(`⚠️ 與該期未繳 <b>${fmt(r.remain)}</b> 不同，${diff>0?'多':'少'} <b>${fmt(Math.abs(diff))}</b>`);
+      if (isDigitSwap(amt, r.remain)) msgs.push('🔢 數字相同只是順序不同，可能打反了');
+      else if (Math.abs(diff) % 9 === 0) msgs.push('🔢 差額是 9 的倍數，常見於數字順序打反');
+    }
+  }
+  // 單一分層：扣款後剩多少
+  const accId = (v('pyFrom')||'').split('_')[1], lid = v('pyLayer');
+  const multi = document.getElementById('pyMultiToggle')?.checked;
+  if (accId && lid && !multi && isTWD && amt > 0) {
+    const acc = getAcc(accId), lay = (acc?.layers||[]).find(l=>l.id===lid);
+    if (lay) {
+      const left = Math.round(layerDynamicBalance(accId, lid) - amt);
+      if (left !== 0) msgs.push(`💡 扣款後「${escHtml(lay.label)}」會剩 <b>${left<0?'−':''}${fmt(Math.abs(left))}</b>`);
+    }
+  }
+  return { ok, msgs, okMsg: (r && r.remain > 0 && ok && amt > 0) ? '✓ 與該期未繳金額相符' : '' };
+}
+function pyGuardUpdate() {
+  const box = document.getElementById('pyGuard'); if (!box) return;
+  const g = pyGuardCheck();
+  if (!g.msgs.length && !g.okMsg) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const warn = !g.ok || g.msgs.length;
+  box.style.background = warn ? 'color-mix(in srgb,var(--warn) 14%,transparent)' : 'color-mix(in srgb,var(--tx-green) 12%,transparent)';
+  box.style.color = warn ? 'var(--tx-primary)' : 'var(--tx-green)';
+  box.innerHTML = [g.okMsg, ...g.msgs].filter(Boolean).join('<br>');
+}
 function onPayAccChange(srcVal) {
   const accId = srcVal.startsWith('account_') ? srcVal.split('_')[1] : srcVal;
+  window._layerPickerOnChange = window._layerPickerOnChange || {};
+  window._layerPickerOnChange['pyLayer'] = () => pyGuardUpdate();
   fillLayerSel('pyLayer','pyLayerGroup', accId);
   renderPayMultiLayerInputs(accId);
   renderPayFxBox();
@@ -10416,6 +10568,9 @@ function onTfAccChange(side, accId) {
 function doPayment() {
   const cardId=v('pyCardId'),amt=+v('pyAmt'),fromVal=v('pyFrom'),date=v('pyDate'),notes=v('pyNotes');
   if(!amt||!fromVal){toast('請填寫完整資訊','danger');return;}
+  // 防呆：金額與該期未繳不同時再確認一次
+  const _g = pyGuardCheck(), _r = pyPeriodRemain();
+  if (!_g.ok && _r && !confirm(`繳款金額 ${fmt(amt)} 與該期未繳 ${fmt(_r.remain)} 不同（差 ${fmt(Math.abs(amt-_r.remain))}）。\n\n確定要用 ${fmt(amt)} 繳款嗎？`)) return;
   const [,fromId]=fromVal.split('_');
   const card=getCard(cardId);
   // 外幣：輸入幣別換算（台幣帳戶＋台幣輸入時數值不變）
