@@ -172,6 +172,16 @@
   body:not(.light-theme) .account-card[data-acc-tone="light"] .layer-bar .layer-name{color:#1a1a2e !important;-webkit-text-fill-color:#1a1a2e !important}
   body.light-theme .account-card[data-acc-tone="dark"] .layer-bar .layer-amt.acc-pos{color:#8fd3ff !important;-webkit-text-fill-color:#8fd3ff !important}
   body.light-theme .account-card[data-theme="sunset"] .layer-bar .layer-amt.acc-pos,body.light-theme .account-card[data-theme="amber"] .layer-bar .layer-amt.acc-pos,body.light-theme .account-card[data-theme="tartan"] .layer-bar .layer-amt.acc-pos,body.light-theme .account-card[data-theme="matcha"] .layer-bar .layer-amt.acc-pos,body.light-theme .account-card[data-theme="bronze"] .layer-bar .layer-amt.acc-pos,body.light-theme .account-card[data-theme="burgundy"] .layer-bar .layer-amt.acc-pos{color:#fff !important;-webkit-text-fill-color:#fff !important}
+  /* 帳務明細：每筆底色＝來源卡片／帳戶封面淡化 */
+  .txn-themed{--veil-a:rgba(20,18,28,.36);--veil-b:rgba(20,18,28,.85);background:linear-gradient(90deg,var(--veil-a),var(--veil-b)),var(--theme-bg) !important}
+  .txn-themed[data-tone="light"]{--veil-a:rgba(20,18,28,.68);--veil-b:rgba(20,18,28,.9)}
+  .txn-themed[data-tone="bank"]{--veil-a:rgba(20,18,28,.68);--veil-b:rgba(20,18,28,.92)}
+  body.light-theme .txn-themed{--veil-a:rgba(255,255,255,.62);--veil-b:rgba(255,255,255,.93);background:linear-gradient(90deg,var(--veil-a) 0%,var(--veil-a) 30%,var(--veil-b)),var(--theme-bg) !important}
+  body.light-theme .txn-themed[data-tone="light"]{--veil-a:rgba(255,255,255,.25);--veil-b:rgba(255,255,255,.8)}
+  body.light-theme .txn-themed[data-tone="bank"]{--veil-a:rgba(255,255,255,.75);--veil-b:rgba(255,255,255,.95)}
+  .txn-card-mobile.txn-themed{border-radius:10px;margin:5px 0;border:1px solid var(--bdr-subtle)}
+  .txn-themed:hover{filter:brightness(1.12)}
+  .txn-row.txn-themed>td{background:transparent !important}
   /* 剩餘生活費分層選擇：每組包成面板，底色＝封面／帳戶顏色淡化 */
   .dls-group.dls-themed{--veil-a:rgba(20,18,28,.32);--veil-b:rgba(20,18,28,.82);border-top:none;margin-top:8px;padding:8px 10px 10px;border-radius:12px;border:1px solid var(--edge,var(--bdr-subtle));background:linear-gradient(90deg,var(--veil-a),var(--veil-b)),var(--theme-bg)}
   .dls-group.dls-themed[data-tone="light"]{--veil-a:rgba(20,18,28,.68);--veil-b:rgba(20,18,28,.9)}
@@ -5749,6 +5759,21 @@ function dashCardRowBg(c) {
 }
 // 有金色／霓虹邊框的封面，面板邊框沿用
 const CARD_THEME_EDGE = { emerald:'#c8a000', navygold:'#c8a45a', british:'#b59a5b', neon:'#22e3ff' };
+// 帳務明細每筆記錄的屬性：底色＝來源卡片／帳戶封面淡化（只用在帳務明細頁）
+function txnRowAttrs(t, themed, batchMode) {
+  const styles = [];
+  let attrs = batchMode ? `onclick="toggleRowSelect(this)"` : '';
+  if (batchMode) styles.push('cursor:pointer');
+  if (themed) {
+    const src = t.sourceType==='card' ? getCard(t.sourceId) : getAcc(t.sourceId);
+    if (src) {
+      const hasT = src.cardTheme && src.cardTheme !== 'default';
+      attrs += ` data-tone="${hasT ? dashCardRowTone(src) : (t.sourceType==='card' ? 'dark' : 'bank')}"`;
+      styles.push('--theme-bg:'+dashCardRowBg(src));
+    }
+  }
+  return attrs + (styles.length ? ` style="${styles.join(';')}"` : '');
+}
 function dashCardRowTone(c) { return cardThemeIsLight(c.cardTheme) ? 'light' : 'dark'; }
 // 卡片主題是否為淺底（文字用深色）
 function cardThemeIsLight(id) { const t=CARD_THEMES.find(x=>x.id===id); return !!(t && t.tone==='light'); }
@@ -8179,9 +8204,9 @@ function txnTable(txns, withActions, periodInfo) {
       ? (batchMode ? '<td class="txn-col-act"></td>'
           : `<td class="txn-col-act"><button type="button" class="txn-more-btn" onclick="event.stopPropagation();openTxnRowMenu(event,'${t.id}')" aria-label="更多操作">⋯</button></td>`)
       : '';
-    const rowClick = batchMode?`onclick="toggleRowSelect(this)" style="cursor:pointer"`:'';
+    const rowClick = txnRowAttrs(t, withActions, batchMode);
     const b = balLine(t);
-    return `${periodRow}${groupRow}<tr class="txn-row" ${rowClick}>
+    return `${periodRow}${groupRow}<tr class="txn-row${withActions?' txn-themed':''}" ${rowClick}>
       ${chk}
       ${showDateCol?`<td class="txn-col-date">${t.date.slice(5).replace('-','/')}</td>`:''}
       <td class="txn-col-desc"><div class="txn-desc-wrap">${txnIconHtml(t, cat, 'sm')}<div class="txn-desc-text"><span class="txn-desc-name">${escHtml(t.desc)}</span>${neutralTags(t)}</div></div></td>
@@ -8248,9 +8273,9 @@ function txnTable(txns, withActions, periodInfo) {
     const moreBtn = (withActions&&!batchMode)
       ? `<button type="button" class="txn-more-btn" onclick="event.stopPropagation();openTxnRowMenu(event,'${t.id}')" aria-label="更多操作">⋯</button>`
       : '';
-    const rowClick = batchMode?`onclick="toggleRowSelect(this)" style="cursor:pointer"`:'';
+    const rowClick = txnRowAttrs(t, withActions, batchMode);
     const b = balLine(t);
-    return `${periodHdr}${groupHdr}<div class="txn-card-mobile txn-v2" ${rowClick}>
+    return `${periodHdr}${groupHdr}<div class="txn-card-mobile txn-v2${withActions?' txn-themed':''}" ${rowClick}>
       ${chkBox}
       ${txnIconHtml(t, cat)}
       <div class="txn-v2-main">
