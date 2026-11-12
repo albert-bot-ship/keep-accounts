@@ -101,7 +101,7 @@
           "reimbursable": true
         }
       ],
-      "cardTheme": "rose",
+      "cardTheme": "platinum",
       "graceDays": 2,
       "startExtDays": 3,
       "last4": "9760",
@@ -126,7 +126,7 @@
           "monthlyAmt": null
         }
       ],
-      "cardTheme": "carbon",
+      "cardTheme": "midnight",
       "graceDays": 2,
       "startExtDays": 3,
       "last4": "1256",
@@ -177,7 +177,7 @@
       "startExtDays": 3,
       "cashbackRate": 0,
       "pointRate": 0,
-      "cardTheme": "midnight",
+      "cardTheme": "starry",
       "layers": [
         {
           "id": "mtlrcamxsaur9",
@@ -188,7 +188,9 @@
           "reimbursable": false
         }
       ],
-      "includeInTotal": false
+      "includeInTotal": false,
+      "last4": "",
+      "walletName": ""
     },
     {
       "id": "mvcppceew5f91",
@@ -202,7 +204,9 @@
       "startExtDays": 3,
       "cashbackRate": 0,
       "pointRate": 0,
-      "cardTheme": "emerald"
+      "cardTheme": "matcha",
+      "last4": "",
+      "walletName": ""
     }
   ],
   "bankAccounts": [
