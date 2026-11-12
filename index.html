@@ -157,6 +157,22 @@
   /* 暖色底（紅／橘／棕）：紅字看不清，負數金額改白字加陰影 */
   body .account-card[data-theme="sunset"] .account-balance.negative,body .account-card[data-theme="amber"] .account-balance.negative,body .account-card[data-theme="tartan"] .account-balance.negative,body .account-card[data-theme="matcha"] .account-balance.negative,body .account-card[data-theme="bronze"] .account-balance.negative,body .account-card[data-theme="burgundy"] .account-balance.negative{color:#fff !important;-webkit-text-fill-color:#fff !important;text-shadow:0 1px 3px rgba(0,0,0,.45) !important}
   body .account-card[data-theme="sunset"] .layer-amt,body .account-card[data-theme="amber"] .layer-amt,body .account-card[data-theme="tartan"] .layer-amt,body .account-card[data-theme="matcha"] .layer-amt,body .account-card[data-theme="bronze"] .layer-amt,body .account-card[data-theme="burgundy"] .layer-amt,body .account-card[data-theme="sunset"] .a-neg,body .account-card[data-theme="amber"] .a-neg,body .account-card[data-theme="tartan"] .a-neg,body .account-card[data-theme="matcha"] .a-neg,body .account-card[data-theme="bronze"] .a-neg,body .account-card[data-theme="burgundy"] .a-neg,body .account-card[data-theme="sunset"] .a-over,body .account-card[data-theme="amber"] .a-over,body .account-card[data-theme="tartan"] .a-over,body .account-card[data-theme="matcha"] .a-over,body .account-card[data-theme="bronze"] .a-over,body .account-card[data-theme="burgundy"] .a-over{color:#fff !important;-webkit-text-fill-color:#fff !important;text-shadow:0 1px 2px rgba(0,0,0,.4) !important}
+  /* 儀表板信用卡總覽：封面主題淡化疊在原底色上（文字顏色不變） */
+  .layer-bar.dash-card-row{--veil-a:rgba(20,18,28,.32);--veil-b:rgba(20,18,28,.82);background:linear-gradient(90deg,var(--veil-a),var(--veil-b)),var(--theme-bg) !important}
+  .layer-bar.dash-card-row[data-tone="light"]{--veil-a:rgba(20,18,28,.68);--veil-b:rgba(20,18,28,.9)}
+  body.light-theme .layer-bar.dash-card-row{--veil-a:rgba(255,255,255,.62);--veil-b:rgba(255,255,255,.93)}
+  body.light-theme .layer-bar.dash-card-row{background:linear-gradient(90deg,var(--veil-a) 0%,var(--veil-a) 30%,var(--veil-b)),var(--theme-bg) !important}
+  body.light-theme .layer-bar.dash-card-row[data-tone="light"]{--veil-a:rgba(255,255,255,.25);--veil-b:rgba(255,255,255,.8)}
+  /* 剩餘生活費分層選擇：每組包成面板，底色＝封面／帳戶顏色淡化 */
+  .dls-group.dls-themed{--veil-a:rgba(20,18,28,.32);--veil-b:rgba(20,18,28,.82);border-top:none;margin-top:8px;padding:8px 10px 10px;border-radius:12px;border:1px solid var(--edge,var(--bdr-subtle));background:linear-gradient(90deg,var(--veil-a),var(--veil-b)),var(--theme-bg)}
+  .dls-group.dls-themed[data-tone="light"]{--veil-a:rgba(20,18,28,.68);--veil-b:rgba(20,18,28,.9)}
+  body.light-theme .dls-group.dls-themed{--veil-a:rgba(255,255,255,.62);--veil-b:rgba(255,255,255,.93);background:linear-gradient(90deg,var(--veil-a) 0%,var(--veil-a) 30%,var(--veil-b)),var(--theme-bg)}
+  body.light-theme .dls-group.dls-themed[data-tone="light"]{--veil-a:rgba(255,255,255,.25);--veil-b:rgba(255,255,255,.8)}
+  body.luxury-theme .dls-group.dls-themed{border-radius:4px}
+  .dls-group.dls-themed[data-tone="bank"]{--veil-a:rgba(20,18,28,.55);--veil-b:rgba(20,18,28,.9)}
+  body.light-theme .dls-group.dls-themed[data-tone="bank"]{--veil-a:rgba(255,255,255,.75);--veil-b:rgba(255,255,255,.95)}
+  .dls-group.dls-themed .dls-acc-name{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+  body.light-theme .dls-group.dls-themed .dls-acc-name{color:#1a1a2e;text-shadow:none}
   /* 轉帳明細：分層色塊標籤（--lc＝分層顏色） */
   .tf-chip{--lc:#1c69d4;display:inline-flex;align-items:center;gap:5px;max-width:100%;min-width:0;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;line-height:1.5;background:color-mix(in srgb,var(--lc) 18%,transparent);border:1px solid color-mix(in srgb,var(--lc) 42%,transparent);color:color-mix(in srgb,var(--lc) 40%,#fff)}
   body.light-theme .tf-chip{color:color-mix(in srgb,var(--lc) 80%,#000)}
@@ -5549,6 +5565,16 @@ const CARD_THEMES = [
 // 舊款補上分組與明暗
 CARD_THEMES.forEach(t=>{ if(!t.group) t.group='經典'; if(!t.tone) t.tone=(t.id==='white'||t.id==='gold')?'light':'dark'; });
 const CARD_THEME_GROUPS = ['經典','金屬','漸層','頂級卡','自然','圖案'];
+// 儀表板信用卡總覽列：淡化封面底色（有主題用主題漸層，預設用卡片顏色）
+function dashCardRowBg(c) {
+  const t = CARD_THEMES.find(x=>x.id===c.cardTheme);
+  if (t && t.id!=='default') return t.style;
+  const col = safeHex(c.color);
+  return `linear-gradient(90deg,${col},color-mix(in srgb,${col} 40%,transparent))`;
+}
+// 有金色／霓虹邊框的封面，面板邊框沿用
+const CARD_THEME_EDGE = { emerald:'#c8a000', navygold:'#c8a45a', british:'#b59a5b', neon:'#22e3ff' };
+function dashCardRowTone(c) { return cardThemeIsLight(c.cardTheme) ? 'light' : 'dark'; }
 // 卡片主題是否為淺底（文字用深色）
 function cardThemeIsLight(id) { const t=CARD_THEMES.find(x=>x.id===id); return !!(t && t.tone==='light'); }
 // 新款主題（舊款由 style.css 各自處理）
@@ -6656,13 +6682,14 @@ function renderCCLayerSelector() {
 
   // ── 群組（帳戶／信用卡）：全部攤開，標題列固定三段：名稱｜已選與小計｜全選或清除 ──
   // 按鈕共用同一組格線（電腦 4 欄、手機 2 欄），未選為灰色，選取後才顯示分層顏色
-  const groupHtml = (kind, name, items, extraHead, color) => {
+  const groupHtml = (kind, name, items, extraHead, color, panel) => {
     const keys = items.map(it => it.key);
     const selItems = items.filter(it => it.sel);
     const sub = selItems.reduce((s,it) => s + it.amt, 0);
     const allSel = selItems.length === items.length;
     const keysArg = escAttr(JSON.stringify(keys));
-    let g = '<div class="dls-group">';
+    // panel：{bg, tone, edge} 群組面板底色＝封面主題（信用卡）或帳戶顏色（銀行）淡化
+    let g = panel ? '<div class="dls-group dls-themed" data-tone="'+panel.tone+'" style="--theme-bg:'+panel.bg+(panel.edge?';--edge:'+panel.edge:'')+'">' : '<div class="dls-group">';
     g += '<div class="dls-group-head">'
        + '<span class="dls-group-name"><span class="dls-acc-name" style="'+accNameColorVars(color)+'">'+escHtml(name)+'</span></span>'
        + '<span class="dls-group-period">'+(extraHead||'')+'</span>' // 期別獨立一欄，各卡上下對齊
@@ -6692,7 +6719,7 @@ function renderCCLayerSelector() {
           html: chipHtml('bank', sel, l.accColor, l.label, (l.actual<0?'−':'')+(acc?.accType==='外幣'&&acc.currency ? fmtFX(l.actual, acc.currency) : Math.abs(Math.round(l.actual)).toLocaleString('zh-TW')),
                  'toggleBankLayer(\''+l.accId+'\',\''+l.layerId+'\','+(!sel)+')') };
       });
-      html += groupHtml('bank', acc?.name || ls[0].accName, items, '', acc?.color);
+      html += groupHtml('bank', acc?.name || ls[0].accName, items, '', acc?.color, {bg:dashCardRowBg({color:acc?.color}), tone:'bank'});
     });
   }
 
@@ -6717,7 +6744,7 @@ function renderCCLayerSelector() {
         const sb = (m, t) => '<span class="'+(mode===m?'a':'')+'" onclick="setCCCardPeriodMode(\''+cardId+'\',\''+m+'\')">'+t+'</span>';
         seg = '<span class="dls-seg">' + sb('prev','上期') + sb('current','本期') + sb('next','下期') + '</span>';
       }
-      html += groupHtml('cc', card?.name || ls[0].cardName, items, seg, card?.color);
+      html += groupHtml('cc', card?.name || ls[0].cardName, items, seg, card?.color, card ? {bg:dashCardRowBg(card), tone:dashCardRowTone(card), edge:CARD_THEME_EDGE[card.cardTheme]||''} : null);
     });
   }
 
@@ -6902,7 +6929,7 @@ function renderDashboard() {
       const periodSpend=cardPeriodTotalSpend(c);
       const billLbl=cardBillLabel(cardBillStatus(c)); // 連動上一期繳款狀態
       const dueCls=billLbl?(billLbl.level==='urgent'?'a-over':billLbl.level==='warn'?'a-neg':''):'';
-      return `<div class="layer-bar dash-link" style="border-left:3px solid ${c.color}" onclick="navToItem('cards','card-${c.id}')" title="前往信用卡詳情">
+      return `<div class="layer-bar dash-link dash-card-row" data-tone="${dashCardRowTone(c)}" style="border-left:3px solid ${c.color};--theme-bg:${dashCardRowBg(c)}" onclick="navToItem('cards','card-${c.id}')" title="前往信用卡詳情">
         <div style="width:8px;height:8px;border-radius:50%;background:${c.color};flex-shrink:0"></div>
         <span style="flex:1;font-size:13px">${c.name}</span>
         ${billLbl?`<span class="${dueCls}" style="font-size:11px;margin-right:8px">${billLbl.text}</span>`:''}
