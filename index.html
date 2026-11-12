@@ -163,6 +163,15 @@
   body.light-theme .layer-bar.dash-card-row{--veil-a:rgba(255,255,255,.62);--veil-b:rgba(255,255,255,.93)}
   body.light-theme .layer-bar.dash-card-row{background:linear-gradient(90deg,var(--veil-a) 0%,var(--veil-a) 30%,var(--veil-b)),var(--theme-bg) !important}
   body.light-theme .layer-bar.dash-card-row[data-tone="light"]{--veil-a:rgba(255,255,255,.25);--veil-b:rgba(255,255,255,.8)}
+  /* 銀行帳戶封面：分層餘額正數用藍、負數用紅（覆蓋主題的一律紅字） */
+  body .account-card[data-acc-tone="dark"] .layer-amt.acc-pos{color:#8fd3ff !important;-webkit-text-fill-color:#8fd3ff !important;text-shadow:none !important}
+  body .account-card[data-acc-tone="light"] .layer-amt.acc-pos{color:#0d4fa0 !important;-webkit-text-fill-color:#0d4fa0 !important;text-shadow:none !important}
+  body .account-card[data-theme="sunset"] .layer-amt.acc-pos,body .account-card[data-theme="amber"] .layer-amt.acc-pos,body .account-card[data-theme="tartan"] .layer-amt.acc-pos,body .account-card[data-theme="matcha"] .layer-amt.acc-pos,body .account-card[data-theme="bronze"] .layer-amt.acc-pos,body .account-card[data-theme="burgundy"] .layer-amt.acc-pos{color:#fff !important;-webkit-text-fill-color:#fff !important;text-shadow:0 1px 2px rgba(0,0,0,.4) !important}
+  body .account-card[data-acc-tone="dark"] .acc-flow{background:rgba(0,0,0,.25) !important}
+  body .account-card[data-acc-tone="light"] .acc-flow{background:rgba(255,255,255,.55) !important}
+  body:not(.light-theme) .account-card[data-acc-tone="light"] .layer-bar .layer-name{color:#1a1a2e !important;-webkit-text-fill-color:#1a1a2e !important}
+  body.light-theme .account-card[data-acc-tone="dark"] .layer-bar .layer-amt.acc-pos{color:#8fd3ff !important;-webkit-text-fill-color:#8fd3ff !important}
+  body.light-theme .account-card[data-theme="sunset"] .layer-bar .layer-amt.acc-pos,body.light-theme .account-card[data-theme="amber"] .layer-bar .layer-amt.acc-pos,body.light-theme .account-card[data-theme="tartan"] .layer-bar .layer-amt.acc-pos,body.light-theme .account-card[data-theme="matcha"] .layer-bar .layer-amt.acc-pos,body.light-theme .account-card[data-theme="bronze"] .layer-bar .layer-amt.acc-pos,body.light-theme .account-card[data-theme="burgundy"] .layer-bar .layer-amt.acc-pos{color:#fff !important;-webkit-text-fill-color:#fff !important}
   /* 剩餘生活費分層選擇：每組包成面板，底色＝封面／帳戶顏色淡化 */
   .dls-group.dls-themed{--veil-a:rgba(20,18,28,.32);--veil-b:rgba(20,18,28,.82);border-top:none;margin-top:8px;padding:8px 10px 10px;border-radius:12px;border:1px solid var(--edge,var(--bdr-subtle));background:linear-gradient(90deg,var(--veil-a),var(--veil-b)),var(--theme-bg)}
   .dls-group.dls-themed[data-tone="light"]{--veil-a:rgba(20,18,28,.68);--veil-b:rgba(20,18,28,.9)}
@@ -5484,6 +5493,7 @@ function toggleAccountCard(e, id) {
   el.classList.toggle('expanded', nowExpanded);
   const hint = el.querySelector('.card-tap-hint');
   if (hint) hint.textContent = nowExpanded ? '點擊卡片收合 ›' : '點擊卡片展開 ›';
+  if (a.cardTheme && a.cardTheme !== 'default') return; // 有封面主題：不切換自動漸層
   el.classList.remove('auto-text-light','auto-text-dark');
   if (nowExpanded) {
     el.style.removeProperty('--auto-bg');
@@ -6719,7 +6729,7 @@ function renderCCLayerSelector() {
           html: chipHtml('bank', sel, l.accColor, l.label, (l.actual<0?'−':'')+(acc?.accType==='外幣'&&acc.currency ? fmtFX(l.actual, acc.currency) : Math.abs(Math.round(l.actual)).toLocaleString('zh-TW')),
                  'toggleBankLayer(\''+l.accId+'\',\''+l.layerId+'\','+(!sel)+')') };
       });
-      html += groupHtml('bank', acc?.name || ls[0].accName, items, '', acc?.color, {bg:dashCardRowBg({color:acc?.color}), tone:'bank'});
+      html += groupHtml('bank', acc?.name || ls[0].accName, items, '', acc?.color, (acc ? {bg:dashCardRowBg(acc), tone:(acc.cardTheme&&acc.cardTheme!=='default') ? dashCardRowTone(acc) : 'bank', edge:CARD_THEME_EDGE[acc.cardTheme]||''} : null));
     });
   }
 
@@ -6941,7 +6951,7 @@ function renderDashboard() {
   document.getElementById('dashAccounts').innerHTML =
     DB.bankAccounts.map(a=>{
       const bal=accountBalance(a.id);
-      return `<div class="layer-bar dash-link" style="border-left:3px solid ${a.color}" onclick="navToItem('accounts','account-${a.id}')" title="前往帳戶詳情">
+      return `<div class="layer-bar dash-link dash-card-row" data-tone="${dashCardRowTone(a)}" style="border-left:3px solid ${a.color};--theme-bg:${dashCardRowBg(a)}" onclick="navToItem('accounts','account-${a.id}')" title="前往帳戶詳情">
         <div style="width:8px;height:8px;border-radius:50%;background:${a.color};flex-shrink:0"></div>
         <span style="flex:1;font-size:13px">${a.name}</span>
         <span class="layer-amt ${bal<0?'a-neg':'a-pos'}">${fmtAccAmt(a, bal)}</span>
@@ -7413,7 +7423,7 @@ function renderAccounts() {
           <div class="layer-name">${escHtml(l.label)}</div>
         </div>
         <div style="text-align:right;cursor:pointer" onclick="event.stopPropagation();openLayerDetail('account','${a.id}','${l.id}')">
-          <span class="layer-amt" style="${dynCls}">${fmtAccAmt(a, dynBal)}</span>
+          <span class="layer-amt ${dynBal<0?'acc-neg':'acc-pos'}" style="${dynCls}">${fmtAccAmt(a, dynBal)}</span>
           ${(()=>{
             if (a.accType!=='外幣'||!a.currency) return '';
             const rate = getRateTWD(a.currency);
@@ -7462,11 +7472,14 @@ function renderAccounts() {
     }
 
     const isExpanded = expandedAccounts.has(a.id);
-    const autoTextCls = isLightColor(a.color) ? 'auto-text-dark' : 'auto-text-light';
-    const collapsedStyle = !isExpanded ? `--auto-bg:${autoCardGradient(a.color)};` : '';
-    return `<div class="account-card${isLow?' low-balance':''}${isExpanded?' expanded':' '+autoTextCls}" id="account-${a.id}" data-id="${a.id}" onclick="toggleAccountCard(event,'${a.id}')" style="cursor:pointer;${collapsedStyle}">
-      <div class="card-bg-layer bg-glass"></div>
-      <div class="card-bg-layer bg-gradient"></div>
+    // 已設定封面主題的帳戶：沿用主題底色，不套自動漸層與雙層背景（同信用卡）
+    const accHasTheme = !!(a.cardTheme && a.cardTheme !== 'default');
+    const autoTextCls = accHasTheme ? '' : (isLightColor(a.color) ? 'auto-text-dark' : 'auto-text-light');
+    const collapsedStyle = (!isExpanded && !accHasTheme) ? `--auto-bg:${autoCardGradient(a.color)};` : '';
+    const accThemeAttr = accHasTheme ? ` data-theme="${a.cardTheme}"${cardThemeTone(a.cardTheme)?` data-tone="${cardThemeTone(a.cardTheme)}"`:''} data-acc-tone="${cardThemeIsLight(a.cardTheme)?'light':'dark'}"` : '';
+    return `<div class="account-card${isLow?' low-balance':''}${isExpanded?' expanded':(autoTextCls?' '+autoTextCls:'')}" id="account-${a.id}" data-id="${a.id}"${accThemeAttr} onclick="toggleAccountCard(event,'${a.id}')" style="cursor:pointer;${collapsedStyle}">
+      ${accHasTheme ? '' : `<div class="card-bg-layer bg-glass"></div>
+      <div class="card-bg-layer bg-gradient"></div>`}
       <div class="account-card-content">
       <div class="account-card-header" style="border-top:3px solid ${a.color}">
         <div class="account-card-icon" style="background:${a.color}22">${icon}</div>
@@ -7509,14 +7522,14 @@ function renderAccounts() {
         })()}
         ${isLow?`<div style="font-size:11px;color:var(--warn);margin-top:4px">⚠ 低於最低餘額警示 ${fmtAccAmt(a, a.minBalance)}</div>`:''}
         ${salaryDynamic!==null?`<div style="font-size:11px;color:var(--tx-secondary);margin-top:6px">薪水剩餘生活費：<span style="color:${salaryDynamic<0?'var(--tx-red)':'var(--tx-green)'};font-weight:700">${salaryIsFx?fmtAccAmt(a,salaryDynamic):fmtSigned(salaryDynamic)}</span></div>`:''}
-        <div style="display:flex;gap:0;margin-top:8px;background:var(--bg-secondary);border-radius:var(--r);overflow:hidden">
+        <div class="acc-flow" style="display:flex;gap:0;margin-top:8px;background:var(--bg-secondary);border-radius:var(--r);overflow:hidden">
           <div style="flex:1;padding:7px 10px;text-align:center;border-right:1px solid var(--bdr-subtle)">
             <div style="font-size:9px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:2px">本月流出</div>
-            <div style="font-family:var(--ff-display);font-size:14px;font-weight:700;color:var(--tx-red);white-space:nowrap">−${fmt(mthOut)}</div>
+            <div class="a-neg" style="font-family:var(--ff-display);font-size:14px;font-weight:700;color:var(--tx-red);white-space:nowrap">−${fmt(mthOut)}</div>
           </div>
           <div style="flex:1;padding:7px 10px;text-align:center">
             <div style="font-size:9px;letter-spacing:1px;color:var(--tx-muted);font-family:var(--ff-display);margin-bottom:2px">本月流入</div>
-            <div style="font-family:var(--ff-display);font-size:14px;font-weight:700;color:var(--tx-green);white-space:nowrap">+${fmt(mthIn)}</div>
+            <div class="a-pos" style="font-family:var(--ff-display);font-size:14px;font-weight:700;color:var(--tx-green);white-space:nowrap">+${fmt(mthIn)}</div>
           </div>
         </div>
         ${a.notes?`<div style="font-size:11px;color:var(--tx-muted);margin-top:4px;font-style:italic">${escHtml(a.notes)}</div>`:''}
@@ -9286,6 +9299,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
       </div>
       <div class="form-group"><label class="form-label">最低餘額警示（0=不設定）</label><input class="form-input" id="aMinBal" type="number" value="${a?.minBalance||0}"></div>
     </div>
+    ${cardThemeHtml(a?.cardTheme||'default')}
     <div class="form-group" id="currencyGroup" style="${(a?.accType||'活存')==='外幣'?'':'display:none'}">
       <label class="form-label">外幣幣別（e.g. USD JPY EUR）</label>
       <input class="form-input" id="aCurrency" value="${escAttr(a?.currency||'')}" placeholder="JPY" style="text-transform:uppercase" oninput="updateInitBalLabel()">
@@ -9976,7 +9990,8 @@ function saveAccount() {
     last4:(document.getElementById('aLast4')?.value||'').trim(),
     accType:v('aType')||'活存',minBalance:+v('aMinBal')||0,
     currency:(document.getElementById('aCurrency')?.value||'').trim().toUpperCase(),
-    notes:(document.getElementById('aNotes')?.value||'').trim()};
+    notes:(document.getElementById('aNotes')?.value||'').trim(),
+    cardTheme:document.getElementById('cardThemeVal')?.value||'default'};
   const initBal = +(document.getElementById('aInitBal')?.value) || 0;
   if(modalType==='editAccount'){
     const acc = getAcc(editTarget);
