@@ -182,6 +182,31 @@
   body.light-theme .dls-group.dls-themed[data-tone="bank"]{--veil-a:rgba(255,255,255,.75);--veil-b:rgba(255,255,255,.95)}
   .dls-group.dls-themed .dls-acc-name{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45)}
   body.light-theme .dls-group.dls-themed .dls-acc-name{color:#1a1a2e;text-shadow:none}
+  /* 外觀設定彈窗 */
+  .ap-lb{font-size:11px;color:var(--tx-muted);letter-spacing:1px;margin:14px 0 6px}
+  .ap-lb:first-child{margin-top:0}
+  .ap-modes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  .ap-mode{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0;border-radius:10px;border:1px solid var(--bdr-subtle);background:var(--bg-secondary);color:var(--tx-secondary);font:inherit;font-size:11px;cursor:pointer}
+  .ap-mode span{font-size:18px}
+  .ap-mode.on{border-color:var(--m-blue);color:var(--tx-primary);box-shadow:0 0 0 1px var(--m-blue)}
+  .ap-acc{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px 4px}
+  .ap-acc button{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;padding:0;cursor:pointer;font:inherit}
+  .ap-acc i{width:32px;height:32px;border-radius:50%;border:2px solid transparent;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+  .ap-acc button.on i{border-color:#fff;box-shadow:0 0 0 2px var(--m-blue)}
+  body.light-theme .ap-acc button.on i{border-color:#1a1a2e}
+  .ap-acc small{font-size:10px;color:var(--tx-secondary);white-space:nowrap}
+  .ap-seg{display:flex;gap:6px}
+  .ap-seg button{flex:1;padding:8px 0;border-radius:8px;border:1px solid var(--bdr-subtle);background:var(--bg-secondary);color:var(--tx-secondary);font:inherit;font-size:12px;cursor:pointer}
+  .ap-seg button.on{border-color:var(--m-blue);color:var(--tx-primary);background:color-mix(in srgb,var(--m-blue) 18%,var(--bg-secondary))}
+  body.luxury-theme .ap-mode.on,body.luxury-theme .ap-seg button.on{border-color:var(--lux-gold);box-shadow:0 0 0 1px var(--lux-gold);background:rgba(226,200,147,.08)}
+  body.luxury-theme .ap-acc button.on i{box-shadow:0 0 0 2px var(--lux-gold)}
+  /* 奢華模式：取消所有玻璃效果（背景模糊＋半透明），改為實心絲絨底 */
+  body.luxury-theme{--glass-bg:var(--lux-velvet);--glass-border:var(--lux-gold-faint)}
+  body.luxury-theme *,body.luxury-theme *::before,body.luxury-theme *::after{backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
+  body.luxury-theme .topnav,body.luxury-theme .mobile-bottom-nav{background:var(--lux-night) !important}
+  body.luxury-theme .sidebar{background:var(--lux-night) !important}
+  body.luxury-theme .modal{background:var(--lux-velvet) !important}
+  body.luxury-theme .btn-ghost{background:var(--lux-velvet2) !important}
   /* 轉帳明細：分層色塊標籤（--lc＝分層顏色） */
   .tf-chip{--lc:#1c69d4;display:inline-flex;align-items:center;gap:5px;max-width:100%;min-width:0;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;line-height:1.5;background:color-mix(in srgb,var(--lc) 18%,transparent);border:1px solid color-mix(in srgb,var(--lc) 42%,transparent);color:color-mix(in srgb,var(--lc) 40%,#fff)}
   body.light-theme .tf-chip{color:color-mix(in srgb,var(--lc) 80%,#000)}
@@ -303,7 +328,7 @@
   <div class="nav-spacer"></div>
   <div class="nav-month" id="navMonth"></div>
   <button class="btn-theme-toggle btn-quick-backup" id="quickBackupBtn" onclick="quickBackup()" title="快速備份" aria-label="快速備份">💾</button>
-  <button class="btn-theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切換主題">🌙</button>
+  <button class="btn-theme-toggle" id="themeToggle" onclick="openAppearancePanel()" title="外觀設定">🌙</button>
   <button class="nav-add-btn" onclick="openModal('addTxn')">＋ 新增消費</button>
 </header>
 
@@ -2162,6 +2187,53 @@ function autoTheme() {
   const { sunrise, sunset } = getSunTimes(now);
   const h = now.getHours() + now.getMinutes()/60;
   applyTheme((h >= sunrise && h < sunset) ? 'light' : 'dark');
+}
+
+// ════════════════════════════════════════════════════════════════
+// 外觀設定彈窗（右上角主題按鈕）：與設定頁同一組設定，點選立即生效
+// ════════════════════════════════════════════════════════════════
+function openAppearancePanel() {
+  openModal('_appearance');
+  document.getElementById('modalTitle').textContent = '🎨 外觀設定';
+  document.getElementById('modalFooter').innerHTML = `<button class="btn btn-ghost" onclick="closeModal();nav(document.querySelector('.nav-item[data-page=settings]'),'settings')">前往設定頁</button><button class="btn btn-primary" onclick="closeModal()">完成</button>`;
+  renderAppearancePanel();
+}
+function apSet(kind, val) {
+  if (kind==='theme') setThemeMode(val);
+  else if (kind==='accent') setAccentColor(val);
+  else if (kind==='bg') setBgStyle(val);
+  else if (kind==='fs') setFontSize(val);
+  else if (kind==='radius') setRadius(val);
+  else if (kind==='nf') setNumFont(val);
+  else if (kind==='density') setDensity(val);
+  renderAppearancePanel();
+}
+function renderAppearancePanel() {
+  const box = document.getElementById('modalBody'); if (!box || modalType!=='_appearance') return;
+  const cur = {
+    theme: manualTheme||'auto',
+    accent: localStorage.getItem('mwallet_accent')||'blue',
+    bg: localStorage.getItem('mwallet_bgstyle')||'particles',
+    fs: localStorage.getItem('mwallet_fontsize')||'medium',
+    radius: localStorage.getItem('mwallet_radius')||'default',
+    nf: localStorage.getItem('mwallet_numfont')||'rajdhani',
+    density: localStorage.getItem('mwallet_density')||'normal'
+  };
+  const modes = [['auto','🌗','自動'],['light','☀️','淺色'],['dark','🌙','深色'],['oled','⬛','OLED'],['luxury','✨','奢華']];
+  // 主題色：直接取設定頁色票的顏色與名稱，兩邊一致
+  const accents = [...document.querySelectorAll('[id^="accent-"]')].filter(el=>el.querySelector('.accent-swatch')).map(el=>({
+    key: el.id.replace('accent-',''), bg: el.querySelector('.accent-swatch').style.background, name: el.querySelector('span')?.textContent||'' }));
+  const seg = (kind, opts) => `<div class="ap-seg">${opts.map(([v,t,st])=>`<button type="button" class="${cur[kind]===v?'on':''}" ${st?`style="${st}"`:''} onclick="apSet('${kind}','${v}')">${t}</button>`).join('')}</div>`;
+  box.innerHTML = `
+    <div class="ap-lb">主題模式</div>
+    <div class="ap-modes">${modes.map(([v,ic,t])=>`<button type="button" class="ap-mode${cur.theme===v?' on':''}" onclick="apSet('theme','${v}')"><span>${ic}</span>${t}</button>`).join('')}</div>
+    <div class="ap-lb">主題色</div>
+    <div class="ap-acc">${accents.map(a=>`<button type="button" class="${cur.accent===a.key?'on':''}" onclick="apSet('accent','${a.key}')"><i style="background:${a.bg}"></i><small>${escHtml(a.name)}</small></button>`).join('')}</div>
+    <div class="ap-lb">背景風格</div>${seg('bg',[['particles','粒子網格'],['carbon','碳纖維'],['plain','純色']])}
+    <div class="ap-lb">字體大小</div>${seg('fs',[['small','小','font-size:11px'],['medium','中','font-size:13px'],['large','大','font-size:15px']])}
+    <div class="ap-lb">卡片圓角</div>${seg('radius',[['square','方形','border-radius:2px'],['default','預設'],['round','圓潤','border-radius:16px']])}
+    <div class="ap-lb">數字字型</div>${seg('nf',[['rajdhani','Rajdhani',"font-family:'Rajdhani',monospace"],['round','圓體','font-family:system-ui'],['mono','等寬',"font-family:'Courier New',monospace"]])}
+    <div class="ap-lb">資訊密度</div>${seg('density',[['compact','緊湊'],['normal','正常'],['comfortable','寬鬆']])}`;
 }
 
 function toggleTheme() {
