@@ -90,6 +90,73 @@
   input[type=number]::-webkit-inner-spin-button,
   input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
   input[type=number] { -moz-appearance:textfield; appearance:textfield; }
+  /* ══ 信用卡封面新款式（新款以 data-tone 統一處理文字明暗）══ */
+  .ct-group-label{font-size:11px;color:var(--tx-muted);margin:10px 0 2px;letter-spacing:1px}
+  .ct-swatch-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;width:52px}
+  .ct-swatch-name{font-size:10px;color:var(--tx-secondary);white-space:nowrap}
+  body .account-card[data-theme="titanium"]{background:linear-gradient(135deg,#4b5058,#9aa1aa 45%,#5b6068 55%,#3a3e44) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="bronze"]{background:linear-gradient(135deg,#3d2a14,#b0803c 45%,#6b4a1f 60%,#2e1f0e) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="platinum"]{background:linear-gradient(135deg,#c9ccd1,#f4f5f7 40%,#b5b9bf 60%,#e6e8eb) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="burgundy"]{background:linear-gradient(135deg,#4a0e1f,#8b1e3f 55%,#3a0a18) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="ocean"]{background:linear-gradient(135deg,#0f2027,#203a43 50%,#2c5364) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="aurora"]{background:linear-gradient(135deg,#0b3d4f,#1d8a8a 35%,#6a4bc4 70%,#c04d9a) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="sunset"]{background:linear-gradient(135deg,#c9443f,#e0703a 50%,#e89a4f) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="sakura"]{background:linear-gradient(135deg,#f9d5e0,#f3a8c2) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="blackcard"]{background:linear-gradient(160deg,#050505,#1c1c1c 50%,#0a0a0a) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="navygold"]{background:linear-gradient(135deg,#1b2a4a,#24365e 50%,#141f38) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;border-color:#c8a45a !important;}
+  body .account-card[data-theme="navygold"] .account-card-type,body .account-card[data-theme="navygold"] .account-card-type *{color:#e2c27a !important;-webkit-text-fill-color:#e2c27a !important}
+  body .account-card[data-theme="royal"]{background:linear-gradient(135deg,#2a0f3d,#4b1f6b 55%,#1e0a2c) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="british"]{background:linear-gradient(135deg,#0c2b20,#14402f 50%,#081c15) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;border-color:#b59a5b !important;}
+  body .account-card[data-theme="british"] .account-card-type,body .account-card[data-theme="british"] .account-card-type *{color:#d8c08a !important;-webkit-text-fill-color:#d8c08a !important}
+  body .account-card[data-theme="glacier"]{background:linear-gradient(135deg,#dfe9f3,#b8d4ea 55%,#e8f1f8) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="lavender"]{background:linear-gradient(135deg,#e6dcf5,#c7b4ea) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="matcha"]{background:linear-gradient(135deg,#6f8f50,#4f6f3a 60%,#3b5a2c) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="amber"]{background:linear-gradient(135deg,#a8591a,#c9822f 50%,#8f4710) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="starry"]{background:radial-gradient(1px 1px at 20% 30%,#fff,transparent) 0 0/140px 110px,radial-gradient(1px 1px at 70% 20%,#fff,transparent) 0 0/140px 110px,radial-gradient(1.5px 1.5px at 85% 70%,#fff,transparent) 0 0/140px 110px,radial-gradient(1px 1px at 40% 80%,#dfe6ff,transparent) 0 0/140px 110px,radial-gradient(1px 1px at 55% 50%,#cfd8ff,transparent) 0 0/90px 80px,radial-gradient(1.5px 1.5px at 10% 65%,#fff,transparent) 0 0/200px 160px,linear-gradient(135deg,#0a0f2c,#1b1f4a) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="marble"]{background:linear-gradient(115deg,transparent 40%,rgba(120,120,120,.25) 42%,transparent 44%),linear-gradient(160deg,transparent 60%,rgba(140,140,140,.2) 61%,transparent 63%),linear-gradient(135deg,#f2f0ec,#e4e1db) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="holo"]{background:linear-gradient(135deg,#ffd1ec,#c8f4ff 30%,#e0d4ff 55%,#fff3c4 80%,#ffd1ec) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="neon"]{background:linear-gradient(135deg,#0d0d14,#15151f) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;border-color:#22e3ff !important;box-shadow:inset 0 0 0 1px #22e3ff,0 0 14px rgba(255,46,180,.45) !important;}
+  body .account-card[data-theme="neon"] .account-card-type,body .account-card[data-theme="neon"] .account-card-type *{color:#22e3ff !important;-webkit-text-fill-color:#22e3ff !important}
+  body .account-card[data-theme="geometric"]{background:linear-gradient(60deg,rgba(255,255,255,.06) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.06) 50%,rgba(255,255,255,.06) 75%,transparent 75%) 0 0/24px 42px,linear-gradient(-60deg,rgba(255,255,255,.05) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.05) 50%,rgba(255,255,255,.05) 75%,transparent 75%) 0 0/24px 42px,linear-gradient(135deg,#1f2937,#374151) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="ripple"]{background:radial-gradient(circle at 100% 150%,transparent 30%,rgba(255,255,255,.08) 31%,transparent 33%,transparent 45%,rgba(255,255,255,.08) 46%,transparent 48%,transparent 60%,rgba(255,255,255,.08) 61%,transparent 63%),linear-gradient(135deg,#0e4a6b,#1a6f96) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="tartan"]{background:linear-gradient(90deg,rgba(0,0,0,.25) 50%,transparent 50%) 0 0/20px 20px,linear-gradient(rgba(0,0,0,.25) 50%,transparent 50%) 0 0/20px 20px,linear-gradient(135deg,#8b1d1d,#6b1414) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-theme="ink"]{background:radial-gradient(ellipse at 30% 40%,rgba(0,0,0,.18),transparent 45%),radial-gradient(ellipse at 75% 70%,rgba(0,0,0,.12),transparent 40%),linear-gradient(135deg,#f3efe6,#e7e0d0) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  body .account-card[data-tone="dark"]{color:rgba(255,255,255,.95) !important}
+  body .account-card[data-tone="dark"] *{color:rgba(255,255,255,.9) !important;-webkit-text-fill-color:rgba(255,255,255,.9) !important;border-color:rgba(255,255,255,.15) !important}
+  body .account-card[data-tone="dark"] .account-balance{color:#fff !important;-webkit-text-fill-color:#fff !important;text-shadow:none !important;background:none !important;-webkit-background-clip:unset !important;background-clip:unset !important}
+  body .account-card[data-tone="dark"] .a-neg{color:#ff8899 !important;-webkit-text-fill-color:#ff8899 !important}
+  body .account-card[data-tone="dark"] .a-pos{color:#7effa0 !important;-webkit-text-fill-color:#7effa0 !important}
+  body .account-card[data-tone="dark"] .a-over{color:#ffb3c0 !important;-webkit-text-fill-color:#ffb3c0 !important}
+  body .account-card[data-tone="dark"] .layer-amt{color:#ff6680 !important;-webkit-text-fill-color:#ff6680 !important}
+  body .account-card[data-tone="dark"] .btn{background:rgba(255,255,255,.12) !important;border-color:rgba(255,255,255,.2) !important}
+  body .account-card[data-tone="dark"] .account-card-footer{background:rgba(0,0,0,.2) !important}
+  body .account-card[data-tone="dark"] .prog-wrap{background:rgba(255,255,255,.15) !important}
+  body .account-card[data-tone="dark"] .account-card-type{color:rgba(255,255,255,.6) !important;-webkit-text-fill-color:rgba(255,255,255,.6) !important}
+  body .account-card[data-tone="dark"] .badge{color:rgba(255,255,255,.85) !important;-webkit-text-fill-color:rgba(255,255,255,.85) !important;background:rgba(255,255,255,.12) !important;border-color:rgba(255,255,255,.2) !important}
+  body .account-card[data-tone="dark"] .due-badge,body .account-card[data-tone="dark"] .billing-badge{color:#fff !important;-webkit-text-fill-color:#fff !important}
+  body .account-card[data-tone="dark"] .layer-bar,body .account-card[data-tone="dark"] .reimb-row,body .account-card[data-tone="dark"] .reimb-input{background:rgba(0,0,0,.25) !important;border-color:rgba(255,255,255,.15) !important}
+  body .account-card[data-tone="dark"] .reimb-input::placeholder{color:rgba(255,255,255,.55) !important;-webkit-text-fill-color:rgba(255,255,255,.55) !important}
+  body.light-theme .account-card[data-tone="dark"] .layer-bar .layer-name{color:rgba(255,255,255,.92) !important;-webkit-text-fill-color:rgba(255,255,255,.92) !important}
+  body.light-theme .account-card[data-tone="dark"] .layer-bar .layer-amt{color:#ff6680 !important;-webkit-text-fill-color:#ff6680 !important}
+  body .account-card[data-tone="light"]{color:#1a1a2e !important}
+  body .account-card[data-tone="light"] *{color:rgba(26,26,46,.85) !important;-webkit-text-fill-color:rgba(26,26,46,.85) !important;border-color:rgba(26,26,46,.12) !important}
+  body .account-card[data-tone="light"] .account-balance{color:#1a1a2e !important;-webkit-text-fill-color:#1a1a2e !important;text-shadow:none !important;background:none !important;-webkit-background-clip:unset !important;background-clip:unset !important}
+  body .account-card[data-tone="light"] .a-neg{color:#c0392b !important;-webkit-text-fill-color:#c0392b !important}
+  body .account-card[data-tone="light"] .a-pos{color:#1a7a3a !important;-webkit-text-fill-color:#1a7a3a !important}
+  body .account-card[data-tone="light"] .a-over{color:#a00000 !important;-webkit-text-fill-color:#a00000 !important}
+  body .account-card[data-tone="light"] .layer-amt{color:#c0392b !important;-webkit-text-fill-color:#c0392b !important}
+  body .account-card[data-tone="light"] .btn{background:rgba(26,26,46,.08) !important;border-color:rgba(26,26,46,.15) !important}
+  body .account-card[data-tone="light"] .account-card-footer{background:rgba(26,26,46,.05) !important}
+  body .account-card[data-tone="light"] .prog-wrap{background:rgba(26,26,46,.1) !important}
+  body .account-card[data-tone="light"] .account-card-type{color:rgba(26,26,46,.55) !important;-webkit-text-fill-color:rgba(26,26,46,.55) !important}
+  body .account-card[data-tone="light"] .badge,body .account-card[data-tone="light"] .due-badge,body .account-card[data-tone="light"] .billing-badge{color:rgba(26,26,46,.85) !important;-webkit-text-fill-color:rgba(26,26,46,.85) !important;background:rgba(26,26,46,.07) !important;border-color:rgba(26,26,46,.15) !important}
+  body .account-card[data-tone="light"] .layer-bar,body .account-card[data-tone="light"] .reimb-row,body .account-card[data-tone="light"] .reimb-input{background:rgba(255,255,255,.55) !important;border:1px solid rgba(26,26,46,.15) !important}
+  body:not(.light-theme) .account-card[data-tone="light"] .layer-bar .layer-name,body.light-theme .account-card[data-tone="light"] .layer-bar .layer-name{color:#1a1a2e !important;-webkit-text-fill-color:#1a1a2e !important}
+  body .account-card[data-tone] .account-balance.negative{color:#ff4d6a !important;-webkit-text-fill-color:#ff4d6a !important;text-shadow:0 0 12px rgba(255,77,106,.5) !important}
+  body .account-card[data-tone="light"] .account-balance.negative{color:#c0172f !important;-webkit-text-fill-color:#c0172f !important;text-shadow:none !important}
+  /* 暖色底（紅／橘／棕）：紅字看不清，負數金額改白字加陰影 */
+  body .account-card[data-theme="sunset"] .account-balance.negative,body .account-card[data-theme="amber"] .account-balance.negative,body .account-card[data-theme="tartan"] .account-balance.negative,body .account-card[data-theme="matcha"] .account-balance.negative,body .account-card[data-theme="bronze"] .account-balance.negative,body .account-card[data-theme="burgundy"] .account-balance.negative{color:#fff !important;-webkit-text-fill-color:#fff !important;text-shadow:0 1px 3px rgba(0,0,0,.45) !important}
+  body .account-card[data-theme="sunset"] .layer-amt,body .account-card[data-theme="amber"] .layer-amt,body .account-card[data-theme="tartan"] .layer-amt,body .account-card[data-theme="matcha"] .layer-amt,body .account-card[data-theme="bronze"] .layer-amt,body .account-card[data-theme="burgundy"] .layer-amt,body .account-card[data-theme="sunset"] .a-neg,body .account-card[data-theme="amber"] .a-neg,body .account-card[data-theme="tartan"] .a-neg,body .account-card[data-theme="matcha"] .a-neg,body .account-card[data-theme="bronze"] .a-neg,body .account-card[data-theme="burgundy"] .a-neg,body .account-card[data-theme="sunset"] .a-over,body .account-card[data-theme="amber"] .a-over,body .account-card[data-theme="tartan"] .a-over,body .account-card[data-theme="matcha"] .a-over,body .account-card[data-theme="bronze"] .a-over,body .account-card[data-theme="burgundy"] .a-over{color:#fff !important;-webkit-text-fill-color:#fff !important;text-shadow:0 1px 2px rgba(0,0,0,.4) !important}
   /* 轉帳明細：分層色塊標籤（--lc＝分層顏色） */
   .tf-chip{--lc:#1c69d4;display:inline-flex;align-items:center;gap:5px;max-width:100%;min-width:0;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;line-height:1.5;background:color-mix(in srgb,var(--lc) 18%,transparent);border:1px solid color-mix(in srgb,var(--lc) 42%,transparent);color:color-mix(in srgb,var(--lc) 40%,#fff)}
   body.light-theme .tf-chip{color:color-mix(in srgb,var(--lc) 80%,#000)}
@@ -5453,15 +5520,48 @@ const CARD_THEMES = [
   { id:'gold',    label:'金',      cls:'ct-gold',   style:'linear-gradient(135deg,#8B6914,#C8A000,#8B6914)' },
   { id:'midnight',label:'午夜',    cls:'ct-midnight',style:'linear-gradient(135deg,#0d0d0d,#1a1a2e)' },
   { id:'white',   label:'純白',    cls:'ct-white',  style:'linear-gradient(135deg,#e8ecf0,#f5f7fa)' },
+  // ── 新增款式（group：選單分組；tone：dark＝白字、light＝深色字）──
+  { id:'titanium', label:'鈦灰', group:'金屬', tone:'dark', cls:'', style:'linear-gradient(135deg,#4b5058,#9aa1aa 45%,#5b6068 55%,#3a3e44)' },
+  { id:'bronze', label:'古銅', group:'金屬', tone:'dark', cls:'', style:'linear-gradient(135deg,#3d2a14,#b0803c 45%,#6b4a1f 60%,#2e1f0e)' },
+  { id:'platinum', label:'白金', group:'金屬', tone:'light', cls:'', style:'linear-gradient(135deg,#c9ccd1,#f4f5f7 40%,#b5b9bf 60%,#e6e8eb)' },
+  { id:'burgundy', label:'酒紅', group:'金屬', tone:'dark', cls:'', style:'linear-gradient(135deg,#4a0e1f,#8b1e3f 55%,#3a0a18)' },
+  { id:'ocean', label:'深海', group:'漸層', tone:'dark', cls:'', style:'linear-gradient(135deg,#0f2027,#203a43 50%,#2c5364)' },
+  { id:'aurora', label:'極光', group:'漸層', tone:'dark', cls:'', style:'linear-gradient(135deg,#0b3d4f,#1d8a8a 35%,#6a4bc4 70%,#c04d9a)' },
+  { id:'sunset', label:'日落', group:'漸層', tone:'dark', cls:'', style:'linear-gradient(135deg,#c9443f,#e0703a 50%,#e89a4f)' },
+  { id:'sakura', label:'櫻花', group:'漸層', tone:'light', cls:'', style:'linear-gradient(135deg,#f9d5e0,#f3a8c2)' },
+  { id:'blackcard', label:'無限黑卡', group:'頂級卡', tone:'dark', cls:'', style:'linear-gradient(160deg,#050505,#1c1c1c 50%,#0a0a0a)' },
+  { id:'navygold', label:'海軍金邊', group:'頂級卡', tone:'dark', cls:'', style:'linear-gradient(135deg,#1b2a4a,#24365e 50%,#141f38)' },
+  { id:'royal', label:'帝王紫', group:'頂級卡', tone:'dark', cls:'', style:'linear-gradient(135deg,#2a0f3d,#4b1f6b 55%,#1e0a2c)' },
+  { id:'british', label:'英倫綠', group:'頂級卡', tone:'dark', cls:'', style:'linear-gradient(135deg,#0c2b20,#14402f 50%,#081c15)' },
+  { id:'glacier', label:'冰川', group:'自然', tone:'light', cls:'', style:'linear-gradient(135deg,#dfe9f3,#b8d4ea 55%,#e8f1f8)' },
+  { id:'lavender', label:'薰衣草', group:'自然', tone:'light', cls:'', style:'linear-gradient(135deg,#e6dcf5,#c7b4ea)' },
+  { id:'matcha', label:'抹茶', group:'自然', tone:'dark', cls:'', style:'linear-gradient(135deg,#6f8f50,#4f6f3a 60%,#3b5a2c)' },
+  { id:'amber', label:'琥珀', group:'自然', tone:'dark', cls:'', style:'linear-gradient(135deg,#a8591a,#c9822f 50%,#8f4710)' },
+  { id:'starry', label:'星空', group:'圖案', tone:'dark', cls:'', style:'radial-gradient(1px 1px at 20% 30%,#fff,transparent) 0 0/140px 110px,radial-gradient(1px 1px at 70% 20%,#fff,transparent) 0 0/140px 110px,radial-gradient(1.5px 1.5px at 85% 70%,#fff,transparent) 0 0/140px 110px,radial-gradient(1px 1px at 40% 80%,#dfe6ff,transparent) 0 0/140px 110px,radial-gradient(1px 1px at 55% 50%,#cfd8ff,transparent) 0 0/90px 80px,radial-gradient(1.5px 1.5px at 10% 65%,#fff,transparent) 0 0/200px 160px,linear-gradient(135deg,#0a0f2c,#1b1f4a)' },
+  { id:'marble', label:'大理石', group:'圖案', tone:'light', cls:'', style:'linear-gradient(115deg,transparent 40%,rgba(120,120,120,.25) 42%,transparent 44%),linear-gradient(160deg,transparent 60%,rgba(140,140,140,.2) 61%,transparent 63%),linear-gradient(135deg,#f2f0ec,#e4e1db)' },
+  { id:'holo', label:'全像幻彩', group:'圖案', tone:'light', cls:'', style:'linear-gradient(135deg,#ffd1ec,#c8f4ff 30%,#e0d4ff 55%,#fff3c4 80%,#ffd1ec)' },
+  { id:'neon', label:'霓虹', group:'圖案', tone:'dark', cls:'', style:'linear-gradient(135deg,#0d0d14,#15151f)' },
+  { id:'geometric', label:'幾何', group:'圖案', tone:'dark', cls:'', style:'linear-gradient(60deg,rgba(255,255,255,.06) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.06) 50%,rgba(255,255,255,.06) 75%,transparent 75%) 0 0/24px 42px,linear-gradient(-60deg,rgba(255,255,255,.05) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.05) 50%,rgba(255,255,255,.05) 75%,transparent 75%) 0 0/24px 42px,linear-gradient(135deg,#1f2937,#374151)' },
+  { id:'ripple', label:'波紋', group:'圖案', tone:'dark', cls:'', style:'radial-gradient(circle at 100% 150%,transparent 30%,rgba(255,255,255,.08) 31%,transparent 33%,transparent 45%,rgba(255,255,255,.08) 46%,transparent 48%,transparent 60%,rgba(255,255,255,.08) 61%,transparent 63%),linear-gradient(135deg,#0e4a6b,#1a6f96)' },
+  { id:'tartan', label:'格紋', group:'圖案', tone:'dark', cls:'', style:'linear-gradient(90deg,rgba(0,0,0,.25) 50%,transparent 50%) 0 0/20px 20px,linear-gradient(rgba(0,0,0,.25) 50%,transparent 50%) 0 0/20px 20px,linear-gradient(135deg,#8b1d1d,#6b1414)' },
+  { id:'ink', label:'水墨', group:'圖案', tone:'light', cls:'', style:'radial-gradient(ellipse at 30% 40%,rgba(0,0,0,.18),transparent 45%),radial-gradient(ellipse at 75% 70%,rgba(0,0,0,.12),transparent 40%),linear-gradient(135deg,#f3efe6,#e7e0d0)' },
 ];
+// 舊款補上分組與明暗
+CARD_THEMES.forEach(t=>{ if(!t.group) t.group='經典'; if(!t.tone) t.tone=(t.id==='white'||t.id==='gold')?'light':'dark'; });
+const CARD_THEME_GROUPS = ['經典','金屬','漸層','頂級卡','自然','圖案'];
+// 卡片主題是否為淺底（文字用深色）
+function cardThemeIsLight(id) { const t=CARD_THEMES.find(x=>x.id===id); return !!(t && t.tone==='light'); }
+// 新款主題（舊款由 style.css 各自處理）
+function cardThemeTone(id) { const t=CARD_THEMES.find(x=>x.id===id); return (t && t.cls==='' && t.id!=='default') ? t.tone : ''; }
 function cardThemeHtml(currentTheme) {
   return `<div class="form-group"><label class="form-label">卡片封面主題</label>
-    <div class="card-preview-mini" id="cardThemePreview" style="${currentTheme&&currentTheme!=='default'?CARD_THEMES.find(t=>t.id===currentTheme)?.style:''}">${currentTheme&&currentTheme!=='default'?CARD_THEMES.find(t=>t.id===currentTheme)?.label||'':''}</div>
+    <div class="card-preview-mini" id="cardThemePreview" style="${currentTheme&&currentTheme!=='default'?'background:'+CARD_THEMES.find(t=>t.id===currentTheme)?.style+(cardThemeIsLight(currentTheme)?';color:rgba(26,26,46,.8)':''):''}">${currentTheme&&currentTheme!=='default'?CARD_THEMES.find(t=>t.id===currentTheme)?.label||'':''}</div>
+    ${CARD_THEME_GROUPS.map(g=>`<div class="ct-group-label">${g}</div>
     <div class="card-theme-selector">
-      ${CARD_THEMES.map(t=>`<div class="card-theme-swatch ${t.cls} ${(currentTheme||'default')===t.id?'active':''}"
+      ${CARD_THEMES.filter(t=>t.group===g).map(t=>`<div class="ct-swatch-wrap"><div class="card-theme-swatch ${t.cls} ${(currentTheme||'default')===t.id?'active':''}" data-id="${t.id}"
         title="${t.label}" onclick="selectCardTheme('${t.id}')"
-        style="${t.id==='default'?'background:var(--bg-secondary);border:1px dashed var(--bdr-normal)':''}"></div>`).join('')}
-    </div>
+        style="${t.id==='default'?'background:var(--bg-secondary);border:1px dashed var(--bdr-normal)':t.cls?'':'background:'+t.style}"></div><div class="ct-swatch-name">${t.label}</div></div>`).join('')}
+    </div>`).join('')}
     <input type="hidden" id="cardThemeVal" value="${currentTheme||'default'}">
   </div>`;
 }
@@ -5472,11 +5572,12 @@ function selectCardTheme(themeId) {
   const hidden  = document.getElementById('cardThemeVal');
   if (preview) {
     preview.style.background = themeId==='default' ? 'var(--bg-secondary)' : theme.style;
+    preview.style.color = (themeId!=='default' && theme.tone==='light') ? 'rgba(26,26,46,.8)' : '';
     preview.textContent = themeId==='default' ? '預設' : theme.label;
   }
   if (hidden) hidden.value = themeId;
-  document.querySelectorAll('.card-theme-swatch').forEach((el,i)=>{
-    el.classList.toggle('active', CARD_THEMES[i].id===themeId);
+  document.querySelectorAll('.card-theme-swatch').forEach(el=>{
+    el.classList.toggle('active', el.dataset.id===themeId);
   });
 }
 
@@ -7051,7 +7152,7 @@ function renderCards() {
         layerOutstanding = Math.max(0, totalLayerAmt - redeemLayerAmt);
         hasPaidOffset = false;
       }
-      const isLight = (c.cardTheme==='white'||c.cardTheme==='gold');
+      const isLight = cardThemeIsLight(c.cardTheme);
       const layerRedColor   = hasTheme ? (isLight?'#b71c1c':'#ff6b80') : 'var(--tx-red)';
       const layerGreenColor = hasTheme ? (isLight?'#1b5e20':'#5dffa0') : 'var(--tx-green)';
       const layerMutedColor = hasTheme ? (isLight?'rgba(26,26,46,.6)':'rgba(255,255,255,.65)') : 'var(--tx-muted)';
@@ -7101,7 +7202,7 @@ function renderCards() {
     const cardCollapsedStyle = (!isExpanded && !hasTheme) ? `--auto-bg:${autoCardGradient(c.color)};` : '';
     const cardBgLayers = !hasTheme ? `<div class="card-bg-layer bg-glass"></div><div class="card-bg-layer bg-gradient"></div><div class="account-card-content">` : '';
     const cardBgLayersClose = !hasTheme ? `</div>` : '';
-    return `<div class="account-card${billLbl&&billLbl.level==='urgent'?' bill-due-urgent':billLbl&&billLbl.level==='warn'?' bill-due-warn':''}${isExpanded?' expanded':' '+cardAutoTextCls}" id="card-${c.id}" data-theme="${c.cardTheme||'default'}" onclick="toggleCreditCard(event,'${c.id}')" style="cursor:pointer;${c.color?`--due-color:${c.color};`:''}${cardCollapsedStyle}">
+    return `<div class="account-card${billLbl&&billLbl.level==='urgent'?' bill-due-urgent':billLbl&&billLbl.level==='warn'?' bill-due-warn':''}${isExpanded?' expanded':' '+cardAutoTextCls}" id="card-${c.id}" data-theme="${c.cardTheme||'default'}"${cardThemeTone(c.cardTheme)?` data-tone="${cardThemeTone(c.cardTheme)}"`:''} onclick="toggleCreditCard(event,'${c.id}')" style="cursor:pointer;${c.color?`--due-color:${c.color};`:''}${cardCollapsedStyle}">
       ${cardBgLayers}
       <div class="card-sheen-layer"></div>
       <div class="account-card-header" style="border-top:3px solid ${c.color}">
