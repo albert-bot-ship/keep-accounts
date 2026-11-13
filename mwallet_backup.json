@@ -5478,6 +5478,24 @@
       "isTransferOut": false,
       "isTransferIn": false,
       "isFixed": false
+    },
+    {
+      "id": "mwekfymeaq8av",
+      "date": "2026-11-13",
+      "amount": -1990,
+      "desc": "全家衛生紙",
+      "category": "mov4018zh9j4y",
+      "sourceId": "mwd08rcboujeq",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mwd0afjqliwo5",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
