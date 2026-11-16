@@ -6099,13 +6099,14 @@
       "id": "mvyu5vo1zfrdb",
       "name": "備用金",
       "target": 120000,
-      "saved": 51297,
+      "saved": 50147,
       "savedMode": "link",
       "linkedLayers": [
         "mov4r1sf9uw5u|mpco5r3d7oglg",
         "mov74st8ti4ry|mowtfdp3hzho9"
       ],
-      "deadline": ""
+      "deadline": "",
+      "monthlyNeed": 20000
     },
     {
       "id": "mw8z364ntsu1j",
