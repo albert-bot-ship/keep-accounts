@@ -6117,5 +6117,19 @@
       "linkedLayers": [],
       "deadline": "2027-04-30"
     }
+  ],
+  "nonCashAssets": [
+    {
+      "id": "mwj2aku8x1zdf",
+      "name": "美金保單",
+      "type": "外幣保單",
+      "currency": "USD",
+      "cost": 4204,
+      "value": 0,
+      "maturity": "",
+      "maturityAmt": 0,
+      "includeInTotal": true,
+      "updatedAt": "2026-11-16"
+    }
   ]
 }
