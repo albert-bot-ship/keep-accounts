@@ -11448,7 +11448,9 @@ function renderAllocPlan() {
       <button class="btn btn-ghost btn-icon btn-sm" onclick="openAllocPlanModal()" title="編輯計畫">✏️</button>
     </div>`;
   if (!s.n) {
-    wrap.innerHTML = `<div class="stat-card" style="padding:14px 18px">${head}<div style="font-size:12px;color:var(--tx-muted);margin-top:8px">本期沒有需要分配的項目</div></div>`;
+    const later = plan.items.map(it => `${escHtml(it.name)}（${it.startYM ? it.startYM.replace('-','/') : ''} ～ ${it.endYM ? it.endYM.replace('-','/') : ''}）`).join('、');
+    wrap.innerHTML = `<div class="stat-card" style="padding:14px 18px">${head}<div style="font-size:12px;color:var(--tx-muted);margin-top:8px">本期沒有需要分配的項目</div>
+      <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">所有項目都不在本期的起訖月份內（本期算 ${cyc.ym.replace('-','/')}）：${later}</div></div>`;
     return;
   }
   if (s.allDone && !allocExpanded) {
@@ -11491,8 +11493,14 @@ function allocLayerBlock(accId, layerId) {
 }
 
 // 計畫設定視窗
+// 計畫有變動時，同步更新背後的頁面（用 ✕ 或下滑關閉視窗也不會停在舊畫面）
+function allocRefreshPage() {
+  renderAllocPlan();
+  if (document.getElementById('accountsGrid')) renderAccounts();
+}
 function openAllocPlanModal() {
   const p = allocPlan();
+  allocRefreshPage();
   openModal('_allocPlan');
   document.getElementById('modalTitle').innerHTML = '<span style="font-size:15px;letter-spacing:1px">💰 每月薪資分配計畫</span>';
   const hostOpts = '<option value="">（不顯示在分層）</option>' + DB.bankAccounts.flatMap(a => (a.layers||[]).map(l => {
@@ -11547,6 +11555,7 @@ function saveAllocHost(val) {
   const [acc, layer] = (val || '|').split('|');
   p.hostAcc = acc || ''; p.hostLayer = layer || '';
   saveDB();
+  allocRefreshPage();
   toast(val ? '已設定顯示分層' : '已取消顯示在分層', 'success');
 }
 function moveAllocItem(id, dir) {
