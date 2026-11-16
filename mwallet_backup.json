@@ -6131,5 +6131,55 @@
       "includeInTotal": true,
       "updatedAt": "2026-11-16"
     }
-  ]
+  ],
+  "allocPlan": {
+    "hostAcc": "mov4r1sf9uw5u",
+    "hostLayer": "mowt3b5ret5t3",
+    "items": [
+      {
+        "id": "mwj2nck8wko8q",
+        "name": "轉爸爸",
+        "amount": 8000,
+        "detect": "keyword",
+        "accId": "",
+        "layerId": "",
+        "keyword": "爸爸",
+        "startYM": "2026-11",
+        "endYM": ""
+      },
+      {
+        "id": "mwj2nx86gowmq",
+        "name": "換美元",
+        "amount": 5000,
+        "detect": "layer",
+        "accId": "mov4sadxpcepw",
+        "layerId": "mowt9nf0j6och",
+        "keyword": "",
+        "startYM": "2026-11",
+        "endYM": ""
+      },
+      {
+        "id": "mwj2phipsdpo6",
+        "name": "備用金",
+        "amount": 2500,
+        "detect": "layer",
+        "accId": "mov74st8ti4ry",
+        "layerId": "mowtfdp3hzho9",
+        "keyword": "",
+        "startYM": "2026-11",
+        "endYM": ""
+      },
+      {
+        "id": "mwj2qcp0xkfs2",
+        "name": "0050",
+        "amount": 2000,
+        "detect": "keyword",
+        "accId": "",
+        "layerId": "",
+        "keyword": "0050",
+        "startYM": "2026-11",
+        "endYM": ""
+      }
+    ]
+  }
 }
