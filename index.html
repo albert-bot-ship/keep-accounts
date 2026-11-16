@@ -776,6 +776,7 @@
         <button class="btn btn-sm btn-violet" onclick="openGoalModal()">＋ 新增目標</button>
       </div>
       <div class="page-body">
+        <div id="allocPlanWrap" style="margin-bottom:12px"></div>
         <div id="goalsList" style="display:flex;flex-direction:column;gap:12px"></div>
       </div>
     </section>
@@ -2865,7 +2866,7 @@ function openLayerDetail(kind, ownerId, layerId) {
     : `<div style="text-align:center;color:var(--tx-muted);font-size:13px;padding:24px 0">${isCard&&note?'':'此期間沒有交易記錄'}</div>`;
   openModal('_layerDetail');
   document.getElementById('modalTitle').textContent = `${isCard?'💳':'🏦'} ${owner.name}／${layer.label}`;
-  document.getElementById('modalBody').innerHTML = `
+  document.getElementById('modalBody').innerHTML = `${isCard ? '' : allocLayerBlock(owner.id, layer.id)}
     <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-bottom:12px">
       <div>
         <div style="font-size:11px;color:var(--tx-muted)">${periodTxt}・${rows.length} 筆</div>
@@ -7629,6 +7630,7 @@ function renderAccounts() {
         <div class="layer-dot" style="background:${l.color||a.color}"></div>
         <div style="flex:1;min-width:0;cursor:pointer" onclick="event.stopPropagation();openLayerDetail('account','${a.id}','${l.id}')">
           <div class="layer-name">${escHtml(l.label)}</div>
+          ${allocLayerBadge(a.id, l.id)}
         </div>
         <div style="text-align:right;cursor:pointer" onclick="event.stopPropagation();openLayerDetail('account','${a.id}','${l.id}')">
           <span class="layer-amt ${dynBal<0?'acc-neg':'acc-pos'}" style="${dynCls}">${fmtAccAmt(a, dynBal)}</span>
@@ -7674,6 +7676,7 @@ function renderAccounts() {
           <div class="layer-summary-count">${layerRenderData.length} 個分層</div>
           <div class="layer-summary-total" style="color:${totalColor}">合計 ${fmtAccAmt(a, layerTotalBal)}</div>
         </div>
+        ${DB.allocPlan?.hostAcc === a.id ? allocLayerBadge(a.id, DB.allocPlan.hostLayer) : ''}
         <span class="layer-summary-chevron${isGroupExpanded?' expanded':''}" id="chev-${groupKey}">▾</span>
       </div>
       <div class="layer-collapse-wrap${isGroupExpanded?' expanded':''}" id="wrap-${groupKey}"><div>${layerRenderData.map(d=>d.html).join('')}</div></div>`;
@@ -10930,6 +10933,7 @@ function toggleGoalLayers(id) {
   renderGoals();
 }
 function renderGoals() {
+  renderAllocPlan();
   const el = document.getElementById('goalsList');
   if (!el) return;
   const goals = DB.goals || [];
@@ -11306,6 +11310,332 @@ function deleteNca(id, fromModal) {
   if (fromModal) closeModal();
   renderNonCash(); renderNetWorth();
   toast('已刪除','info');
+}
+
+// ════════════════════════════════════════════════════════════════
+// 每月薪資分配計畫：財務目標頁（主控台）＋ 帳戶分層（標籤＋分層視窗清單）共用同一份資料
+// DB.allocPlan = { hostAcc, hostLayer, items:[{id,name,amount,detect,accId,layerId,keyword,startYM,endYM}] }
+// DB.allocChecks = { 週期起日: { 項目id: 'done'（手動勾）| 'off'（手動取消，本期不再自動勾） } }
+// ════════════════════════════════════════════════════════════════
+let allocExpanded = false; // 本期全部完成時，財務目標頁卡片是否展開（僅本次頁面停留期間）
+function allocPlan() {
+  if (!DB.allocPlan) {
+    // 預設掛在第一個名為「薪水」的分層
+    let hostAcc = '', hostLayer = '';
+    for (const a of DB.bankAccounts) {
+      const l = (a.layers||[]).find(x => x.label === '薪水');
+      if (l) { hostAcc = a.id; hostLayer = l.id; break; }
+    }
+    DB.allocPlan = { hostAcc, hostLayer, items: [] };
+  }
+  if (!DB.allocPlan.items) DB.allocPlan.items = [];
+  return DB.allocPlan;
+}
+function allocCycle() {
+  const f = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const { fromDate, toDate } = salaryCycleBounds(new Date());
+  const from = f(fromDate), to = f(toDate);
+  return { key: from, from, to, ym: from.slice(0,7) };
+}
+function allocYmDiff(a, b) { // b 減 a 的月數
+  const [ya, ma] = a.split('-').map(Number), [yb, mb] = b.split('-').map(Number);
+  return (yb - ya) * 12 + (mb - ma);
+}
+function allocActiveItems(cyc) {
+  return (DB.allocPlan?.items || []).filter(it => (!it.startYM || it.startYM <= cyc.ym) && (!it.endYM || cyc.ym <= it.endYM));
+}
+// 自動偵測：回傳符合條件的記錄 {id, date, desc}，找不到回傳 null
+function allocDetect(it, cyc) {
+  const need = Math.abs(it.amount || 0) - 0.5;
+  const inRange = d => d >= cyc.from && d <= cyc.to;
+  if (it.detect === 'layer' && it.accId) {
+    for (const t of DB.transactions) {
+      if (t.sourceType !== 'account' || t.sourceId !== it.accId || !inRange(t.date)) continue;
+      let amt = null;
+      if (!it.layerId || t.layerId === it.layerId) amt = Math.abs(t.amount);
+      else if (t.layerAmounts) { const la = t.layerAmounts.find(x => x.layerId === it.layerId); if (la) amt = Math.abs(la.amount); }
+      if (amt !== null && amt >= need) return { id: t.id, date: t.date, desc: t.desc };
+    }
+    const al = (DB.layerAllocations||[]).find(x => x.accId === it.accId && (!it.layerId || x.layerId === it.layerId) && inRange(x.date) && Math.abs(x.amount) >= need);
+    if (al) return { id: DB.transactions.some(t => t.id === al.txnId) ? al.txnId : null, date: al.date, desc: '薪水撥入' };
+  }
+  if (it.detect === 'keyword' && (it.keyword||'').trim()) {
+    const kw = it.keyword.trim().toLowerCase();
+    const t = DB.transactions.find(t => t.amount < 0 && inRange(t.date) && Math.abs(t.amount) >= need
+      && ((t.desc||'') + ' ' + (t.notes||'')).toLowerCase().includes(kw));
+    if (t) return { id: t.id, date: t.date, desc: t.desc };
+  }
+  return null;
+}
+function allocStatus(it, cyc) {
+  const mark = DB.allocChecks?.[cyc.key]?.[it.id];
+  if (mark === 'done') return { done: true, auto: false };
+  if (mark === 'off')  return { done: false, auto: false };
+  const t = allocDetect(it, cyc);
+  return t ? { done: true, auto: true, txn: t } : { done: false, auto: false };
+}
+function allocSummary(cyc) {
+  const items = allocActiveItems(cyc);
+  let doneN = 0, doneAmt = 0, totalAmt = 0;
+  items.forEach(it => { totalAmt += it.amount||0; if (allocStatus(it, cyc).done) { doneN++; doneAmt += it.amount||0; } });
+  return { items, n: items.length, doneN, doneAmt, totalAmt, allDone: items.length > 0 && doneN === items.length };
+}
+function toggleAllocItem(id, ctx) {
+  const cyc = allocCycle();
+  const it = (DB.allocPlan?.items||[]).find(x => x.id === id); if (!it) return;
+  if (!DB.allocChecks) DB.allocChecks = {};
+  const m = DB.allocChecks[cyc.key] || (DB.allocChecks[cyc.key] = {});
+  m[id] = allocStatus(it, cyc).done ? 'off' : 'done';
+  // 只保留最近 12 個週期的勾選紀錄
+  const keys = Object.keys(DB.allocChecks).sort();
+  while (keys.length > 12) delete DB.allocChecks[keys.shift()];
+  saveDB();
+  refreshAllocViews(ctx);
+}
+function refreshAllocViews(ctx) {
+  if (document.getElementById('allocPlanWrap')) renderAllocPlan();
+  if (typeof renderAccounts === 'function' && document.getElementById('accountsGrid')) renderAccounts();
+  if (ctx === 'layer' && DB.allocPlan?.hostAcc) openLayerDetail('account', DB.allocPlan.hostAcc, DB.allocPlan.hostLayer);
+}
+// 清單列（財務目標頁與分層視窗共用）
+function allocRowsHtml(cyc, ctx) {
+  return allocActiveItems(cyc).map(it => {
+    const st = allocStatus(it, cyc);
+    let phase = '';
+    if (it.startYM && it.endYM) phase = `第 ${allocYmDiff(it.startYM, cyc.ym) + 1}／${allocYmDiff(it.startYM, it.endYM) + 1} 期`;
+    else if (it.startYM) phase = `${it.startYM.replace('-','/')} 起`;
+    const detectTxt = it.detect === 'manual' ? '手動' : '';
+    const autoTag = st.auto
+      ? `<span ${st.txn?.id ? `onclick="event.stopPropagation();openModal('editTxn','${st.txn.id}')"` : 'onclick="event.stopPropagation()"'} title="${escAttr((st.txn?.date||'') + ' ' + (st.txn?.desc||''))}" style="flex-shrink:0;font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--tx-green);color:var(--tx-green);cursor:pointer">自動</span>` : '';
+    return `<div onclick="toggleAllocItem('${it.id}','${ctx}')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;background:var(--bg-secondary);cursor:pointer">
+      <span style="width:22px;height:22px;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-sizing:border-box;${st.done ? 'background:var(--tx-green);color:#fff' : 'border:2px solid var(--bdr-normal);color:transparent'}">✓</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--tx-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${st.done ? 'opacity:.75' : ''}">${escHtml(it.name)}</div>
+        ${(phase || detectTxt) ? `<div style="font-size:10px;color:var(--tx-muted)">${[phase, detectTxt].filter(Boolean).join('・')}</div>` : ''}
+      </div>
+      ${autoTag}
+      <span style="font-family:var(--ff-display);font-size:14px;font-weight:700;color:var(--tx-primary);white-space:nowrap">${fmt(it.amount||0)}</span>
+    </div>`;
+  }).join('');
+}
+function allocProgressHtml(s) {
+  const pct = s.totalAmt > 0 ? Math.round(s.doneAmt / s.totalAmt * 100) : 0;
+  return `<div style="height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;margin:8px 0 4px">
+      <div style="height:100%;width:${pct}%;background:${s.allDone ? 'var(--tx-green)' : 'linear-gradient(90deg,var(--m-blue),var(--m-violet))'};border-radius:3px;transition:width .6s ease"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--tx-muted);margin-bottom:8px">
+      <span>已完成 ${s.doneN}／${s.n} 項</span><span>${fmt(s.doneAmt)} ／ ${fmt(s.totalAmt)}</span>
+    </div>`;
+}
+// B. 財務目標頁主控台
+function renderAllocPlan() {
+  const wrap = document.getElementById('allocPlanWrap');
+  if (!wrap) return;
+  const plan = DB.allocPlan;
+  const cyc = allocCycle();
+  const range = cyc.from.slice(5).replace('-','/') + ' ～ ' + cyc.to.slice(5).replace('-','/');
+  if (!plan || !(plan.items||[]).length) {
+    wrap.innerHTML = `<div class="stat-card" style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div><div style="font-size:15px;font-weight:700;color:var(--tx-primary)">💰 每月薪資分配計畫</div>
+      <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">設定每月要轉出的項目，發薪後逐項確認</div></div>
+      <button class="btn btn-sm btn-violet" onclick="openAllocPlanModal()">設定</button></div>`;
+    return;
+  }
+  const s = allocSummary(cyc);
+  const head = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div><div style="font-size:15px;font-weight:700;color:var(--tx-primary)">💰 本期分配計畫</div>
+      <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">${range}</div></div>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="openAllocPlanModal()" title="編輯計畫">✏️</button>
+    </div>`;
+  if (!s.n) {
+    wrap.innerHTML = `<div class="stat-card" style="padding:14px 18px">${head}<div style="font-size:12px;color:var(--tx-muted);margin-top:8px">本期沒有需要分配的項目</div></div>`;
+    return;
+  }
+  if (s.allDone && !allocExpanded) {
+    wrap.innerHTML = `<div class="stat-card" onclick="allocExpanded=true;renderAllocPlan()" style="padding:12px 18px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="font-size:14px;font-weight:700;color:var(--tx-green)">✓ 本期分配完成</div>
+      <div style="font-size:12px;color:var(--tx-muted)">${fmt(s.totalAmt)}　▾ 查看</div></div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="stat-card" style="padding:14px 18px">${head}
+    ${allocProgressHtml(s)}
+    <div style="display:flex;flex-direction:column;gap:6px">${allocRowsHtml(cyc, 'goals')}</div>
+    <div style="font-size:10px;color:var(--tx-muted);margin-top:8px">點項目可手動打勾／取消；「自動」代表已找到符合的記錄，點它可查看${s.allDone ? '　<span onclick="allocExpanded=false;renderAllocPlan()" style="color:var(--m-blue);cursor:pointer">▴ 收合</span>' : ''}</div>
+  </div>`;
+}
+// C. 分層列上的小標籤
+function allocLayerBadge(accId, layerId) {
+  const p = DB.allocPlan;
+  if (!p || p.hostAcc !== accId || p.hostLayer !== layerId) return '';
+  const s = allocSummary(allocCycle());
+  if (!s.n) return '';
+  return s.allDone
+    ? `<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:#00A844;color:#fff">✓ 已分配</span>`
+    : `<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:#FF8F00;color:#fff">分配 ${s.doneN}/${s.n}</span>`;
+}
+// C. 分層視窗最上方的清單
+function allocLayerBlock(accId, layerId) {
+  const p = DB.allocPlan;
+  if (!p || p.hostAcc !== accId || p.hostLayer !== layerId) return '';
+  const cyc = allocCycle();
+  const s = allocSummary(cyc);
+  if (!s.n) return '';
+  return `<div style="border:1px solid var(--bdr-normal);border-radius:12px;padding:10px 12px;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <span style="font-size:13px;font-weight:700;color:var(--tx-primary)">💰 本期分配</span>
+      <span style="font-size:11px;color:var(--tx-muted)">${cyc.from.slice(5).replace('-','/')} ～ ${cyc.to.slice(5).replace('-','/')}</span>
+    </div>
+    ${allocProgressHtml(s)}
+    <div style="display:flex;flex-direction:column;gap:6px">${allocRowsHtml(cyc, 'layer')}</div>
+  </div>`;
+}
+
+// 計畫設定視窗
+function openAllocPlanModal() {
+  const p = allocPlan();
+  openModal('_allocPlan');
+  document.getElementById('modalTitle').innerHTML = '<span style="font-size:15px;letter-spacing:1px">💰 每月薪資分配計畫</span>';
+  const hostOpts = '<option value="">（不顯示在分層）</option>' + DB.bankAccounts.flatMap(a => (a.layers||[]).map(l => {
+    const val = a.id + '|' + l.id;
+    return `<option value="${val}" ${p.hostAcc === a.id && p.hostLayer === l.id ? 'selected' : ''}>${escHtml(a.name)}／${escHtml(l.label)}</option>`;
+  })).join('');
+  const detectLabel = it => it.detect === 'layer' ? (() => {
+      const a = getAcc(it.accId), l = a && (a.layers||[]).find(x => x.id === it.layerId);
+      return '偵測：' + (a ? a.name + (l ? '／' + l.label : '（整個帳戶）') : '帳戶已不存在');
+    })() : it.detect === 'keyword' ? `偵測：說明含「${it.keyword||''}」` : '手動勾選';
+  const rangeLabel = it => (it.startYM || it.endYM) ? `　${it.startYM ? it.startYM.replace('-','/') : ''} ～ ${it.endYM ? it.endYM.replace('-','/') : ''}` : '';
+  const items = p.items;
+  const total = items.reduce((s, it) => s + (it.amount||0), 0);
+  const list = items.length ? items.map((it, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;background:var(--bg-secondary)">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;gap:8px">
+          <span style="font-size:13px;font-weight:600;color:var(--tx-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(it.name)}</span>
+          <span style="font-family:var(--ff-display);font-size:14px;font-weight:700;color:var(--tx-primary);white-space:nowrap">${fmt(it.amount||0)}</span>
+        </div>
+        <div style="font-size:10px;color:var(--tx-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(detectLabel(it))}${rangeLabel(it)}</div>
+      </div>
+      <div class="layer-actions" style="margin-left:6px">
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveAllocItem('${it.id}',-1)" ${i === 0 ? 'disabled' : ''}>▲</button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="openAllocItemModal('${it.id}')">✏️</button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="moveAllocItem('${it.id}',1)" ${i === items.length - 1 ? 'disabled' : ''}>▼</button>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="deleteAllocItem('${it.id}')">✕</button>
+      </div>
+    </div>`).join('')
+    : '<div style="text-align:center;font-size:12px;color:var(--tx-muted);padding:16px 0">尚無項目，點下方「＋ 新增項目」</div>';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label class="form-label">顯示在哪個分層（帳戶頁）</label>
+        <select class="form-select" id="allocHost" onchange="saveAllocHost(this.value)">${hostOpts}</select>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <label class="form-label" style="margin:0">分配項目</label>
+          <span style="font-size:11px;color:var(--tx-muted)">合計 ${fmt(total)}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">${list}</div>
+        <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:8px" onclick="openAllocItemModal()">＋ 新增項目</button>
+      </div>
+      <div style="font-size:11px;color:var(--tx-muted)">💡 週期跟著薪資週期（實際入帳日起算），新週期勾選狀態自動重置；有設起訖月份的項目只在期間內出現</div>
+    </div>`;
+  document.getElementById('modalFooter').innerHTML = `<button class="btn btn-sm btn-primary" onclick="closeModal();renderAllocPlan();renderAccounts()">完成</button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+function saveAllocHost(val) {
+  const p = allocPlan();
+  const [acc, layer] = (val || '|').split('|');
+  p.hostAcc = acc || ''; p.hostLayer = layer || '';
+  saveDB();
+  toast(val ? '已設定顯示分層' : '已取消顯示在分層', 'success');
+}
+function moveAllocItem(id, dir) {
+  const arr = allocPlan().items;
+  const i = arr.findIndex(x => x.id === id), j = i + dir;
+  if (i < 0 || j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  saveDB(); openAllocPlanModal();
+}
+function deleteAllocItem(id) {
+  const it = allocPlan().items.find(x => x.id === id);
+  if (!it || !confirm(`確定刪除「${it.name}」？`)) return;
+  DB.allocPlan.items = DB.allocPlan.items.filter(x => x.id !== id);
+  saveDB(); openAllocPlanModal();
+}
+function openAllocItemModal(editId) {
+  const it = editId ? allocPlan().items.find(x => x.id === editId) : null;
+  openModal('_allocItem');
+  document.getElementById('modalTitle').innerHTML = `<span style="font-size:15px;letter-spacing:1px">${it ? '✏️ 編輯分配項目' : '＋ 新增分配項目'}</span>`;
+  const det = it?.detect || 'manual';
+  const accOpts = DB.bankAccounts.map(a => {
+    const whole = `<option value="${a.id}|" ${it?.accId === a.id && !it?.layerId ? 'selected' : ''}>${escHtml(a.name)}（整個帳戶）</option>`;
+    return whole + (a.layers||[]).map(l => `<option value="${a.id}|${l.id}" ${it?.accId === a.id && it?.layerId === l.id ? 'selected' : ''}>${escHtml(a.name)}／${escHtml(l.label)}</option>`).join('');
+  }).join('');
+  document.getElementById('modalBody').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="form-row">
+        <div><label class="form-label">名稱</label><input class="form-input" id="aiName" placeholder="e.g. 轉爸爸" value="${escHtml(it?.name||'')}"></div>
+        <div><label class="form-label">金額（NT$）</label><input class="form-input" id="aiAmt" type="number" min="0" value="${it?.amount||''}"></div>
+      </div>
+      <div>
+        <label class="form-label">偵測方式</label>
+        <select class="form-select" id="aiDetect" onchange="syncAllocDetectUI()">
+          <option value="layer" ${det === 'layer' ? 'selected' : ''}>指定帳戶／分層有記錄</option>
+          <option value="keyword" ${det === 'keyword' ? 'selected' : ''}>說明含關鍵字</option>
+          <option value="manual" ${det === 'manual' ? 'selected' : ''}>手動勾選</option>
+        </select>
+      </div>
+      <div id="aiLayerWrap">
+        <label class="form-label">帳戶／分層</label>
+        <select class="form-select" id="aiTarget">${accOpts}</select>
+        <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">本期內這個帳戶／分層有一筆記錄（轉入或支出皆可）、金額 ≥ 設定金額，就自動打勾</div>
+      </div>
+      <div id="aiKwWrap">
+        <label class="form-label">關鍵字</label>
+        <input class="form-input" id="aiKw" placeholder="e.g. 爸爸" value="${escHtml(it?.keyword||'')}">
+        <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">本期內有一筆支出或轉出，說明或備註含此關鍵字、金額 ≥ 設定金額，就自動打勾</div>
+      </div>
+      <div class="form-row">
+        <div><label class="form-label">起始月份（選填）</label><input class="form-input" id="aiStart" type="month" value="${it?.startYM||''}"></div>
+        <div><label class="form-label">結束月份（選填）</label><input class="form-input" id="aiEnd" type="month" value="${it?.endYM||''}"></div>
+      </div>
+      <div style="font-size:11px;color:var(--tx-muted);margin-top:-6px">月份指薪資週期開始的月份；都不填代表每期都有</div>
+      <input type="hidden" id="aiEditId" value="${editId||''}">
+    </div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="openAllocPlanModal()">返回</button>
+    <button class="btn btn-sm btn-primary" onclick="saveAllocItem()">儲存</button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+  syncAllocDetectUI();
+}
+function syncAllocDetectUI() {
+  const d = document.getElementById('aiDetect')?.value;
+  const lw = document.getElementById('aiLayerWrap'), kw = document.getElementById('aiKwWrap');
+  if (lw) lw.style.display = d === 'layer' ? '' : 'none';
+  if (kw) kw.style.display = d === 'keyword' ? '' : 'none';
+}
+function saveAllocItem() {
+  const name = document.getElementById('aiName')?.value.trim();
+  const amount = parseFloat(document.getElementById('aiAmt')?.value) || 0;
+  const detect = document.getElementById('aiDetect')?.value || 'manual';
+  const [accId, layerId] = (document.getElementById('aiTarget')?.value || '|').split('|');
+  const keyword = document.getElementById('aiKw')?.value.trim() || '';
+  const startYM = document.getElementById('aiStart')?.value || '';
+  const endYM = document.getElementById('aiEnd')?.value || '';
+  if (!name) { toast('請填入名稱','warn'); return; }
+  if (!(amount > 0)) { toast('請填入金額','warn'); return; }
+  if (detect === 'layer' && !accId) { toast('請選擇帳戶／分層','warn'); return; }
+  if (detect === 'keyword' && !keyword) { toast('請填入關鍵字','warn'); return; }
+  if (startYM && endYM && endYM < startYM) { toast('結束月份不能早於起始月份','warn'); return; }
+  const data = { name, amount, detect, accId: detect === 'layer' ? accId : '', layerId: detect === 'layer' ? (layerId || '') : '',
+                 keyword: detect === 'keyword' ? keyword : '', startYM, endYM };
+  const p = allocPlan();
+  const editId = document.getElementById('aiEditId')?.value;
+  if (editId) { const i = p.items.findIndex(x => x.id === editId); if (i >= 0) p.items[i] = { ...p.items[i], ...data }; }
+  else p.items.push({ id: uid(), ...data });
+  saveDB();
+  toast(editId ? '項目已更新' : '✅ 已新增項目', 'success');
+  openAllocPlanModal();
 }
 
 // 煙火特效
