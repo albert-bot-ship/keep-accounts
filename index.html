@@ -463,6 +463,7 @@
       <div id="accountPieWrap" style="margin-bottom:20px"></div>
       <div id="accountFlowWrap" style="margin-bottom:20px"></div>
       <div class="cards-grid" id="accountsGrid"></div>
+      <div id="nonCashWrap" style="margin-top:20px"></div>
     </section>
 
     <!-- ─── TRANSACTIONS ───────────────────────── -->
@@ -4378,7 +4379,14 @@ function renderNetWorth() {
     return {name:c.name, color:c.color, val:b<0?Math.abs(b):0};
   }).filter(x=>x.val>0);
 
-  const totalAssets = assets.reduce((s,x)=>s+Math.max(0,x.val),0);
+  // 非現金資產（有勾「算入總資產」者，以估計現值換算台幣；外幣缺匯率時排除）
+  const ncaAll  = (DB.nonCashAssets||[]).filter(x => x.includeInTotal !== false)
+    .map(x => ({name:x.name, color:ncaColor(x), val:ncaToTWD(x, x.value||0)}));
+  const ncaPending = ncaAll.some(x => x.val === null);
+  const ncaList = ncaAll.filter(x => x.val !== null);
+  const ncaTotal = ncaList.reduce((s,x)=>s+Math.max(0,x.val),0);
+
+  const totalAssets = assets.reduce((s,x)=>s+Math.max(0,x.val),0) + ncaTotal;
   const totalLiab   = liabilities.reduce((s,x)=>s+x.val,0);
   const netWorth    = totalAssets - totalLiab;
   const nwColor     = netWorth>=0 ? 'var(--tx-green)' : 'var(--tx-red)';
@@ -4396,7 +4404,11 @@ function renderNetWorth() {
       <span style="color:var(--tx-secondary)">${k}</span>
       <span style="font-family:var(--ff-display);font-weight:600;color:var(--tx-green)">+${fmt(v)}</span>
     </div>`
-  ).join('');
+  ).join('') + (ncaList.length ?
+    `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:4px 0">
+      <span style="color:var(--tx-secondary)">非現金資產（估計）</span>
+      <span style="font-family:var(--ff-display);font-weight:600;color:var(--tx-green)">≈ +${fmt(ncaTotal)}</span>
+    </div>` : '');
 
   // 展開明細
   const assetDetail = assets.map(x=>`
@@ -4404,6 +4416,11 @@ function renderNetWorth() {
       <div class="nw-dot" style="background:${x.color}"></div>
       <span class="nw-name">${escHtml(x.name)}</span>
       <span class="nw-val" style="color:${x.val>=0?'var(--tx-green)':'var(--tx-red)'}">${x.val>=0?'+':'−'}${fmt(Math.abs(x.val))}</span>
+    </div>`).join('') + ncaList.map(x=>`
+    <div class="nw-row">
+      <div class="nw-dot" style="background:${x.color}"></div>
+      <span class="nw-name">${escHtml(x.name)}（估計）</span>
+      <span class="nw-val" style="color:var(--tx-green)">≈ +${fmt(Math.max(0,x.val))}</span>
     </div>`).join('');
   const liabDetail = liabilities.map(x=>`
     <div class="nw-row">
@@ -4430,6 +4447,7 @@ function renderNetWorth() {
       </div>
     </div>
     ${fxPendingAccounts().length ? '<div style="font-size:11px;color:var(--warn);margin:-4px 0 10px;text-align:center">⚠ 不含外幣帳戶（匯率載入中）</div>' : ''}
+    ${ncaPending ? '<div style="font-size:11px;color:var(--warn);margin:-4px 0 10px;text-align:center">⚠ 不含外幣計價的非現金資產（匯率載入中）</div>' : ''}
     <!-- 分類摘要 -->
     <div style="border-top:1px solid var(--bdr-subtle);padding-top:10px;margin-bottom:4px">
       ${groupRows}
@@ -7745,6 +7763,7 @@ function renderAccounts() {
   document.getElementById('accountsGrid').innerHTML = html;
   renderAccQuickNav();
   renderNetWorth();
+  renderNonCash();
   const pieWrap = document.getElementById('accountPieWrap');
   if (!pieWrap) return;
   if (!DB.bankAccounts.length) { pieWrap.innerHTML=''; return; }
@@ -11101,6 +11120,192 @@ function deleteGoal(id, fromModal) {
   if (fromModal) closeModal();
   renderGoals();
   toast('目標已刪除','info');
+}
+
+// ════════════════════════════════════════════════════════════════
+// 非現金資產（0050、保單等）：投入成本與估計現值皆由使用者定期手動更新
+// ════════════════════════════════════════════════════════════════
+const NCA_TYPES = ['股票／ETF','儲蓄險','外幣保單','其他'];
+const NCA_CURS  = ['TWD','USD','JPY','EUR','HKD','GBP','CNY','KRW','AUD','SGD','MYR'];
+const NCA_TYPE_COLOR = {'股票／ETF':'#4D9FFF','儲蓄險':'#00C853','外幣保單':'#C9AA70','其他':'#9b59b6'};
+function ncaColor(x) { return NCA_TYPE_COLOR[x.type] || '#9b59b6'; }
+function ncaCur(x) { return (x.currency || 'TWD').toUpperCase(); }
+// 金額換算台幣：外幣缺匯率時回傳 null，由呼叫端排除
+function ncaToTWD(x, n) {
+  const cur = ncaCur(x);
+  if (cur === 'TWD') return n;
+  const r = getRateTWD(cur);
+  return r ? n * r : null;
+}
+function ncaFmt(x, n) { return ncaCur(x) === 'TWD' ? fmt(n) : fmtFX(n, ncaCur(x)); }
+function ncaDaysSince(d) {
+  if (!d) return null;
+  return Math.max(0, Math.floor((new Date(today()+'T00:00:00') - new Date(d+'T00:00:00')) / 86400000));
+}
+function ncaAgeText(days) {
+  if (days == null) return '尚未更新';
+  if (days < 1)  return '今天更新';
+  if (days < 30) return days + ' 天前更新';
+  return Math.floor(days / 30) + ' 個月前更新';
+}
+// 到期月份（YYYY-MM）距今月數
+function ncaMonthsLeft(ymStr) {
+  const m = /^(\d{4})-(\d{2})$/.exec(ymStr || '');
+  if (!m) return null;
+  const d = new Date();
+  return (+m[1] - d.getFullYear()) * 12 + (+m[2] - (d.getMonth() + 1));
+}
+
+function renderNonCash() {
+  const wrap = document.getElementById('nonCashWrap');
+  if (!wrap) return;
+  const list = DB.nonCashAssets || [];
+  const inc  = list.filter(x => x.includeInTotal !== false);
+  const pending = inc.some(x => ncaToTWD(x, x.value||0) === null);
+  const total = inc.reduce((s,x) => { const v = ncaToTWD(x, x.value||0); return v === null ? s : s + Math.max(0, v); }, 0);
+
+  const rows = list.map(x => {
+    const c = ncaColor(x);
+    const cur = ncaCur(x);
+    const val = x.value || 0, cost = x.cost || 0;
+    const twd = cur !== 'TWD' ? ncaToTWD(x, val) : null;
+    const valStr = `≈ ${ncaFmt(x, val)}` + (cur !== 'TWD' ? `<span style="font-size:11px;color:var(--tx-muted);font-weight:400;margin-left:4px">${twd === null ? '（匯率載入中）' : '（≈' + fmt(twd) + '）'}</span>` : '');
+    let pl = '';
+    if (cost > 0 && val > 0) {
+      const diff = val - cost, pct = diff / cost * 100;
+      const pc = diff >= 0 ? 'var(--tx-green)' : 'var(--tx-red)';
+      pl = `<span style="color:${pc};font-weight:600">${diff >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(1)}%</span>`;
+    }
+    const days = ncaDaysSince(x.updatedAt);
+    const stale = days == null || days > 90;
+    const age = `<span style="color:${stale ? 'var(--warn)' : 'var(--tx-muted)'}">${stale ? '⚠' : '⏱'} ${ncaAgeText(days)}</span>`;
+    let mat = '';
+    if (x.maturity) {
+      const ml = ncaMonthsLeft(x.maturity);
+      const ymTxt = x.maturity.replace('-', '/');
+      const left = ml == null ? '' : ml > 0 ? `（還有 ${ml} 個月）` : ml === 0 ? '（本月到期）' : '（已到期）';
+      mat = `<div style="font-size:11px;color:var(--tx-secondary);margin-top:3px">📅 到期 ${ymTxt}${left}${x.maturityAmt ? `　到期金額 ≈ ${ncaFmt(x, x.maturityAmt)}` : ''}</div>`;
+    }
+    return `<div onclick="openNcaModal('${x.id}')" style="cursor:pointer;padding:10px 12px;border-radius:var(--r);background:var(--bg-secondary);border:1px solid var(--bdr-subtle);border-left:3px solid ${c}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <div style="min-width:0;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+          <span style="font-size:14px;font-weight:700;color:var(--tx-primary)">${escHtml(x.name)}</span>
+          <span style="font-size:10px;color:var(--tx-muted)">${escHtml(x.type||'其他')}</span>
+          ${x.includeInTotal === false ? '<span style="font-size:10px;color:var(--tx-muted);border:1px solid var(--bdr-normal);border-radius:4px;padding:0 4px">不計入總資產</span>' : ''}
+        </div>
+        <div style="font-family:var(--ff-display);font-size:16px;font-weight:700;color:var(--tx-primary);white-space:nowrap;text-align:right">${valStr}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;margin-top:4px;flex-wrap:wrap">
+        <span style="color:var(--tx-secondary)">${cost > 0 ? '成本 ' + ncaFmt(x, cost) : '成本未填'}${pl ? '　' + pl : ''}</span>
+        ${age}
+      </div>
+      ${mat}
+    </div>`;
+  }).join('');
+
+  wrap.innerHTML = `<div class="chart-box" style="padding:14px 18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="font-size:10px;letter-spacing:1.5px;color:var(--tx-muted);font-family:var(--ff-display)">非現金資產</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        ${list.length ? `<span style="font-size:12px;color:var(--tx-secondary)">合計 <b style="font-family:var(--ff-display);font-size:15px;color:var(--tx-green)">≈ ${fmt(total)}</b></span>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="openNcaModal()">＋ 新增</button>
+      </div>
+    </div>
+    ${pending ? '<div style="font-size:11px;color:var(--warn);margin:-4px 0 8px">⚠ 合計不含外幣計價項目（匯率載入中）</div>' : ''}
+    ${list.length ? `<div style="display:flex;flex-direction:column;gap:8px">${rows}</div>`
+      : '<div style="font-size:12px;color:var(--tx-muted);text-align:center;padding:14px 0">記錄股票／ETF、保單等非現金資產，金額填概略數字即可</div>'}
+    ${list.length ? '<div style="font-size:10px;color:var(--tx-muted);margin-top:8px">點項目可更新金額；超過 3 個月沒更新會顯示 ⚠</div>' : ''}
+  </div>`;
+}
+
+function openNcaModal(editId) {
+  const x = editId ? (DB.nonCashAssets||[]).find(a => a.id === editId) : null;
+  openModal('_nca');
+  document.getElementById('modalTitle').innerHTML =
+    `<span style="font-size:15px;letter-spacing:1px">${x ? '✏️ 更新非現金資產' : '📈 新增非現金資產'}</span>`;
+  const typeOpts = NCA_TYPES.map(t => `<option value="${t}" ${(x?.type||NCA_TYPES[0])===t?'selected':''}>${t}</option>`).join('');
+  const curOpts  = NCA_CURS.map(c => `<option value="${c}" ${(x?.currency||'TWD')===c?'selected':''}>${c}</option>`).join('');
+  document.getElementById('modalBody').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label class="form-label">名稱</label>
+        <input class="form-input" id="ncaName" placeholder="e.g. 0050、美金保單" value="${escHtml(x?.name||'')}">
+      </div>
+      <div class="form-row">
+        <div><label class="form-label">類型</label><select class="form-select" id="ncaType">${typeOpts}</select></div>
+        <div><label class="form-label">幣別</label><select class="form-select" id="ncaCur">${curOpts}</select></div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">投入成本（總額）</label>
+          <input class="form-input" id="ncaCost" type="number" min="0" step="any" placeholder="概略即可" value="${x?.cost||''}">
+        </div>
+        <div>
+          <label class="form-label">估計現值</label>
+          <input class="form-input" id="ncaValue" type="number" min="0" step="any" placeholder="概略即可" value="${x?.value||''}">
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--tx-muted);margin-top:-6px">金額以所選幣別填寫；修改成本或現值時，會自動記錄今天為更新日${x?.updatedAt ? `（上次更新：${x.updatedAt}）` : ''}</div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">到期月份（選填）</label>
+          <input class="form-input" id="ncaMaturity" type="month" value="${x?.maturity||''}">
+        </div>
+        <div>
+          <label class="form-label">到期金額（選填）</label>
+          <input class="form-input" id="ncaMatAmt" type="number" min="0" step="any" value="${x?.maturityAmt||''}">
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx-secondary);cursor:pointer">
+        <input type="checkbox" id="ncaInclude" ${x?.includeInTotal===false?'':'checked'} style="width:16px;height:16px;accent-color:var(--m-blue)">
+        算入總資產（淨資產）
+      </label>
+      <input type="hidden" id="ncaEditId" value="${editId||''}">
+    </div>`;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    ${editId ? `<button class="btn btn-danger btn-sm" onclick="deleteNca('${editId}',true)">刪除</button>` : ''}
+    <button class="btn btn-sm btn-primary" onclick="saveNca()">儲存</button>`;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function saveNca() {
+  const name = document.getElementById('ncaName')?.value.trim();
+  if (!name) { toast('請填入名稱','warn'); return; }
+  const num = id => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) && v > 0 ? v : 0; };
+  const data = {
+    name,
+    type: document.getElementById('ncaType')?.value || '其他',
+    currency: document.getElementById('ncaCur')?.value || 'TWD',
+    cost: num('ncaCost'),
+    value: num('ncaValue'),
+    maturity: document.getElementById('ncaMaturity')?.value || '',
+    maturityAmt: num('ncaMatAmt'),
+    includeInTotal: !!document.getElementById('ncaInclude')?.checked
+  };
+  if (!DB.nonCashAssets) DB.nonCashAssets = [];
+  const editId = document.getElementById('ncaEditId')?.value;
+  if (editId) {
+    const idx = DB.nonCashAssets.findIndex(a => a.id === editId);
+    if (idx >= 0) {
+      const old = DB.nonCashAssets[idx];
+      const changed = old.cost !== data.cost || old.value !== data.value || old.currency !== data.currency;
+      DB.nonCashAssets[idx] = {...old, ...data, updatedAt: changed ? today() : (old.updatedAt || today())};
+    }
+  } else {
+    DB.nonCashAssets.push({id: uid(), ...data, updatedAt: today()});
+  }
+  saveDB(); closeModal(); renderNonCash(); renderNetWorth();
+  toast(editId ? '已更新' : '✅ 已新增非現金資產', 'success');
+}
+
+function deleteNca(id, fromModal) {
+  if (!confirm('確定刪除此項目？')) return;
+  DB.nonCashAssets = (DB.nonCashAssets||[]).filter(a => a.id !== id);
+  saveDB();
+  if (fromModal) closeModal();
+  renderNonCash(); renderNetWorth();
+  toast('已刪除','info');
 }
 
 // 煙火特效
