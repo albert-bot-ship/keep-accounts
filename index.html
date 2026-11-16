@@ -10977,6 +10977,7 @@ function renderGoals() {
         <span style="color:${barColor};font-weight:600">${pct}% 達成</span>
         <span>${done ? '🎉 目標達成！' : `還差 ${fmt(remain)}`}</span>
       </div>
+      ${g.monthlyNeed > 0 ? `<div style="margin-top:8px;font-size:12px;color:var(--tx-secondary)">🛟 可撐 <b style="color:${barColor};font-family:var(--ff-display);font-size:14px">${(Math.max(0,saved)/g.monthlyNeed).toFixed(1)}</b> 個月 ／ 目標 ${(target/g.monthlyNeed).toFixed(1)} 個月</div>` : ''}
       ${linkHtml}
     </div>`;
   }).join('');
@@ -11028,6 +11029,11 @@ function openGoalModal(editId) {
         <label class="form-label">目標日期（選填）</label>
         <input class="form-input" id="goalDeadline" type="date" value="${g?.deadline||''}">
       </div>
+      <div>
+        <label class="form-label">每月必要支出（選填，NT$）</label>
+        <input class="form-input" id="goalMonthlyNeed" type="number" min="0" placeholder="e.g. 28000" value="${g?.monthlyNeed||''}">
+        <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">填寫後，卡片會顯示「可撐幾個月」</div>
+      </div>
       <input type="hidden" id="goalEditId" value="${editId||''}">
       <input type="hidden" id="goalSavedMode" value="${g?.savedMode||'manual'}">
     </div>`;
@@ -11061,6 +11067,7 @@ function saveGoal() {
   const name      = document.getElementById('goalName')?.value.trim();
   const target    = parseFloat(document.getElementById('goalTarget')?.value)||0;
   const deadline  = document.getElementById('goalDeadline')?.value||'';
+  const monthlyNeed = parseFloat(document.getElementById('goalMonthlyNeed')?.value)||0;
   const editId    = document.getElementById('goalEditId')?.value;
   const savedMode = document.getElementById('goalSavedMode')?.value||'manual';
   let saved, linkedLayers=[];
@@ -11078,9 +11085,9 @@ function saveGoal() {
   const isNowDone  = saved >= target;
   if (editId) {
     const idx = DB.goals.findIndex(g=>g.id===editId);
-    if (idx>=0) DB.goals[idx] = {...DB.goals[idx], name, target, saved, savedMode, linkedLayers, deadline};
+    if (idx>=0) DB.goals[idx] = {...DB.goals[idx], name, target, saved, savedMode, linkedLayers, deadline, monthlyNeed};
   } else {
-    DB.goals.push({id:uid(), name, target, saved, savedMode, linkedLayers, deadline});
+    DB.goals.push({id:uid(), name, target, saved, savedMode, linkedLayers, deadline, monthlyNeed});
   }
   saveDB(); closeModal(); renderGoals();
   toast(editId ? '目標已更新' : '✅ 財務目標已新增', 'success');
