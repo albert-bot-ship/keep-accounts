@@ -6763,6 +6763,24 @@
       "isTransferIn": false,
       "countInStats": false,
       "isFixed": false
+    },
+    {
+      "id": "mwsx70dzo0jfl",
+      "date": "2026-11-23",
+      "amount": -1539,
+      "desc": "威秀",
+      "category": "mov4018zi207l",
+      "sourceId": "mwd08rcboujeq",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mwd0afjqliwo5",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
