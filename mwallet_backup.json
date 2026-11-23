@@ -6744,6 +6744,25 @@
       "isTransferOut": false,
       "isTransferIn": false,
       "isFixed": false
+    },
+    {
+      "id": "mwswyq70g79vg",
+      "date": "2026-11-23",
+      "amount": -9074,
+      "desc": "房租",
+      "category": "",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mp76aznhv0bb6",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": true,
+      "isTransferIn": false,
+      "countInStats": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
