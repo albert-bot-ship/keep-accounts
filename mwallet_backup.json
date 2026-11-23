@@ -40,6 +40,14 @@
           "color": "#00d8ff",
           "monthlyAmt": null,
           "reimbursable": false
+        },
+        {
+          "id": "mwsnkq9czsf8w",
+          "label": "岡山四國",
+          "amount": 0,
+          "color": "#FF4081",
+          "monthlyAmt": null,
+          "reimbursable": false
         }
       ],
       "cardTheme": "emerald",
@@ -5650,6 +5658,42 @@
       "isTransferOut": false,
       "isTransferIn": false,
       "isFixed": false
+    },
+    {
+      "id": "mwsnlfr8fzk8t",
+      "date": "2026-11-23",
+      "amount": -125,
+      "desc": "全家",
+      "category": "mov4018zh9j4y",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
+    },
+    {
+      "id": "mwsnm1p6qmnnb",
+      "date": "2026-11-23",
+      "amount": -35,
+      "desc": "桃園捷運",
+      "category": "mov4018zncy6t",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowvgma9od1k8",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
@@ -5976,6 +6020,11 @@
       "id": "movou894lpuqn",
       "name": "出差",
       "color": "#5a1c00"
+    },
+    {
+      "id": "mwsnk7hbphy55",
+      "name": "岡山四國",
+      "color": "#ff9efd"
     }
   ],
   "installments": [
