@@ -9689,7 +9689,7 @@ function openModal(type,id,preCard,preAcc,extraId) {
         ${(DB.userTags||[]).map(tg=>`<span class="tag-pick-btn${(txn?.tags||[]).includes(tg.id)?' active':''}" data-id="${tg.id}" style="--tclr:${tg.color}" onclick="toggleTxnTag(this,'${tg.id}')">#${escHtml(tg.name)}</span>`).join('')}
         ${(DB.userTags||[]).length===0?'<span style="font-size:12px;color:var(--tx-muted)">尚無標籤，請至設定頁新增</span>':''}
       </div>
-      <input type="hidden" id="tTagsVal" value="${JSON.stringify(txn?.tags||[])}">
+      <input type="hidden" id="tTagsVal" value="${escAttr(JSON.stringify(txn?.tags||[]))}">
     </div>
     <div style="margin-top:4px">
       <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 10px;width:100%" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.textContent=this.textContent.includes('▼')?'▲ 收合備註與手續費':'▼ 備註 / 手續費（選填）'">▼ 備註 / 手續費（選填）</button>
