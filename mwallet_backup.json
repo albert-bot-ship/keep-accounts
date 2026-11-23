@@ -6732,15 +6732,13 @@
       "date": "2026-11-21",
       "amount": -417,
       "desc": "儲值西瓜卡",
-      "category": "mov787fj4o49i",
+      "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
       "sourceType": "card",
       "notes": "",
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
-      "tags": [
-        "mwsnk7hbphy55"
-      ],
+      "tags": [],
       "fee": 0,
       "isSavingsAllocation": false,
       "isTransferOut": false,
