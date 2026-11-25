@@ -6948,6 +6948,46 @@
       "isTransferOut": false,
       "isTransferIn": false,
       "isFixed": false
+    },
+    {
+      "id": "mwvsn2kk3x563",
+      "date": "2026-11-21",
+      "amount": -209,
+      "desc": "儲值西瓜卡",
+      "category": "mov4018zi207l",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mwsnkq9czsf8w",
+      "tags": [],
+      "fee": 0,
+      "feeOffset": false,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
+    },
+    {
+      "id": "mwvsnigkrki5b",
+      "date": "2026-11-21",
+      "amount": -100,
+      "desc": "儲值西瓜卡",
+      "category": "mov4018zi207l",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mwsnkq9czsf8w",
+      "tags": [
+        "mwsnk7hbphy55"
+      ],
+      "fee": 0,
+      "feeOffset": false,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
