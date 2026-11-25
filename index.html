@@ -2086,11 +2086,17 @@ function getAcc(id)  { return DB.bankAccounts.find(a=>a.id===id); }
 function v(id) { const el=document.getElementById(id); return el?el.value:''; }
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 // 帳務明細金額：有手續費的支出顯示「合計」，下方拆出消費＋手續費
+// 手續費實際計入金額：勾選「手續費已用點數／回饋折抵」者視為 0（原手續費仍保留在 t.fee）
+function txnFee(t) { return t && t.feeOffset ? 0 : (+t?.fee || 0); }
 function txnAmtWithFee(t, sign) {
   const base = Math.abs(t.amount);
   if (!(t.fee > 0) || t.amount >= 0) return sign + fmt(base);
-  return sign + fmt(base + t.fee)
-    + `<div style="font-size:10px;font-weight:400;color:var(--tx-muted);white-space:nowrap;font-family:var(--ff-body)">消費 ${fmt(base).replace('NT$','')}＋手續費 ${fmt(t.fee).replace('NT$','')}</div>`;
+  const n = x => fmt(x).replace('NT$','');
+  const sub = t.feeOffset
+    ? `消費 ${n(base)}＋手續費 <s>${n(t.fee)}</s> <span style="color:var(--tx-green)">已折抵</span>`
+    : `消費 ${n(base)}＋手續費 ${n(t.fee)}`;
+  return sign + fmt(base + txnFee(t))
+    + `<div style="font-size:10px;font-weight:400;color:var(--tx-muted);white-space:nowrap;font-family:var(--ff-body)">${sub}</div>`;
 }
 function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function emptyState(icon, title, desc, type) {
@@ -2276,7 +2282,7 @@ function toggleTheme() {
 function cardBalance(id) {
   return DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===id)
-    .reduce((s,t)=>s+t.amount-(t.fee||0), 0);
+    .reduce((s,t)=>s+t.amount-txnFee(t), 0);
 }
 
 // 計算信用卡分層的即時未還淨額（只計算當期帳單週期，繳款後自動歸零）
@@ -2292,7 +2298,7 @@ function cardLayerOutstanding(cardId, layerId) {
   const layerTotal = (card.layers||[]).reduce((s,l)=>{
     const tx = DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
-      .reduce((ss,t)=>ss+Math.abs(t.amount)+(t.fee||0),0)
+      .reduce((ss,t)=>ss+Math.abs(t.amount)+txnFee(t),0)
       + DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerAmounts&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((ss,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===l.id);return ss+(la?Math.abs(la.amount):0);},0);
@@ -2316,7 +2322,7 @@ function cardLayerOutstanding(cardId, layerId) {
   // 此分層當期消費
   const txLayerAmt = DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===layerId&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
-    .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0)
+    .reduce((s,t)=>s+Math.abs(t.amount)+txnFee(t),0)
     + DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerAmounts&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===layerId);return s+(la?Math.abs(la.amount):0);},0);
@@ -2345,7 +2351,7 @@ function cardLayerDashboardDeduct(cardId, layerId, mode) {
   // 支出 - 折抵/回饋 = 實際扣除金額
   const net = DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===layerId&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
-    .reduce((s,t)=>s + (t.amount<0 ? Math.abs(t.amount)+(t.fee||0) : -t.amount), 0)
+    .reduce((s,t)=>s + (t.amount<0 ? Math.abs(t.amount)+txnFee(t) : -t.amount), 0)
     + DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerAmounts&&!t.isPayment&&t.amount<0&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===layerId);return s+(la?Math.abs(la.amount):0);},0);
@@ -2510,7 +2516,7 @@ function cardPeriodSummary(cardId, minCount) {
     }
     const idx = cardPeriodIndexForDate(periods, t.date);
     if (idx < 0) return;
-    periods[idx].due += -t.amount + (t.amount < 0 ? (t.fee || 0) : 0);
+    periods[idx].due += -t.amount + (t.amount < 0 ? txnFee(t) : 0);
   });
   periods.forEach(p => { p.due = Math.round(p.due); p.paid = Math.round(p.paid); });
   return periods;
@@ -2578,7 +2584,7 @@ function autoGrowNotes(el) {
 }
 // 是否排除於收支統計：帳戶互轉、信用卡繳款、未勾選「計入收支統計」的轉出／轉入
 // 支出金額（含手續費）：所有消費統計共用，手續費也是花費的一部分
-function spendAmt(t) { return Math.abs(t.amount) + (t.amount < 0 ? (+t.fee || 0) : 0); }
+function spendAmt(t) { return Math.abs(t.amount) + (t.amount < 0 ? txnFee(t) : 0); }
 function isStatExcluded(t) {
   return !!(t.isTransfer || t.isPayment || t.isAdjust || ((t.isTransferOut || t.isTransferIn) && !t.countInStats));
 }
@@ -2832,7 +2838,7 @@ function openLayerDetail(kind, ownerId, layerId) {
       const inPeriod = t => t.sourceType==='card' && t.sourceId===owner.id && t.date>=periodStart && t.date<=periodEnd;
       DB.transactions.filter(t=>inPeriod(t)).forEach(t=>{
         if (t.layerId===layer.id && t.amount<0 && !t.isPayment)
-          rows.push({date:t.date, desc:t.desc, sub:getCat(t.category)?.name||'—', amt:-(Math.abs(t.amount)+(t.fee||0)), txnId:t.id});
+          rows.push({date:t.date, desc:t.desc, sub:getCat(t.category)?.name||'—', amt:-(Math.abs(t.amount)+txnFee(t)), txnId:t.id});
         else if (t.layerAmounts && t.amount<0 && !t.isPayment) {
           const la = t.layerAmounts.find(x=>x.layerId===layer.id);
           if (la) rows.push({date:t.date, desc:t.desc, sub:(getCat(t.category)?.name||'—')+'・多分層', amt:-Math.abs(la.amount), txnId:t.id});
@@ -3186,7 +3192,7 @@ function cardPeriodTotalSpend(card) {
     if (hasMonthly) return sum + (l.amount||0);
     const txLayerAmt = DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
-      .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0)
+      .reduce((s,t)=>s+Math.abs(t.amount)+txnFee(t),0)
       + DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.layerAmounts&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((s,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===l.id);return s+(la?Math.abs(la.amount):0);},0);
@@ -3198,7 +3204,7 @@ function cardPeriodTotalSpend(card) {
     .reduce((s,t)=>s+Math.abs(t.amount),0);
   const totalCardFees = DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&!t.isPayment&&!t.isRedemption&&t.date>=periodStart&&t.date<=periodEnd)
-    .reduce((s,t)=>s+(t.fee||0),0);
+    .reduce((s,t)=>s+txnFee(t),0);
 
   return layerTotal + unlayeredSpend + totalCardFees;
 }
@@ -7320,7 +7326,7 @@ function renderCards() {
       // 只計算當期帳單週期內的交易
       const txLayerAmt = DB.transactions
         .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
-        .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0)
+        .reduce((s,t)=>s+Math.abs(t.amount)+txnFee(t),0)
         + DB.transactions
         .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.layerAmounts&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
         .reduce((s,t)=>{const la=(t.layerAmounts||[]).find(la=>la.layerId===l.id);return s+(la?Math.abs(la.amount):0);},0);
@@ -7340,7 +7346,7 @@ function renderCards() {
       .reduce((s,t)=>s+Math.abs(t.amount),0);
     const totalCardFees = DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&!t.isPayment&&!t.isRedemption&&t.date>=periodStart&&t.date<=periodEnd)
-      .reduce((s,t)=>s+(t.fee||0),0);
+      .reduce((s,t)=>s+txnFee(t),0);
     const totalSpend = layerTotal + unlayeredSpend + totalCardFees;
 
     // 已繳款：本期開始後的所有繳款記錄
@@ -8150,7 +8156,7 @@ function txnTable(txns, withActions, periodInfo) {
     return {t, cat, amtCls, sign, sysTags, userTagBadges, feeBadge, hasML, mlBadge, layerBadge, isOver};
   });
 
-  const total = txns.reduce((s,t)=>s+t.amount-(t.fee&&t.amount<0?t.fee:0),0);
+  const total = txns.reduce((s,t)=>s+t.amount-(t.amount<0?txnFee(t):0),0);
 
   // 逐筆餘額顯示（僅銀行帳戶；有分層顯示分層餘額，無分層顯示帳戶總餘額）
   const runBal = buildTxnRunningBalances();
@@ -9706,6 +9712,11 @@ function openModal(type,id,preCard,preAcc,extraId) {
           <label class="form-label">手續費（NT$，選填）</label>
           <input class="form-input" id="tFee" type="number" min="0" step="any" value="${txn?.fee||''}" placeholder="0">
           <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 手續費將另計入信用卡消費總額</div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx-secondary);cursor:pointer;margin-top:8px">
+            <input type="checkbox" id="tFeeOffset"${txn?.feeOffset?' checked':''}>
+            手續費已用點數／回饋折抵
+          </label>
+          <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">勾選後，手續費不計入卡費與支出統計，明細顯示「已折抵」</div>
         </div>
       </div>
     </div>
@@ -10329,7 +10340,7 @@ function saveTxn() {
   const isSubsidy     = isTransferIn ? !!document.getElementById('tIsSubsidy')?.checked : undefined;
   const countInStats  = isTfType ? (!!document.getElementById('tCountStats')?.checked && !isSubsidy) : undefined;
 
-  const txnObj = {date,amount,desc,category:isTfType?'':catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0,isSavingsAllocation:!!document.getElementById('tIsSavings')?.checked,
+  const txnObj = {date,amount,desc,category:isTfType?'':catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0,feeOffset:!!(fee>0&&document.getElementById('tFeeOffset')?.checked),isSavingsAllocation:!!document.getElementById('tIsSavings')?.checked,
     isTransferOut, isTransferIn, countInStats, isSubsidy,
     ...(hasFx ? {fxCurrency, fxAmount: amount<0 ? -fxAmtRaw : fxAmtRaw} : {})};
   if(modalType==='editTxn'){
@@ -12166,7 +12177,7 @@ function onTxnSrcChange(srcVal, preLayerId, preMulti, preLayerAmounts) {
             : { periodStart: nowYM()+'-01', periodEnd: nowYM()+'-31' };
           const consumed = DB.transactions
             .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
-            .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
+            .reduce((s,t)=>s+Math.abs(t.amount)+txnFee(t),0);
           display = fmt(consumed);
         }
       }
@@ -12702,7 +12713,7 @@ function onQaSrcChange(srcVal) {
         const cardId = srcVal.split('_')[1];
         const txAmt = DB.transactions
           .filter(t=>t.sourceType==='card'&&t.sourceId===cardId&&t.layerId===l.id&&t.amount<0&&!t.isPayment)
-          .reduce((s,t)=>s+Math.abs(t.amount)+(t.fee||0),0);
+          .reduce((s,t)=>s+Math.abs(t.amount)+txnFee(t),0);
         display = fmt((l.amount||0) + txAmt);
       }
       return { id: l.id, label: l.label, color: l.color||null, balanceText: display };
