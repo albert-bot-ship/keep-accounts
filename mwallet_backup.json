@@ -6049,7 +6049,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 31
     },
     {
       "id": "mwspnbcv6y2gn",
@@ -6089,7 +6091,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 17
     },
     {
       "id": "mwsppcyt46vwr",
@@ -6109,7 +6113,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 31
     },
     {
       "id": "mwspq7xtovdq3",
@@ -6129,7 +6135,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 5
     },
     {
       "id": "mwspzdy89t2li",
@@ -6147,7 +6155,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 38
     },
     {
       "id": "mwsq11tu21w9z",
@@ -6165,7 +6175,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 21
     },
     {
       "id": "mwsq21jeozt3x",
@@ -6183,7 +6195,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 3
     },
     {
       "id": "mwsq32fd4l4ya",
@@ -6201,7 +6215,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 11
     },
     {
       "id": "mwsq4j8803wbo",
@@ -6219,7 +6235,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 20
     },
     {
       "id": "mwsq5x2o4wtch",
@@ -6237,7 +6255,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 22
     },
     {
       "id": "mwsq78kakiwdh",
@@ -6255,7 +6275,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 84
     },
     {
       "id": "mwsqanhsx4pq9",
@@ -6275,7 +6297,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 7
     },
     {
       "id": "mwsqeeofd29tc",
@@ -6293,7 +6317,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 5
     },
     {
       "id": "mwsqfzbuvi439",
@@ -6311,7 +6337,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 23
     },
     {
       "id": "mwsqi1ywbgsf3",
@@ -6331,7 +6359,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 10
     },
     {
       "id": "mwsqjz8vwcp1d",
@@ -6713,7 +6743,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 31
     },
     {
       "id": "mwstwma9hs3x2",
@@ -6947,7 +6979,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 8
     },
     {
       "id": "mwvsn2kk3x563",
