@@ -6920,6 +6920,26 @@
       "isTransferOut": false,
       "isTransferIn": false,
       "isFixed": false
+    },
+    {
+      "id": "mwvif4wdh653x",
+      "date": "2026-11-20",
+      "amount": -552,
+      "desc": "Daikonya",
+      "category": "mov4018zi207l",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mwsnkq9czsf8w",
+      "tags": [
+        "mwsnk7hbphy55"
+      ],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
