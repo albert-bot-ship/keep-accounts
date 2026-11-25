@@ -6863,6 +6863,83 @@
       "isTransfer": false,
       "transferPairTxnId": "mwt22qxrsmowb",
       "payForPeriodEnd": "2026-11-15"
+    },
+    {
+      "id": "mwvfr70xi5x42",
+      "date": "2026-11-24",
+      "amount": -90,
+      "desc": "iCloud+（訂閱）",
+      "category": "mov4018zsf3sq",
+      "sourceId": "mov4et7fpt7kr",
+      "sourceType": "card",
+      "notes": "",
+      "isFixed": false,
+      "fee": 0,
+      "layerId": "mowvgma9od1k8"
+    },
+    {
+      "id": "mwvgpcqqqazha",
+      "date": "2026-11-23",
+      "amount": -1000,
+      "desc": "轉帳 → 中國信託",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowt3b5ret5t3",
+      "transferPairId": "mwvgpcqq4jw4p",
+      "transferPairTxnId": "mwvgpcqqgtamd"
+    },
+    {
+      "id": "mwvgpcqqgtamd",
+      "date": "2026-11-23",
+      "amount": 1000,
+      "desc": "轉入 ← 台灣銀行",
+      "category": "mov4018zygeiv",
+      "sourceId": "mov6j2tiejhek",
+      "sourceType": "account",
+      "notes": "",
+      "isTransfer": true,
+      "layerId": "mowtd8jpngynv",
+      "transferPairId": "mwvgpcqq4jw4p",
+      "transferPairTxnId": "mwvgpcqqqazha"
+    },
+    {
+      "id": "mwvgpr3t14rwt",
+      "date": "2026-11-25",
+      "amount": -1000,
+      "desc": "",
+      "category": "mowt158jjsaq7",
+      "sourceId": "mov6j2tiejhek",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": "mowtd8jpngynv",
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
+    },
+    {
+      "id": "mwvgrzkhp215e",
+      "date": "2026-11-25",
+      "amount": 45361,
+      "desc": "",
+      "category": "mp9mrsge4di8n",
+      "sourceId": "mov4r1sf9uw5u",
+      "sourceType": "account",
+      "notes": "",
+      "isRedemption": false,
+      "layerId": null,
+      "tags": [],
+      "fee": 0,
+      "isSavingsAllocation": false,
+      "isTransferOut": false,
+      "isTransferIn": false,
+      "isFixed": false
     }
   ],
   "fixedExpenses": [],
@@ -6916,6 +6993,9 @@
     "2026-11": [],
     "sub_mpnnfir9wzefb_2026-11-01": [
       "mpnnfir9wzefb"
+    ],
+    "sub_mpnngiv8dmk9t_2026-11-24": [
+      "mpnngiv8dmk9t"
     ]
   },
   "categories": [
@@ -7277,7 +7357,7 @@
       "amount": 90,
       "fee": 0,
       "cycle": "month",
-      "nextDate": "2026-11-24",
+      "nextDate": "2026-12-24",
       "color": "#1abc9c",
       "icon": "☁️",
       "srcId": "card_mov4et7fpt7kr",
@@ -7285,7 +7365,44 @@
       "catId": "mov4018zsf3sq"
     }
   ],
-  "layerAllocations": [],
+  "layerAllocations": [
+    {
+      "id": "mwvgrzkikk744",
+      "txnId": "mwvgrzkhp215e",
+      "date": "2026-11-25",
+      "accId": "mov4r1sf9uw5u",
+      "layerId": "mowt3b5ret5t3",
+      "amount": 19106,
+      "desc": "薪水撥入"
+    },
+    {
+      "id": "mwvgrzkinuaa7",
+      "txnId": "mwvgrzkhp215e",
+      "date": "2026-11-25",
+      "accId": "mov4r1sf9uw5u",
+      "layerId": "mp76aznhv0bb6",
+      "amount": 3000,
+      "desc": "薪水撥入"
+    },
+    {
+      "id": "mwvgrzkit8wux",
+      "txnId": "mwvgrzkhp215e",
+      "date": "2026-11-25",
+      "accId": "mov4r1sf9uw5u",
+      "layerId": "mpco4ljzg8q79",
+      "amount": 7755,
+      "desc": "薪水撥入"
+    },
+    {
+      "id": "mwvgrzki13i7v",
+      "txnId": "mwvgrzkhp215e",
+      "date": "2026-11-25",
+      "accId": "mov4r1sf9uw5u",
+      "layerId": "mquh4t2tofm0s",
+      "amount": 15500,
+      "desc": "薪水撥入"
+    }
+  ],
   "customColors": [
     "#0400fa",
     "#ff9efd",
