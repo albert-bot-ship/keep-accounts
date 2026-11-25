@@ -2086,16 +2086,23 @@ function getAcc(id)  { return DB.bankAccounts.find(a=>a.id===id); }
 function v(id) { const el=document.getElementById(id); return el?el.value:''; }
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 // 帳務明細金額：有手續費的支出顯示「合計」，下方拆出消費＋手續費
-// 手續費實際計入金額：勾選「手續費已用點數／回饋折抵」者視為 0（原手續費仍保留在 t.fee）
-function txnFee(t) { return t && t.feeOffset ? 0 : (+t?.fee || 0); }
+// 點數／回饋折抵金額（可超過手續費，超過的部分視為折抵消費本身）
+// 舊資料若只有 feeOffset 勾選，視為折抵金額＝手續費
+function txnOffset(t) {
+  if (!t || !(t.amount < 0)) return 0;
+  if (+t.feeOffsetAmt > 0) return +t.feeOffsetAmt;
+  return t.feeOffset ? (+t.fee || 0) : 0;
+}
+// 支出在「消費金額」之外的淨加減：手續費 − 點數折抵（可能為負）；計算卡費、統計時加在 |金額| 上
+function txnFee(t) { return (+t?.fee || 0) - txnOffset(t); }
 function txnAmtWithFee(t, sign) {
   const base = Math.abs(t.amount);
-  if (!(t.fee > 0) || t.amount >= 0) return sign + fmt(base);
+  const fee = +t.fee || 0, off = txnOffset(t);
+  if (t.amount >= 0 || (!(fee > 0) && !(off > 0))) return sign + fmt(base);
   const n = x => fmt(x).replace('NT$','');
-  const sub = t.feeOffset
-    ? `消費 ${n(base)}＋手續費 <s>${n(t.fee)}</s> <span style="color:var(--tx-green)">已折抵</span>`
-    : `消費 ${n(base)}＋手續費 ${n(t.fee)}`;
-  return sign + fmt(base + txnFee(t))
+  const sub = `消費 ${n(base)}` + (fee > 0 ? `＋手續費 ${n(fee)}` : '')
+    + (off > 0 ? `<span style="color:var(--tx-green)">－折抵 ${n(off)}</span>` : '');
+  return sign + fmt(base + fee - off)
     + `<div style="font-size:10px;font-weight:400;color:var(--tx-muted);white-space:nowrap;font-family:var(--ff-body)">${sub}</div>`;
 }
 function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -9712,11 +9719,9 @@ function openModal(type,id,preCard,preAcc,extraId) {
           <label class="form-label">手續費（NT$，選填）</label>
           <input class="form-input" id="tFee" type="number" min="0" step="any" value="${txn?.fee||''}" placeholder="0">
           <div style="font-size:11px;color:var(--tx-secondary);margin-top:4px">💡 手續費將另計入信用卡消費總額</div>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx-secondary);cursor:pointer;margin-top:8px">
-            <input type="checkbox" id="tFeeOffset"${txn?.feeOffset?' checked':''}>
-            手續費已用點數／回饋折抵
-          </label>
-          <div style="font-size:11px;color:var(--tx-muted);margin-top:2px">勾選後，手續費不計入卡費與支出統計，明細顯示「已折抵」</div>
+          <label class="form-label" style="margin-top:10px">點數／回饋折抵金額（NT$，選填）</label>
+          <input class="form-input" id="tFeeOffsetAmt" type="number" min="0" step="any" value="${txnOffset(txn)||''}" placeholder="0">
+          <div style="font-size:11px;color:var(--tx-muted);margin-top:4px">💡 這筆用點數／回饋折抵了多少，可超過手續費；會從卡費與支出統計扣除</div>
         </div>
       </div>
     </div>
@@ -10340,7 +10345,9 @@ function saveTxn() {
   const isSubsidy     = isTransferIn ? !!document.getElementById('tIsSubsidy')?.checked : undefined;
   const countInStats  = isTfType ? (!!document.getElementById('tCountStats')?.checked && !isSubsidy) : undefined;
 
-  const txnObj = {date,amount,desc,category:isTfType?'':catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0,feeOffset:!!(fee>0&&document.getElementById('tFeeOffset')?.checked),isSavingsAllocation:!!document.getElementById('tIsSavings')?.checked,
+  const offAmtIn = parseFloat(document.getElementById('tFeeOffsetAmt')?.value)||0;
+  if (amount < 0 && offAmtIn > Math.abs(amount) + (fee||0)) { toast('折抵金額不能超過消費＋手續費','danger'); return; }
+  const txnObj = {date,amount,desc,category:isTfType?'':catId,sourceId:sId,sourceType:sType,notes,isRedemption:isRed,layerId,layerAmounts:layerAmounts||undefined,tags,fee:fee||0,feeOffset:false,feeOffsetAmt:(amount<0?(parseFloat(document.getElementById('tFeeOffsetAmt')?.value)||0):0),isSavingsAllocation:!!document.getElementById('tIsSavings')?.checked,
     isTransferOut, isTransferIn, countInStats, isSubsidy,
     ...(hasFx ? {fxCurrency, fxAmount: amount<0 ? -fxAmtRaw : fxAmtRaw} : {})};
   if(modalType==='editTxn'){
