@@ -6437,7 +6437,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 9
     },
     {
       "id": "mwssyo8xo60m4",
@@ -6533,7 +6535,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 20
     },
     {
       "id": "mwst2po93wzhk",
@@ -6551,7 +6555,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 6
     },
     {
       "id": "mwst3ya3zbl1c",
@@ -6569,7 +6575,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 31
     },
     {
       "id": "mwst63yy95q4a",
