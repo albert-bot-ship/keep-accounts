@@ -173,6 +173,14 @@
           "color": "#ff9efd",
           "monthlyAmt": null,
           "reimbursable": true
+        },
+        {
+          "id": "mwvj9992dwd3r",
+          "label": "岡山四國",
+          "amount": 0,
+          "color": "#FF4081",
+          "monthlyAmt": null,
+          "reimbursable": false
         }
       ],
       "cardTheme": "white",
@@ -4549,7 +4557,7 @@
       "sourceType": "card",
       "notes": "",
       "isRedemption": false,
-      "layerId": "mowvgma9od1k8",
+      "layerId": "mwsnkq9czsf8w",
       "tags": [],
       "fee": 0,
       "isSavingsAllocation": false,
@@ -5963,7 +5971,7 @@
       "sourceType": "card",
       "notes": "",
       "isRedemption": false,
-      "layerId": "mpdhz2emh2a28",
+      "layerId": "mwvj9992dwd3r",
       "tags": [],
       "fee": 0,
       "isSavingsAllocation": false,
