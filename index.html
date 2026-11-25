@@ -2085,6 +2085,13 @@ function getCard(id) { return DB.creditCards.find(c=>c.id===id); }
 function getAcc(id)  { return DB.bankAccounts.find(a=>a.id===id); }
 function v(id) { const el=document.getElementById(id); return el?el.value:''; }
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// 帳務明細金額：有手續費的支出顯示「合計」，下方拆出消費＋手續費
+function txnAmtWithFee(t, sign) {
+  const base = Math.abs(t.amount);
+  if (!(t.fee > 0) || t.amount >= 0) return sign + fmt(base);
+  return sign + fmt(base + t.fee)
+    + `<div style="font-size:10px;font-weight:400;color:var(--tx-muted);white-space:nowrap;font-family:var(--ff-body)">消費 ${fmt(base).replace('NT$','')}＋手續費 ${fmt(t.fee).replace('NT$','')}</div>`;
+}
 function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function emptyState(icon, title, desc, type) {
   const svgs = {
@@ -8183,7 +8190,6 @@ function txnTable(txns, withActions, periodInfo) {
       const layer = (src?.layers||[]).find(l=>l.id===t.layerId);
       if (layer) out.push(tagHtml(escHtml(layer.label), {dot: layer.color||'#888'}));
     }
-    if (t.fee && t.fee > 0) out.push(tagHtml('手續費 +'+fmt(t.fee)));
     (t.tags||[]).forEach(tid => { const tg=(DB.userTags||[]).find(x=>x.id===tid); if (tg) out.push(tagHtml('#'+escHtml(tg.name), {dot: tg.color})); });
     return out.length ? `<div class="txn-tags">${out.join('')}</div>` : '';
   };
@@ -8234,7 +8240,7 @@ function txnTable(txns, withActions, periodInfo) {
       <td class="txn-col-desc"><div class="txn-desc-wrap">${txnIconHtml(t, cat, 'sm')}<div class="txn-desc-text"><span class="txn-desc-name">${escHtml(t.desc)}</span>${neutralTags(t)}</div></div></td>
       <td><span class="txn-cat"><i style="background:${cat.color}"></i>${escHtml(cat.name)}</span></td>
       <td class="txn-col-src">${sourceName(t)}</td>
-      <td class="txn-col-amt ${amtCls}">${sign}${fmt(Math.abs(t.amount))}${b?`<div class="txn-bal">${b}</div>`:''}</td>
+      <td class="txn-col-amt ${amtCls}">${txnAmtWithFee(t, sign)}${b?`<div class="txn-bal">${b}</div>`:''}</td>
       <td class="txn-col-note">${escHtml(t.notes||'—')}</td>
       ${act}
     </tr>${mlDetailRow}`;
@@ -8303,7 +8309,7 @@ function txnTable(txns, withActions, periodInfo) {
       <div class="txn-v2-main">
         <div class="txn-card-top">
           <div class="txn-card-desc">${escHtml(t.desc||'（未填）')}</div>
-          <div class="txn-card-amount ${amtCls}">${sign}${fmt(Math.abs(t.amount))}</div>
+          <div class="txn-card-amount ${amtCls}" style="text-align:right">${txnAmtWithFee(t, sign)}</div>
           ${moreBtn}
         </div>
         <div class="txn-card-meta">
