@@ -6028,7 +6028,7 @@
     {
       "id": "mwspjhdarhhyv",
       "date": "2026-11-17",
-      "amount": -2075,
+      "amount": -2069,
       "desc": "儲值西瓜卡",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6037,7 +6037,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 31,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6066,7 +6066,7 @@
     {
       "id": "mwspo59ehjann",
       "date": "2026-11-18",
-      "amount": -1129,
+      "amount": -1126,
       "desc": "Ario 超市",
       "category": "mov4018zwuesg",
       "sourceId": "mov4et7fpt7kr",
@@ -6077,7 +6077,7 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 17,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
