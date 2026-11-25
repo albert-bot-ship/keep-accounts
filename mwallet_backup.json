@@ -6298,7 +6298,7 @@
     {
       "id": "mwsqfzbuvi439",
       "date": "2026-11-20",
-      "amount": -1307,
+      "amount": -1303,
       "desc": "道後溫泉-拉拉熊店",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6307,7 +6307,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 20,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6316,7 +6316,7 @@
     {
       "id": "mwsqi1ywbgsf3",
       "date": "2026-11-20",
-      "amount": -366,
+      "amount": -365,
       "desc": "道後溫泉-吉卜力",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6327,7 +6327,7 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 5,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6336,7 +6336,7 @@
     {
       "id": "mwsqjz8vwcp1d",
       "date": "2026-11-21",
-      "amount": -23345,
+      "amount": -23275,
       "desc": "光伸珍珠免稅店-金島比羅宮支店",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6345,7 +6345,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 349,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6392,7 +6392,7 @@
     {
       "id": "mwssxnjp3qa2v",
       "date": "2026-11-21",
-      "amount": -528,
+      "amount": -526,
       "desc": "買御朱印帳本",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6403,7 +6403,7 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 8,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6488,7 +6488,7 @@
     {
       "id": "mwst1pzuou6ru",
       "date": "2026-11-21",
-      "amount": -1102,
+      "amount": -1099,
       "desc": "瀬戸の祭寿し 兵庫町店",
       "category": "mov4018zwuesg",
       "sourceId": "mov4et7fpt7kr",
@@ -6499,7 +6499,7 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 16,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6517,7 +6517,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 1,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6526,7 +6526,7 @@
     {
       "id": "mwst3ya3zbl1c",
       "date": "2026-11-21",
-      "amount": -2061,
+      "amount": -2055,
       "desc": "cocokarafine 藥妝",
       "category": "mov4018zh9j4y",
       "sourceId": "mov4et7fpt7kr",
@@ -6535,7 +6535,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 31,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6700,7 +6700,7 @@
     {
       "id": "mwstr0qbqla6e",
       "date": "2026-11-20",
-      "amount": -2081,
+      "amount": -2075,
       "desc": "儲值西瓜卡",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6709,7 +6709,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 31,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6932,7 +6932,7 @@
     {
       "id": "mwvif4wdh653x",
       "date": "2026-11-20",
-      "amount": -552,
+      "amount": -550,
       "desc": "Daikonya",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6943,7 +6943,7 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 8,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
