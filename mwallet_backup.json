@@ -14,9 +14,9 @@
         {
           "id": "mowulbb3xlf57",
           "label": "南山年繳",
-          "amount": 0,
+          "amount": 23605,
           "color": "#54b02d",
-          "monthlyAmt": "",
+          "monthlyAmt": 1968,
           "reimbursable": false
         },
         {
@@ -6086,7 +6086,7 @@
     {
       "id": "mwsppcyt46vwr",
       "date": "2026-11-18",
-      "amount": -2096,
+      "amount": -2090,
       "desc": "三井outlet",
       "category": "mov4018zh9j4y",
       "sourceId": "mov4et7fpt7kr",
@@ -6097,7 +6097,7 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 31,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6117,7 +6117,7 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 2,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6126,7 +6126,7 @@
     {
       "id": "mwspzdy89t2li",
       "date": "2026-11-19",
-      "amount": -2330,
+      "amount": -2323,
       "desc": "尾道本通商店街",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6135,7 +6135,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 35,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6144,7 +6144,7 @@
     {
       "id": "mwsq11tu21w9z",
       "date": "2026-11-19",
-      "amount": -1383,
+      "amount": -1379,
       "desc": "廣島平和紀念公園紀念品店",
       "category": "mov787fj4o49i",
       "sourceId": "mov4et7fpt7kr",
@@ -6153,7 +6153,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 21,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6171,7 +6171,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 1,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6180,7 +6180,7 @@
     {
       "id": "mwsq32fd4l4ya",
       "date": "2026-11-19",
-      "amount": -435,
+      "amount": -434,
       "desc": "廣島商店街-三麗鷗",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6189,7 +6189,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 7,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6198,7 +6198,7 @@
     {
       "id": "mwsq4j8803wbo",
       "date": "2026-11-19",
-      "amount": -1304,
+      "amount": -1300,
       "desc": "廣島商店街 PARCO",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6207,7 +6207,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 20,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6216,7 +6216,7 @@
     {
       "id": "mwsq5x2o4wtch",
       "date": "2026-11-19",
-      "amount": -1395,
+      "amount": -1391,
       "desc": "廣島-松本清",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6225,7 +6225,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 21,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6233,8 +6233,8 @@
     },
     {
       "id": "mwsq78kakiwdh",
-      "date": "2026-11-19",
-      "amount": -5508,
+      "date": "2026-11-20",
+      "amount": -5492,
       "desc": "廣島-唐吉軻德",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6243,7 +6243,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 82,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6263,27 +6263,7 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
-      "isSavingsAllocation": false,
-      "isTransferOut": false,
-      "isTransferIn": false,
-      "isFixed": false
-    },
-    {
-      "id": "mwsqcgs8t4cp2",
-      "date": "2026-11-20",
-      "amount": -552,
-      "desc": "",
-      "category": "mov4018zi207l",
-      "sourceId": "mov4et7fpt7kr",
-      "sourceType": "card",
-      "notes": "",
-      "isRedemption": false,
-      "layerId": "mwsnkq9czsf8w",
-      "tags": [
-        "mwsnk7hbphy55"
-      ],
-      "fee": 0,
+      "fee": 2,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -6292,7 +6272,7 @@
     {
       "id": "mwsqeeofd29tc",
       "date": "2026-11-20",
-      "amount": -331,
+      "amount": -330,
       "desc": "多多羅大橋 紀念品店",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6301,7 +6281,7 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 5,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
@@ -7301,8 +7281,8 @@
         "2026-10",
         "2026-11"
       ],
-      "boundCardId": "mov4et7fpt7kr",
-      "boundLayerId": "mowulbb3xlf57"
+      "boundCardId": null,
+      "boundLayerId": null
     },
     {
       "id": "mvew17yiepycq",
@@ -7317,7 +7297,7 @@
       "paidMonths": [],
       "boundCardId": "mov4et7fpt7kr",
       "boundLayerId": "mowulbb3xlf57",
-      "startYM": "2026-12"
+      "startYM": "2026-11"
     }
   ],
   "autoRules": [
