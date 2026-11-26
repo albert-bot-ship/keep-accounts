@@ -5112,7 +5112,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 500
     },
     {
       "id": "mw83jl0svdx4c",
@@ -5149,7 +5151,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 354
     },
     {
       "id": "mwawiwfca79pg",
@@ -5554,7 +5558,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 42
     },
     {
       "id": "mwf6g8l9md7yw",
@@ -5718,7 +5724,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 10
     },
     {
       "id": "mwso2p1jbisl7",
@@ -6071,7 +6079,9 @@
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 100
     },
     {
       "id": "mwspo59ehjann",
@@ -6444,7 +6454,7 @@
     {
       "id": "mwssyo8xo60m4",
       "date": "2026-11-21",
-      "amount": -643,
+      "amount": -641,
       "desc": "AEON 高松",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6453,16 +6463,18 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 10,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 192
     },
     {
       "id": "mwsszfufi433f",
       "date": "2026-11-21",
-      "amount": -301,
+      "amount": -300,
       "desc": "AEON 高松",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6473,16 +6485,18 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 5,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 5
     },
     {
       "id": "mwsszva1t8yu8",
       "date": "2026-11-21",
-      "amount": -367,
+      "amount": -366,
       "desc": "AEON 高松",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6491,16 +6505,18 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 5,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 11
     },
     {
       "id": "mwst0hw9cahat",
       "date": "2026-11-21",
-      "amount": -475,
+      "amount": -474,
       "desc": "AEON 高松",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6511,11 +6527,13 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 7,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 11
     },
     {
       "id": "mwst1pzuou6ru",
@@ -6651,11 +6669,13 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 2,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 10
     },
     {
       "id": "mwstb1e1mumr1",
@@ -6680,7 +6700,7 @@
     {
       "id": "mwstcww9hixkv",
       "date": "2026-11-22",
-      "amount": -563,
+      "amount": -561,
       "desc": "岡山特產館桃太郎-御翔印",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6691,11 +6711,13 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 8,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 9
     },
     {
       "id": "mwsteiqzogbgs",
@@ -6758,7 +6780,7 @@
     {
       "id": "mwstwma9hs3x2",
       "date": "2026-11-21",
-      "amount": -417,
+      "amount": -416,
       "desc": "儲值西瓜卡",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6767,11 +6789,13 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 6,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 22
     },
     {
       "id": "mwswyq70g79vg",
@@ -6994,7 +7018,7 @@
     {
       "id": "mwvsn2kk3x563",
       "date": "2026-11-21",
-      "amount": -209,
+      "amount": -208,
       "desc": "儲值西瓜卡",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -7003,12 +7027,13 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 3,
       "feeOffset": false,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffsetAmt": 11
     },
     {
       "id": "mwvsnigkrki5b",
@@ -7024,12 +7049,13 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 2,
       "feeOffset": false,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffsetAmt": 2
     }
   ],
   "fixedExpenses": [],
