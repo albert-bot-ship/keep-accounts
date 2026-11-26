@@ -3209,8 +3209,10 @@ function cardPeriodTotalSpend(card) {
   const unlayeredSpend = DB.transactions
     .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&t.amount<0&&!t.layerId&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
     .reduce((s,t)=>s+Math.abs(t.amount),0);
+  // 手續費（扣除折抵）：一般分層的已含在分層小計內，這裡只補未分層／分期分層的，避免重複計算
+  const fixedLayerIds = new Set((card.layers||[]).filter(l=>l.monthlyAmt!=null&&l.monthlyAmt!=='').map(l=>l.id));
   const totalCardFees = DB.transactions
-    .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&!t.isPayment&&!t.isRedemption&&t.date>=periodStart&&t.date<=periodEnd)
+    .filter(t=>t.sourceType==='card'&&t.sourceId===card.id&&!t.isPayment&&!t.isRedemption&&t.date>=periodStart&&t.date<=periodEnd&&(!t.layerId||fixedLayerIds.has(t.layerId)))
     .reduce((s,t)=>s+txnFee(t),0);
 
   return layerTotal + unlayeredSpend + totalCardFees;
@@ -7351,10 +7353,15 @@ function renderCards() {
     const unlayeredSpend = DB.transactions
       .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&t.amount<0&&!t.layerId&&!t.isPayment&&t.date>=periodStart&&t.date<=periodEnd)
       .reduce((s,t)=>s+Math.abs(t.amount),0);
-    const totalCardFees = DB.transactions
-      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&!t.isPayment&&!t.isRedemption&&t.date>=periodStart&&t.date<=periodEnd)
-      .reduce((s,t)=>s+txnFee(t),0);
-    const totalSpend = layerTotal + unlayeredSpend + totalCardFees;
+    // 本期手續費（原始金額，顯示用）與消費上填的點數／回饋折抵
+    const periodCardTxns = DB.transactions
+      .filter(t=>t.sourceType==='card'&&t.sourceId===c.id&&!t.isPayment&&!t.isRedemption&&t.date>=periodStart&&t.date<=periodEnd);
+    const totalCardFees = periodCardTxns.reduce((s,t)=>s+(+t.fee||0),0);
+    const txnOffsetTotal = periodCardTxns.reduce((s,t)=>s+txnOffset(t),0);
+    // 累積消費：一般分層小計已含手續費／折抵，這裡只補未分層／分期分層的，避免重複計算
+    const fixedLayerIds = new Set(layerDataArr.filter(d=>d.isMonthlyFixed).map(d=>d.l.id));
+    const extraFeeNet = periodCardTxns.filter(t=>!t.layerId||fixedLayerIds.has(t.layerId)).reduce((s,t)=>s+txnFee(t),0);
+    const totalSpend = layerTotal + unlayeredSpend + extraFeeNet;
 
     // 已繳款：本期開始後的所有繳款記錄
     const totalPaid = DB.transactions
@@ -7489,15 +7496,15 @@ function renderCards() {
         </div>
         <div style="font-size:11px;${ic};margin-bottom:4px">
           未還款餘額
-          ${totalPaid>0||unlayeredRedeem>0||layerRedeemTotal>0?`<span style="font-size:10px;${ic};margin-left:8px">累積消費 ${fmt(-totalSpend)}</span>`:''}
+          ${totalPaid>0||unlayeredRedeem>0||layerRedeemTotal>0||txnOffsetTotal>0?`<span style="font-size:10px;${ic};margin-left:8px">累積消費 ${fmt(-totalSpend)}</span>`:''}
         </div>
         <div class="account-balance ${netOutstanding>0?'negative':''}">
           ${netOutstanding>0?'−'+fmt(netOutstanding):'−NT$0'}
         </div>
-        ${totalPaid>0||unlayeredRedeem>0||layerRedeemTotal>0?`
+        ${totalPaid>0||unlayeredRedeem>0||layerRedeemTotal>0||txnOffsetTotal>0?`
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
           ${totalPaid>0?`<span style="font-size:11px;${ig}">💳 已繳 +${fmt(totalPaid)}</span>`:''}
-          ${(unlayeredRedeem+layerRedeemTotal)>0?`<span style="font-size:11px;${ig}">🎁 折抵 +${fmt(unlayeredRedeem+layerRedeemTotal)}</span>`:''}
+          ${(unlayeredRedeem+layerRedeemTotal+txnOffsetTotal)>0?`<span style="font-size:11px;${ig}">🎁 折抵 +${fmt(unlayeredRedeem+layerRedeemTotal+txnOffsetTotal)}</span>`:''}
         </div>`:''}
         <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
           <div style="font-size:11px;${is}">本期消費：<span style="${ir}">${fmt(-mSpend)}</span><span style="font-size:10px;${ic};margin-left:4px">(${periodStart.slice(5)} ～ ${periodEnd.slice(5)})</span></div>
@@ -8164,6 +8171,8 @@ function txnTable(txns, withActions, periodInfo) {
   });
 
   const total = txns.reduce((s,t)=>s+t.amount-(t.amount<0?txnFee(t):0),0);
+  // 折抵合計：消費上填的點數／回饋折抵＋「點數/回饋折抵」類型的記錄
+  const offsetSum = txns.reduce((s,t)=>s+txnOffset(t)+(t.isRedemption&&t.amount>0?t.amount:0),0);
 
   // 逐筆餘額顯示（僅銀行帳戶；有分層顯示分層餘額，無分層顯示帳戶總餘額）
   const runBal = buildTxnRunningBalances();
@@ -8270,7 +8279,7 @@ function txnTable(txns, withActions, periodInfo) {
     <thead><tr>${withActions?'<th></th>':''}${showDateCol?'<th>日期</th>':''}<th>內容</th><th>類別</th><th>帳戶／卡片</th><th class="txn-col-amt">金額</th><th>備註</th>${withActions?'<th class="txn-col-act">操作</th>':''}</tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr>
-      <td colspan="${(withActions?1:0)+(showDateCol?1:0)+3}">共 ${txns.length} 筆</td>
+      <td colspan="${(withActions?1:0)+(showDateCol?1:0)+3}">共 ${txns.length} 筆${offsetSum>0?`<span style="margin-left:10px;color:var(--tx-green)">🎁 其中折抵 ${fmt(offsetSum)}</span>`:''}</td>
       <td class="txn-col-amt" style="font-weight:700;font-family:var(--ff-display);font-size:15px;color:${total<0?'var(--tx-red)':'var(--tx-green)'}">${total>=0?'+':'−'}${fmt(Math.abs(total))}</td>
       <td colspan="${1+(withActions?1:0)}"></td>
     </tr></tfoot>
@@ -8339,7 +8348,7 @@ function txnTable(txns, withActions, periodInfo) {
     </div>`;
   }).join('');
   const mobileTotal = `<div style="padding:10px 14px;border-top:1px solid var(--bdr-subtle);display:flex;justify-content:space-between;font-size:12px;color:var(--tx-muted)">
-    <span>共 ${txns.length} 筆</span>
+    <span>共 ${txns.length} 筆${offsetSum>0?`<span style="margin-left:8px;color:var(--tx-green)">🎁 其中折抵 ${fmt(offsetSum)}</span>`:''}</span>
     <span style="font-family:var(--ff-display);font-size:14px;font-weight:700;color:${total<0?'var(--tx-red)':'var(--tx-green)'}">${total>=0?'+':'−'}${fmt(Math.abs(total))}</span>
   </div>`;
   const cardsHtml = `<div class="txn-cards-mobile">${cards}${mobileTotal}</div>`;
