@@ -6394,7 +6394,7 @@
     {
       "id": "mwsqlz1yu09yh",
       "date": "2026-11-21",
-      "amount": -730,
+      "amount": -728,
       "desc": "金刀比羅宮-御守",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6405,16 +6405,18 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 11,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 39
     },
     {
       "id": "mwsqn1rac1ej6",
       "date": "2026-11-21",
-      "amount": -250,
+      "amount": -249,
       "desc": "金刀比羅宮-蝦米煎餅",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6423,11 +6425,13 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 4,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 74
     },
     {
       "id": "mwssxnjp3qa2v",
@@ -6600,7 +6604,7 @@
     {
       "id": "mwst63yy95q4a",
       "date": "2026-11-22",
-      "amount": -705,
+      "amount": -703,
       "desc": "snoopy倉敷店",
       "category": "mov4018zh9j4y",
       "sourceId": "mov4et7fpt7kr",
@@ -6611,16 +6615,18 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 11,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 54
     },
     {
       "id": "mwst8125b48uy",
       "date": "2026-11-22",
-      "amount": -679,
+      "amount": -677,
       "desc": "米非兔麵包店",
       "category": "mov4018zwuesg",
       "sourceId": "mov4et7fpt7kr",
@@ -6629,16 +6635,18 @@
       "isRedemption": false,
       "layerId": "mwsnkq9czsf8w",
       "tags": [],
-      "fee": 0,
+      "fee": 10,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 87
     },
     {
       "id": "mwst97qywb4c5",
       "date": "2026-11-22",
-      "amount": -378,
+      "amount": -377,
       "desc": "米非兔倉敷店",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6649,11 +6657,13 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 6,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 113
     },
     {
       "id": "mwst9rhvwoqnw",
@@ -6680,7 +6690,7 @@
     {
       "id": "mwstb1e1mumr1",
       "date": "2026-11-22",
-      "amount": -1609,
+      "amount": -1604,
       "desc": "拉拉熊倉敷店",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6691,11 +6701,13 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 24,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 128
     },
     {
       "id": "mwstcww9hixkv",
@@ -6722,7 +6734,7 @@
     {
       "id": "mwsteiqzogbgs",
       "date": "2026-11-22",
-      "amount": -700,
+      "amount": -698,
       "desc": "岡山機場-九州筑豊拉麵山小屋",
       "category": "mov4018zi207l",
       "sourceId": "mov4et7fpt7kr",
@@ -6733,11 +6745,13 @@
       "tags": [
         "mwsnk7hbphy55"
       ],
-      "fee": 0,
+      "fee": 10,
       "isSavingsAllocation": false,
       "isTransferOut": false,
       "isTransferIn": false,
-      "isFixed": false
+      "isFixed": false,
+      "feeOffset": false,
+      "feeOffsetAmt": 58
     },
     {
       "id": "mwstfgrr9zbiq",
